@@ -16,8 +16,19 @@ const store = new FileStore(dataDir)
 await store.init()
 const pairing = new PairingStore()
 
-const oauth = await NodeOAuthClient.fromClientId({
-  clientId: new URL('/client-metadata.json', publicUrl).href,
+const oauth = new NodeOAuthClient({
+  clientMetadata: {
+    client_id: new URL('/client-metadata.json', publicUrl).href,
+    client_name: 'Platinum Bridge',
+    client_uri: publicUrl,
+    redirect_uris: [new URL('/atproto-oauth-callback', publicUrl).href],
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    application_type: 'web',
+    token_endpoint_auth_method: 'none',
+    dpop_bound_access_tokens: true,
+    scope: 'atproto',
+  },
   stateStore: store.stateStore(),
   sessionStore: store.sessionStore(),
 })
