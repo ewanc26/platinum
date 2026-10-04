@@ -4,6 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char *bridge_strdup(const char *value)
+{
+    size_t len;
+    char *copy;
+
+    if (value == NULL)
+        return NULL;
+    len = strlen(value);
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL)
+        return NULL;
+    memcpy(copy, value, len + 1);
+    return copy;
+}
+
 struct platinum_bridge_client {
     wf_xrpc_client *xrpc;
     char *base_url;
@@ -157,7 +172,7 @@ wf_status platinum_bridge_pair(platinum_bridge_client *client,
         platinum_bridge_pairing_free(out);
         return WF_ERR_PARSE;
     }
-    out->token = strdup(item->valuestring);
+    out->token = bridge_strdup(item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(response, "did");
     if (!cJSON_IsString(item) || item->valuestring == NULL ||
@@ -167,7 +182,7 @@ wf_status platinum_bridge_pair(platinum_bridge_client *client,
         platinum_bridge_pairing_free(out);
         return out->token == NULL ? WF_ERR_ALLOC : WF_ERR_PARSE;
     }
-    out->did = strdup(item->valuestring);
+    out->did = bridge_strdup(item->valuestring);
 
     cJSON_Delete(response);
     wf_response_free(&raw);
