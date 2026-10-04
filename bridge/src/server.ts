@@ -105,7 +105,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const handle = url.searchParams.get('handle')
     if (!handle) return html(res, 400, '<h1>Platinum</h1><p>A Bluesky handle is required.</p>')
     const target = await oauth.authorize(handle)
-    return redirect(res, target)
+    return redirect(res, target.toString())
   }
 
   if (req.method === 'GET' && url.pathname === '/atproto-oauth-callback') {
@@ -147,7 +147,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!agent) return json(res, 401, { error: 'invalid_token' })
 
   if (req.method === 'GET' && url.pathname === '/v1/profile') {
-    const result = await agent.getProfile({ actor: agent.did })
+    const result = await agent.getProfile({ actor: agent.accountDid })
     return json(res, 200, result.data)
   }
 
