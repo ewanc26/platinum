@@ -38,3 +38,12 @@ The Mac client receives only a bridge token.
 
 Pairing codes must remain short-lived and single-use. Do not log OAuth tokens,
 bridge tokens, authorisation codes, or session contents.
+
+
+## Classic Mac OS 9 client
+
+- Keep Mac OS 9 code strict C89 and compatible with CodeWarrior-era headers and libraries.
+- Use Wolfram's `wolfram-macos9-transport` for HTTP/TLS rather than adding libcurl, OpenSSL, pthreads, or modern POSIX networking code to Platinum.
+- The Mac client talks only to the Platinum Bridge. OAuth, DPoP, DID resolution, and modern AT Protocol API details stay on the bridge.
+- Network operations must yield through Wolfram's Mac OS 9 transport callback so the cooperative event loop remains responsive.
+- Keep bridge tokens in application-owned persistent storage; never persist PDS OAuth credentials or refresh tokens on the Mac.
