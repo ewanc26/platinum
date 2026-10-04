@@ -8,6 +8,7 @@ import { FileStore, PairingStore } from './store.js'
 const port = Number(process.env.PLATINUM_BRIDGE_PORT ?? 8787)
 const host = process.env.PLATINUM_BRIDGE_HOST ?? '127.0.0.1'
 const baseUrl = process.env.PLATINUM_BRIDGE_URL ?? 'http://' + host + ':' + port
+const publicUrl = process.env.PLATINUM_BRIDGE_PUBLIC_URL ?? baseUrl
 const dataDir = resolve(process.env.PLATINUM_BRIDGE_DATA_DIR ?? '.platinum-bridge')
 
 await mkdir(dataDir, { recursive: true })
@@ -16,7 +17,7 @@ await store.init()
 const pairing = new PairingStore()
 
 const oauth = await NodeOAuthClient.fromClientId({
-  clientId: new URL('/client-metadata.json', baseUrl).href,
+  clientId: new URL('/client-metadata.json', publicUrl).href,
   stateStore: store.stateStore(),
   sessionStore: store.sessionStore(),
 })
@@ -78,8 +79,15 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, oauth.clientMetadata)
   }
 
-  if (req.method === 'GET' && url.pathname === '/jwks.json') {
-    return json(res, 200, oauth.jwks)
+  if (req.method === 'POST' && url.pathname === '/v1/revoke') {
+    const authorization = req.headers.authorization
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
+    if (!token) return json(res, 401, { error: 'missing_bearer_token' })
+    const data = await tokens()
+    if (!data[token]) return json(res, 404, { error: 'invalid_token' })
+    delete data[token]
+    await writeFile(tokenPath, JSON.stringify(data, null, 2), { mode: 0o600 })
+    return json(res, 200, { ok: true })
   }
 
   if (req.method === 'GET' && url.pathname === '/login') {
