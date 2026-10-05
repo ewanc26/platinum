@@ -612,7 +612,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
-- full MacRoman-to-UTF-8 post submission;
+- richer text/emoji editing beyond the MacRoman character repertoire;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
