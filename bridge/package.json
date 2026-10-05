@@ -1,0 +1,24 @@
+{
+  "name": "@ewanc26/platinum-bridge",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Modern AT Protocol bridge for the Platinum Mac OS 9 Bluesky client",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@atproto/api": "^0.23.0",
+    "@atproto/oauth-client-node": "^0.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
