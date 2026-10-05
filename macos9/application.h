@@ -3,6 +3,7 @@
 
 #include "session.h"
 #include "compose.h"
+#include "pairing.h"
 #include "ui.h"
 #include <Menus.h>
 
@@ -16,6 +17,7 @@ typedef struct platinum_application {
     platinum_ui_layout layout;
     platinum_ui_state ui;
     platinum_compose compose;
+    platinum_pairing pairing;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
