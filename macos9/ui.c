@@ -260,6 +260,16 @@ void platinum_ui_draw(GrafPtr port,
     row_top = layout->navigation.top + 12;
     (void)row_top;
 
+    {
+        Rect selection;
+        selection = layout->navigation;
+        selection.left += 4;
+        selection.right -= 4;
+        selection.top += 5 + (short)(state->navigation * 28);
+        selection.bottom = selection.top + 24;
+        FrameRect(&selection);
+    }
+
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 24);
     DrawString(kHome);
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 52);
