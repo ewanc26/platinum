@@ -4,7 +4,7 @@
 #include <string.h>
 
 static unsigned char kComposeTitle[] = {
-    9, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
+    11, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
 };
 static unsigned char kCancel[] = {
     6, 'C', 'a', 'n', 'c', 'e', 'l'
