@@ -48,5 +48,6 @@ short GetCtlMax(ControlHandle control);
 short TrackControl(ControlHandle control, Point start,
                    ControlActionUPP actionProc);
 void Draw1Control(ControlHandle control, short part);
+void DrawControl(ControlHandle control);
 
 #endif

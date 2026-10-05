@@ -70,6 +70,7 @@ jobs:
             macos9/bridge_client.c \
             macos9/config.c \
             macos9/json_min.c \
+            macos9/scrollbar.c \
             macos9/text_codec.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c
