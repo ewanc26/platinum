@@ -40,6 +40,7 @@ macos9/json_min.h                  protocol
 macos9/main.c                      platform
 macos9/notifications.c             platform  # view model of a bridge response
 macos9/notifications.h             platform
+macos9/notifications_feed.c        platform  # view model of a bridge response, no QuickDraw so it links on a host
 macos9/pairing.c                   platform
 macos9/pairing.h                   platform
 macos9/preferences.c               platform
