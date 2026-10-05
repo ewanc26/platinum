@@ -15,6 +15,7 @@ OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
     memset(scrollbar, 0, sizeof(*scrollbar));
     scrollbar->window = window;
     scrollbar->bounds = *bounds;
+    scrollbar->maximum = 0;
 
     scrollbar->control = NewControl(window,
                                     &scrollbar->bounds,
@@ -44,6 +45,7 @@ void platinum_scrollbar_close(platinum_scrollbar *scrollbar)
     }
 
     scrollbar->window = NULL;
+    scrollbar->maximum = 0;
 }
 
 void platinum_scrollbar_set_range(platinum_scrollbar *scrollbar,
@@ -64,6 +66,8 @@ void platinum_scrollbar_set_range(platinum_scrollbar *scrollbar,
     maximum = total - visible;
     if (maximum < 0)
         maximum = 0;
+
+    scrollbar->maximum = maximum;
 
     if (value < 0)
         value = 0;
@@ -98,8 +102,8 @@ int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
     short result;
 
     if (scrollbar == NULL || scrollbar->control == NULL ||
-        event == NULL || value == NULL ||
-        event->what != mouseDown)
+        event == NULL || value == NULL || event->what != mouseDown ||
+        scrollbar->maximum == 0)
         return 0;
 
     GetPort(&old_port);
