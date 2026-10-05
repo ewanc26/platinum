@@ -265,3 +265,6 @@ The native Notifications surface is a modeless document window backed by `GET /v
 
 
 The native Preferences surface is a modeless document window showing the paired bridge URL, account DID and installation ID. Its Sign Out action calls the bridge revocation endpoint before clearing the local session; a local sign-out is still completed if remote revocation cannot be confirmed.
+
+
+Pairing is a reusable modeless window rather than a first-run-only dialog. It opens automatically when no account is configured and can also be invoked from File > Pair Account or Account Preferences after sign-out. OAuth remains in the modern browser; the Classic Mac window only collects the bridge URL and six-character pairing code.
