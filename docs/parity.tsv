@@ -12,7 +12,7 @@ sign-out|Sign out with server-side revocation|yes|yes|implemented|macos9/session
 timeline|Home timeline|yes|yes|implemented|macos9/timeline.c::platinum_timeline_refresh
 timeline-paging|Timeline paging|yes|yes|implemented|macos9/timeline.c::platinum_timeline_load_older
 notifications|Notifications|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_refresh
-notifications-paging|Notifications paging|yes|yes|issue|#26
+notifications-paging|Notifications paging|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_load_older
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|issue|#27
 post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
