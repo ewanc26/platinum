@@ -39,7 +39,8 @@ typedef struct platinum_notifications {
 
 enum {
     PLATINUM_NOTIFICATIONS_NONE = 0,
-    PLATINUM_NOTIFICATIONS_CLOSE = 1
+    PLATINUM_NOTIFICATIONS_CLOSE = 1,
+    PLATINUM_NOTIFICATIONS_REFRESH = 2
 };
 
 void platinum_notifications_init(platinum_notifications *notifications);
