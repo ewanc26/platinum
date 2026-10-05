@@ -243,6 +243,19 @@ wf_status platinum_notifications_refresh(
     notification_copy(notifications->cursor, sizeof(notifications->cursor),
                       root, "cursor");
 
+    /* The newest item comes first. Its timestamp is an identifier for the
+     * bridge, so it is copied exactly or not at all. */
+    notifications->newest_at[0] = '\0';
+    notifications->any_unread = 0;
+    for (index = 0; index < notifications->count; ++index)
+        if (!notifications->items[index].is_read)
+            notifications->any_unread = 1;
+    if (notifications->count > 0 &&
+        platinum_json_element(items, 0, &value) == WF_OK &&
+        platinum_json_string(value, "indexedAt", notifications->newest_at,
+                             sizeof(notifications->newest_at)) != WF_OK)
+        notifications->newest_at[0] = '\0';
+
     /* Everything has been copied out of response.body by now. */
     wf_response_free(&response);
 
@@ -253,6 +266,23 @@ wf_status platinum_notifications_refresh(
         notifications_status(notifications, kRefreshHint);
 
     return WF_OK;
+}
+
+wf_status platinum_notifications_mark_seen(
+    platinum_notifications *notifications,
+    platinum_bridge_client *bridge)
+{
+    if (notifications == NULL || bridge == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (!notifications->any_unread || notifications->newest_at[0] == '\0')
+        return WF_OK;
+    {
+        wf_status status;
+        status = platinum_bridge_mark_seen(bridge, notifications->newest_at);
+        if (status == WF_OK)
+            notifications->any_unread = 0;
+        return status;
+    }
 }
 
 static void notification_text(const char *text, short x, short y)

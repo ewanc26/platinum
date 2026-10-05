@@ -409,3 +409,28 @@ long platinum_bridge_query_escape(const char *value, char *out, long capacity)
     out[length] = '\0';
     return length;
 }
+
+wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
+                                    const char *seen_at)
+{
+    char escaped[160];
+    char body[192];
+    wf_response response;
+    wf_status status;
+
+    if (client == NULL || seen_at == NULL || seen_at[0] == '\0' ||
+        strlen(seen_at) > 64)
+        return WF_ERR_INVALID_ARG;
+    if (platinum_json_escape(escaped, sizeof(escaped), seen_at) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+
+    strcpy(body, "{\"seenAt\":\"");
+    strcat(body, escaped);
+    strcat(body, "\"}");
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_post(client, "/v1/notifications/seen", body,
+                                  &response);
+    wf_response_free(&response);
+    return status;
+}
