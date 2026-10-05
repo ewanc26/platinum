@@ -48,6 +48,7 @@ The native client owns:
 - bridge configuration;
 - pairing-code entry;
 - storage of the bridge token;
+- the paired account DID and installation ID;
 - presentation of profiles, timelines and notifications;
 - composition of posts;
 - HTTP/JSON communication with the bridge.
@@ -98,8 +99,15 @@ platinum/
 │   ├── tsconfig.json
 │   └── .env.example
 ├── macos9/
+│   ├── application.c
+│   ├── application.h
 │   ├── bridge_client.c
-│   └── bridge_client.h
+│   ├── bridge_client.h
+│   ├── config.c
+│   ├── config.h
+│   ├── main.c
+│   ├── session.c
+│   └── session.h
 └── .github/
     └── workflows/
         └── ci.yml
@@ -585,6 +593,9 @@ The current branch contains the first working bridge architecture and Mac-side b
 - file-backed bridge state;
 - bridge profile/timeline/notifications/post endpoints;
 - Mac OS 9 bridge client API;
+- persistent Classic Mac configuration;
+- account session lifecycle and revocation handling;
+- native event-driven application shell;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -592,8 +603,6 @@ The current branch contains the first working bridge architecture and Mac-side b
 
 ### In progress
 
-- native Mac OS 9 application shell;
-- persistent Classic Mac configuration;
 - pairing UI;
 - native timeline/profile/notification screens;
 - post composition;
