@@ -21,6 +21,8 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
+      - name: Logo and icon are generated from one shape
+        run: tools/gen-art.py --check
       - name: Parity matrix matches the code
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
