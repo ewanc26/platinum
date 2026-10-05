@@ -182,12 +182,26 @@ static int json_put_utf8(char *dst, size_t cap, size_t *used, unsigned int cp)
  * real destination could not hold the value. On success `*out_next`, when
  * given, points just past the closing quote.
  */
-static wf_status json_decode_string(const char *p,
-                                    char *dst,
-                                    size_t cap,
-                                    const char **out_next)
+/*
+ * Decode the JSON string at `p` into `dst`.
+ *
+ * With `clip` zero a value that does not fit fails with WF_ERR_ALLOC and
+ * writes nothing incomplete: `dst` is left holding only whole decoded units, or
+ * nothing at all. That is what a caller reading a token needs.
+ *
+ * With `clip` non-zero a value that does not fit is cut at the last unit that
+ * does fit and reported as WF_OK. Only whole units are ever written, so a
+ * clipped value never ends in half an escape sequence. That is for text being
+ * displayed, never for an identifier.
+ */
+static wf_status json_decode_string_ex(const char *p,
+                                       char *dst,
+                                       size_t cap,
+                                       const char **out_next,
+                                       int clip)
 {
     size_t used;
+    int clipped;
 
     if (dst != NULL && cap != 0)
         dst[0] = '\0';
@@ -196,6 +210,7 @@ static wf_status json_decode_string(const char *p,
         return WF_ERR_PARSE;
     p++;
     used = 0;
+    clipped = 0;
 
     while (*p != '"') {
         unsigned char c = (unsigned char)*p;
@@ -211,28 +226,52 @@ static wf_status json_decode_string(const char *p,
             case '"':
             case '\\':
             case '/':
-                if (dst != NULL && !json_put(dst, cap, &used, esc))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, esc)) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 'b':
-                if (dst != NULL && !json_put(dst, cap, &used, '\b'))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, '\b')) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 'f':
-                if (dst != NULL && !json_put(dst, cap, &used, '\f'))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, '\f')) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 'n':
-                if (dst != NULL && !json_put(dst, cap, &used, '\n'))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, '\n')) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 'r':
-                if (dst != NULL && !json_put(dst, cap, &used, '\r'))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, '\r')) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 't':
-                if (dst != NULL && !json_put(dst, cap, &used, '\t'))
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && !json_put(dst, cap, &used, '\t')) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             case 'u': {
                 unsigned int cp;
@@ -257,8 +296,12 @@ static wf_status json_decode_string(const char *p,
                     return WF_ERR_PARSE;
                 }
 
-                if (dst != NULL && json_put_utf8(dst, cap, &used, cp) != 0)
-                    return WF_ERR_ALLOC;
+                if (dst != NULL && json_put_utf8(dst, cap, &used, cp) != 0) {
+                    if (!clip)
+                        return WF_ERR_ALLOC;
+                    clipped = 1;
+                    break;
+                }
                 break;
             }
             default:
@@ -271,17 +314,34 @@ static wf_status json_decode_string(const char *p,
         if (c < 0x20)
             return WF_ERR_PARSE;
 
-        if (dst != NULL && !json_put(dst, cap, &used, (char)c))
-            return WF_ERR_ALLOC;
+        if (dst != NULL && !json_put(dst, cap, &used, (char)c)) {
+            if (!clip)
+                return WF_ERR_ALLOC;
+            clipped = 1;
+            break;
+        }
         p++;
     }
 
+    if (clipped)
+        goto done;
+
     p++;
+
+done:
     if (dst != NULL && cap != 0)
         dst[used] = '\0';
     if (out_next != NULL)
         *out_next = p;
     return WF_OK;
+}
+
+static wf_status json_decode_string(const char *p,
+                                    char *dst,
+                                    size_t cap,
+                                    const char **out_next)
+{
+    return json_decode_string_ex(p, dst, cap, out_next, 0);
 }
 
 /* Advance past a JSON number, or return NULL if it is not one. */
@@ -508,11 +568,11 @@ wf_status platinum_json_get_string(const char *body,
     return json_decode_string(value, dst, cap, NULL);
 }
 
-wf_status platinum_json_get_int(const char *body, const char *name, long *out)
+/* Read the JSON number at `p` into `*out`. The document is already validated,
+ * so this cannot meet a malformed number in practice; a failure is passed
+ * through rather than mapped onto something else. */
+static wf_status json_read_int(const char *p, long *out)
 {
-    const char *value = NULL;
-    wf_status status;
-    const char *p;
     long parsed;
     int negative;
     int digits;
@@ -522,17 +582,6 @@ wf_status platinum_json_get_int(const char *body, const char *name, long *out)
 
     *out = 0;
 
-    /* Validated for the same reason as platinum_json_get_string: a body that
-     * only parses as far as the member being read is a broken body. */
-    status = platinum_json_valid(body);
-    if (status != WF_OK)
-        return status;
-
-    status = json_find_member(body, name, &value);
-    if (status != WF_OK)
-        return status;
-
-    p = value;
     negative = 0;
     if (*p == '-') {
         negative = 1;
@@ -561,6 +610,29 @@ wf_status platinum_json_get_int(const char *body, const char *name, long *out)
     return WF_OK;
 }
 
+wf_status platinum_json_get_int(const char *body, const char *name, long *out)
+{
+    const char *value = NULL;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    *out = 0;
+
+    /* Validated for the same reason as platinum_json_get_string: a body that
+     * only parses as far as the member being read is a broken body. */
+    status = platinum_json_valid(body);
+    if (status != WF_OK)
+        return status;
+
+    status = json_find_member(body, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    return json_read_int(value, out);
+}
+
 wf_status platinum_json_valid(const char *body)
 {
     const char *p;
@@ -576,6 +648,242 @@ wf_status platinum_json_valid(const char *body)
     /* Exactly one document: trailing content is malformed, not ignorable. */
     p = json_skip_space(p);
     if (*p != '\0')
+        return WF_ERR_PARSE;
+
+    return WF_OK;
+}
+
+/*
+ * Walk the array whose first byte is at `array`, counting elements from zero,
+ * either reporting its length or positioning at element `want`.
+ *
+ * `want` is negative to count only; `out_count` and `out_value` are the two
+ * optional results. Exactly one of them is used per call.
+ */
+static wf_status json_array_walk(const char *array,
+                                 long want,
+                                 long *out_count,
+                                 const char **out_value)
+{
+    const char *p;
+    long seen;
+
+    if (array == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (want < 0 && out_count == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (want >= 0 && out_value == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    if (out_count != NULL)
+        *out_count = 0;
+    if (out_value != NULL)
+        *out_value = NULL;
+
+    if (*array != '[')
+        return WF_ERR_PARSE;
+
+    seen = 0;
+    p = json_skip_space(array + 1);
+    if (*p == ']')
+        return (want < 0) ? WF_OK : WF_ERR_NOT_FOUND;
+
+    for (;;) {
+        p = json_skip_space(p);
+
+        if (seen == want && out_value != NULL)
+            *out_value = p;
+
+        p = json_skip_value(p, 1);
+        if (p == NULL)
+            return WF_ERR_PARSE;
+        ++seen;
+        if (out_count != NULL)
+            *out_count = seen;
+
+        p = json_skip_space(p);
+        if (*p == ',') {
+            p++;
+            continue;
+        }
+        if (*p == ']')
+            break;
+        return WF_ERR_PARSE;
+    }
+
+    /* The loop ran to the closing bracket, so `seen` is the true length. */
+    return (seen <= want) ? WF_ERR_NOT_FOUND : WF_OK;
+}
+
+wf_status platinum_json_open(platinum_json *out, const char *body)
+{
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    out->text = NULL;
+    out->at = NULL;
+
+    status = platinum_json_valid(body);
+    if (status != WF_OK)
+        return status;
+
+    out->text = body;
+    out->at = json_skip_space(body);
+    return WF_OK;
+}
+
+wf_status platinum_json_member(platinum_json object,
+                               const char *name,
+                               platinum_json *out)
+{
+    const char *value = NULL;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    out->text = NULL;
+    out->at = NULL;
+
+    if (object.text == NULL || object.at == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    /* json_find_member reports WF_ERR_PARSE when the cursor is not on an
+     * object, which is the right answer for a member lookup on an array or a
+     * string. */
+    status = json_find_member(object.at, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    out->text = object.text;
+    out->at = value;
+    return WF_OK;
+}
+
+wf_status platinum_json_element(platinum_json array, long index, platinum_json *out)
+{
+    const char *value = NULL;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    out->text = NULL;
+    out->at = NULL;
+
+    if (array.text == NULL || array.at == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    status = json_array_walk(array.at, index, NULL, &value);
+    if (status != WF_OK)
+        return status;
+
+    out->text = array.text;
+    out->at = value;
+    return WF_OK;
+}
+
+wf_status platinum_json_count(platinum_json array, long *out)
+{
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    *out = 0;
+
+    if (array.text == NULL || array.at == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    return json_array_walk(array.at, -1, out, NULL);
+}
+
+wf_status platinum_json_string(platinum_json object,
+                              const char *name,
+                              char *dst,
+                              size_t cap)
+{
+    platinum_json value;
+    wf_status status;
+
+    if (dst == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+
+    dst[0] = '\0';
+
+    status = platinum_json_member(object, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    if (*value.at != '"')
+        return WF_ERR_PARSE;
+
+    return json_decode_string(value.at, dst, cap, NULL);
+}
+
+/*
+ * The truncating form. json_decode_string refuses to write a partial string, so
+ * this measures first and then decodes into a capacity that is known to fit.
+ */
+wf_status platinum_json_string_truncating(platinum_json object,
+                                          const char *name,
+                                          char *dst,
+                                          size_t cap)
+{
+    platinum_json value;
+    wf_status status;
+
+    if (dst == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+
+    dst[0] = '\0';
+
+    status = platinum_json_member(object, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    if (*value.at != '"')
+        return WF_ERR_PARSE;
+
+    return json_decode_string_ex(value.at, dst, cap, NULL, 1);
+}
+
+wf_status platinum_json_int(platinum_json object, const char *name, long *out)
+{
+    platinum_json value;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    *out = 0;
+
+    status = platinum_json_member(object, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    return json_read_int(value.at, out);
+}
+
+wf_status platinum_json_bool(platinum_json object, const char *name, int *out)
+{
+    platinum_json value;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    *out = 0;
+
+    status = platinum_json_member(object, name, &value);
+    if (status != WF_OK)
+        return status;
+
+    if (strncmp(value.at, "true", 4) == 0)
+        *out = 1;
+    else if (strncmp(value.at, "false", 5) == 0)
+        *out = 0;
+    else
         return WF_ERR_PARSE;
 
     return WF_OK;

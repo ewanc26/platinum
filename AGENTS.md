@@ -116,6 +116,8 @@ platinum/
 │   ├── main.c
 │   ├── session.c
 │   ├── session.h
+│   ├── scrollbar.c
+│   ├── scrollbar.h
 │   ├── text_codec.c
 │   ├── text_codec.h
 │   ├── timeline.c
@@ -477,11 +479,31 @@ public headers and run the tests under `macos9/test/`:
 ```sh
 clang -std=c89 -pedantic-errors -Wall -Wextra -Wno-unused-parameter -Werror \
   -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
-  -I macos9 -I ../wolfram/include \
+  -I macos9 -I macos9/test/sdk-stubs -I ../wolfram/include \
   -o /tmp/test_bridge_client \
   macos9/bridge_client.c macos9/json_min.c macos9/test/test_bridge_client.c
 /tmp/test_bridge_client
 ```
+
+CI compiles **every** source under `macos9/`, not a portable subset. It does that
+against `macos9/test/sdk-stubs/`, declaration-only headers standing in for the
+Classic Mac SDK a runner does not have. Read that directory's README before
+changing them. They exist because the job used to compile five files and was
+blind to the rest, which is how a source could include a header that does not
+exist and call `NewCWindow` with the wrong number of arguments and still reach
+main.
+
+Two rules follow from the stubs being declarations rather than the real SDK:
+
+A stub signature is the real Classic Mac signature. If a call does not match,
+the source is wrong. Fix the source, never the stub; a stub that lies is worse
+than a missing stub, because it turns the check green without the code being
+real.
+
+A clean compile against the stubs is a dialect and type-consistency check. It
+is not a CodeWarrior build, not a QuickDraw link, and not Classic Mac OS 9
+validation. Struct layouts and pointer sizes in the stubs are nothing like the
+originals.
 
 CI enforces this on every change. Keep the flags in step with Wolfram's own Mac
 OS 9 CI job, because the two targets have to accept the same dialect.
@@ -499,12 +521,32 @@ A successful host build is not proof of Classic Mac OS 9 compatibility.
 ### JSON on the Mac side
 
 The bridge protocol needs only a handful of fields read out of a small response,
-so `macos9/json_min.c` does that with bounded buffers and no allocation tree.
+so `macos9/json_min.c` does that with bounded buffers and no allocation tree. It
+does navigate nested objects and arrays, because the timeline and notification
+responses are an array of objects each with a nested author, but it navigates
+them with a cursor of two pointers into the caller's own buffer rather than a
+tree.
+
+`platinum_json_open` validates the whole document once. Everything after that
+happens inside a document already known to be well formed, so navigation cannot
+hand back half a token.
+
+Two string accessors exist because they differ in a way that matters.
+`platinum_json_string` refuses a value that does not fit, which is what reading a
+token or a DID needs. `platinum_json_string_truncating` clips at the last whole
+decoded unit and is for text being displayed; it never emits half an escape
+sequence. Never use the truncating form for an identifier.
+
+`platinum_json_bool` accepts only `true` and `false`. A string reading "true" is
+not a boolean, and coercing one would let a response decide for itself whether
+the user has seen a notification.
 
 Do not add cJSON or another JSON library to the Mac client. cJSON is C99 and not
 part of the CodeWarrior-era target, and the Wolfram Mac OS 9 transport does not
 build it, so depending on it makes the Mac client impossible to build for its
-actual platform.
+actual platform. Nothing under `macos9/` includes it now, and because CI compiles
+every source against the SDK stubs, reaching for it again is a build failure
+rather than something to notice later.
 
 When the protocol needs more parsing, extend `json_min` and keep the bounds
 explicit. Every entry point is bounded by a caller-supplied buffer and reports
