@@ -613,7 +613,10 @@ The current branch contains the first working bridge architecture and Mac-side b
 - native event-driven application shell;
 - initial Classic Mac UI layout and visual specification;
 - interactive navigation and timeline selection;
-- native TextEdit compose window;
+- native TextEdit compose window and bridge-backed post submission;
+- live Profile and Notifications windows;
+- account Preferences and first-run/re-pairing UI;
+- bounded MacRoman/UTF-8 text conversion;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -621,10 +624,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 
 ### In progress
 
-- pairing UI;
 - richer Unicode/emoji editing beyond the MacRoman character repertoire;
-- richer Unicode/emoji editing beyond the MacRoman character repertoire;
-- post composition;
 - user-facing error handling;
 - real hardware validation.
 
