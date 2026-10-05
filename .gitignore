@@ -1,55 +1,69 @@
-# Prerequisites
+# Build output
+#
+# The Classic Mac client is built out of tree, and the Wolfram transport is
+# configured into a build directory rather than the source tree. Both patterns
+# are anchored so a directory named "build" inside macos9/ is still tracked.
+
+/build/
+/build-*/
+/cmake-build-*/
+
+# Local dependency checkouts. The Mac transport is built from a Wolfram
+# checkout and a macTLS checkout; both are separate repositories that are
+# cloned wherever is convenient rather than vendored here.
+/wolfram/
+/macTLS/
+
+# CodeWarrior build output. The .cw project file is the project definition and
+# is tracked; everything below is what CodeWarrior generates while building.
+*.ppc
+*.m68k
+*.cwx
+*.cwd
+*.cwdb
+*.bak
+*.inter
+*.s
+*-Data.c
+*-Data.h
+
+# C build artefacts
 *.d
-
-# Object files
 *.o
-*.ko
 *.obj
-*.elf
-
-# Linker output
-*.ilk
+*.a
+*.lib
+*.la
+*.lo
 *.map
 *.exp
-
-# Precompiled Headers
+*.out
 *.gch
 *.pch
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
+# Shared objects and bundles
 *.so
 *.so.*
 *.dylib
-
-# Executables
-*.exe
-*.out
+*.dll
 *.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
 *.dSYM/
-*.su
-*.idb
+
+# Debugging output
 *.pdb
+*.ilk
+*.idb
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
 
-# debug information files
-*.dwo
+# Editors and merge leftovers
+.idea/
+.vscode/
+*.swp
+*~
