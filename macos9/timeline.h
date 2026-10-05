@@ -1,0 +1,26 @@
+#ifndef PLATINUM_TIMELINE_H
+#define PLATINUM_TIMELINE_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define PLATINUM_TIMELINE_POSTS 5
+
+typedef struct platinum_post_preview {
+    unsigned char author[48];
+    unsigned char handle[48];
+    unsigned char time[24];
+    unsigned char line1[112];
+    unsigned char line2[112];
+    unsigned char line3[112];
+} platinum_post_preview;
+
+const platinum_post_preview *platinum_timeline_posts(void);
+unsigned short platinum_timeline_post_count(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
