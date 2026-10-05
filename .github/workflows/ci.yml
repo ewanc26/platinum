@@ -78,6 +78,7 @@ jobs:
             macos9/scrollbar.c \
             macos9/session.c \
             macos9/text_codec.c \
+            macos9/timeline.c \
             macos9/ui.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c
@@ -106,8 +107,7 @@ jobs:
             | sort -u || true)
           known=$(printf '%s\n' \
             macos9/application.c:cJSON.h \
-            macos9/notifications.c:cJSON.h \
-            macos9/timeline.c:cJSON.h | sort)
+            macos9/notifications.c:cJSON.h | sort)
           unexpected=$(comm -23 \
             <(printf '%s\n' "$hits") \
             <(printf '%s\n' "$known") | grep -v '^$' || true)

@@ -1,35 +1,49 @@
 #include "timeline.h"
 #include "text_codec.h"
 
-#include <cJSON.h>
+#include "json_min.h"
 #include <string.h>
 
-static int timeline_copy_json_string(char *destination,
-                                     long capacity,
-                                     const cJSON *value)
+/*
+ * Copy a string member of `object` into `destination` as MacRoman.
+ *
+ * Returns 0 when the member is absent, is not a string, or does not fit, so
+ * the caller's own fallback chain runs. `uri` and `cid` use the strict
+ * accessor, because a post without them cannot be shown at all; the fields that
+ * are only displayed use the truncating one and never fail on length.
+ */
+static int timeline_copy_field(char *destination,
+                               long capacity,
+                               platinum_json object,
+                               const char *name,
+                               int clipping)
 {
+    char utf8[PLATINUM_TEXT_UTF8_CAPACITY];
     long length;
+    wf_status status;
 
-    if (destination == NULL || value == NULL || capacity <= 0)
-        return 0;
-    if (!cJSON_IsString(value) || value->valuestring == NULL)
+    if (destination == NULL || capacity <= 0)
         return 0;
 
-    length = platinum_text_utf8_to_macroman(value->valuestring,
-                                            destination,
-                                            capacity,
-                                            NULL);
+    destination[0] = '\0';
+    status = clipping
+        ? platinum_json_string_truncating(object, name, utf8, sizeof(utf8))
+        : platinum_json_string(object, name, utf8, sizeof(utf8));
+    if (status != WF_OK)
+        return 0;
+
+    length = platinum_text_utf8_to_macroman(utf8, destination, capacity, NULL);
     return length >= 0;
 }
 
-static long timeline_json_number(const cJSON *object, const char *name)
+static long timeline_json_number(platinum_json object, const char *name)
 {
-    const cJSON *item;
+    long value = 0;
 
-    item = cJSON_GetObjectItemCaseSensitive(object, name);
-    if (item == NULL || !cJSON_IsNumber(item))
+    if (platinum_json_int(object, name, &value) != WF_OK)
         return 0;
-    return item->valueint;
+
+    return value;
 }
 
 static void timeline_set_status(platinum_timeline *timeline,
@@ -94,82 +108,74 @@ static void timeline_copy_wrapped_text(platinum_post_preview *post,
 }
 
 static int timeline_parse_post(platinum_post_preview *post,
-                               const cJSON *item)
+                               platinum_json item)
 {
-    const cJSON *author;
-    const cJSON *value;
-    const cJSON *record;
-    const cJSON *handle;
-    const cJSON *display_name;
-    const cJSON *created_at;
+    platinum_json author;
+    char did[128];
+    char handle[128];
+    char created_at[64];
+    char text[PLATINUM_TEXT_UTF8_CAPACITY];
     char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
 
-    if (post == NULL || item == NULL || !cJSON_IsObject(item))
+    if (post == NULL)
         return 0;
 
     memset(post, 0, sizeof(*post));
 
-    value = cJSON_GetObjectItemCaseSensitive(item, "uri");
-    if (!timeline_copy_json_string(post->uri, sizeof(post->uri), value))
+    /* uri and cid identify the post, so a post without them is not shown at all
+     * rather than shown with blanks. */
+    if (!timeline_copy_field(post->uri, sizeof(post->uri), item, "uri", 0))
+        return 0;
+    if (!timeline_copy_field(post->cid, sizeof(post->cid), item, "cid", 0))
         return 0;
 
-    value = cJSON_GetObjectItemCaseSensitive(item, "cid");
-    if (!timeline_copy_json_string(post->cid, sizeof(post->cid), value))
+    if (platinum_json_member(item, "author", &author) != WF_OK)
+        return 0;
+    if (!timeline_copy_field(did, sizeof(did), author, "did", 0))
         return 0;
 
-    author = cJSON_GetObjectItemCaseSensitive(item, "author");
-    if (author == NULL || !cJSON_IsObject(author))
-        return 0;
-
-    value = cJSON_GetObjectItemCaseSensitive(author, "did");
-    if (value == NULL || !cJSON_IsString(value) || value->valuestring == NULL)
-        return 0;
-
-    handle = cJSON_GetObjectItemCaseSensitive(author, "handle");
-    display_name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
-
+    /* Prefer the display name, then the handle, then the DID, so an account
+     * with no display name still reads as something. */
     post->author[0] = '\0';
-    if (display_name != NULL)
-        timeline_copy_json_string(post->author,
-                                  sizeof(post->author),
-                                  display_name);
-    if (post->author[0] == '\0' && handle != NULL)
-        timeline_copy_json_string(post->author,
-                                  sizeof(post->author),
-                                  handle);
+    (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                               "displayName", 1);
     if (post->author[0] == '\0')
-        timeline_copy_json_string(post->author,
-                                  sizeof(post->author),
-                                  value);
+        (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                                  "handle", 1);
+    if (post->author[0] == '\0')
+        (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                                  "did", 1);
 
-    post->handle[0] = '@';
-    if (handle != NULL && cJSON_IsString(handle) &&
-        handle->valuestring != NULL) {
-        timeline_copy_json_string(post->handle + 1,
+    if (platinum_json_string_truncating(author, "handle", handle,
+                                        sizeof(handle)) == WF_OK) {
+        post->handle[0] = '@';
+        (void)timeline_copy_field(post->handle + 1,
                                   sizeof(post->handle) - 1,
-                                  handle);
+                                  author,
+                                  "handle",
+                                  1);
     } else {
-        post->handle[1] = '\0';
+        post->handle[0] = '\0';
     }
 
-    created_at = cJSON_GetObjectItemCaseSensitive(item, "createdAt");
+    /* The bridge sends RFC 3339, so the clock time is the five characters after
+     * the date's "T". Anything shorter is not that shape and is shown as it
+     * arrived rather than sliced out of the middle. */
     post->time[0] = '\0';
-    if (created_at != NULL && cJSON_IsString(created_at) &&
-        created_at->valuestring != NULL) {
-        if (strlen(created_at->valuestring) >= 16) {
-            memcpy(post->time, created_at->valuestring + 11, 5);
+    if (platinum_json_string_truncating(item, "createdAt", created_at,
+                                        sizeof(created_at)) == WF_OK) {
+        if (strlen(created_at) >= 16) {
+            memcpy(post->time, created_at + 11, 5);
             post->time[5] = '\0';
         } else {
-            timeline_copy_json_string(post->time,
-                                      sizeof(post->time),
-                                      created_at);
+            (void)timeline_copy_field(post->time, sizeof(post->time), item,
+                                      "createdAt", 1);
         }
     }
 
-    record = cJSON_GetObjectItemCaseSensitive(item, "text");
-    if (record != NULL && cJSON_IsString(record) &&
-        record->valuestring != NULL) {
-        if (platinum_text_utf8_to_macroman(record->valuestring,
+    if (platinum_json_string_truncating(item, "text", text,
+                                        sizeof(text)) == WF_OK) {
+        if (platinum_text_utf8_to_macroman(text,
                                            text_macroman,
                                            sizeof(text_macroman),
                                            NULL) >= 0)
@@ -196,11 +202,11 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
                                     platinum_bridge_client *bridge)
 {
     wf_response response;
-    cJSON *root;
-    cJSON *posts;
-    cJSON *cursor;
-    cJSON *item;
-    int index;
+    platinum_json root;
+    platinum_json posts;
+    platinum_json item;
+    long index;
+    long available;
     int parsed;
     wf_status status;
 
@@ -224,8 +230,9 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
         return status;
     }
 
-    root = cJSON_Parse(response.body != NULL ? response.body : "");
-    if (root == NULL) {
+    status = platinum_json_open(&root,
+                               response.body != NULL ? response.body : "");
+    if (status != WF_OK) {
         timeline->loading = 0;
         timeline_set_status(timeline,
                             "The bridge returned invalid timeline data.");
@@ -233,9 +240,10 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
         return WF_ERR_PARSE;
     }
 
-    posts = cJSON_GetObjectItemCaseSensitive(root, "posts");
-    if (posts == NULL || !cJSON_IsArray(posts)) {
-        cJSON_Delete(root);
+    /* posts has to be an array. A response that carries something else is not a
+     * timeline, and silently treating an absent member as an empty feed would
+     * show "the timeline is empty" for what is really a broken response. */
+    if (platinum_json_member(root, "posts", &posts) != WF_OK) {
         timeline->loading = 0;
         timeline_set_status(timeline,
                             "The bridge returned an invalid timeline.");
@@ -244,26 +252,31 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
     }
 
     timeline->count = 0;
-    parsed = cJSON_GetArraySize(posts);
-    if (parsed > PLATINUM_TIMELINE_MAX_POSTS)
-        parsed = PLATINUM_TIMELINE_MAX_POSTS;
+    if (platinum_json_count(posts, &available) != WF_OK) {
+        timeline->loading = 0;
+        timeline_set_status(timeline,
+                            "The bridge returned an invalid timeline.");
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+
+    parsed = (available > PLATINUM_TIMELINE_MAX_POSTS)
+        ? PLATINUM_TIMELINE_MAX_POSTS
+        : (int)available;
 
     for (index = 0; index < parsed; ++index) {
-        item = cJSON_GetArrayItem(posts, index);
+        if (platinum_json_element(posts, index, &item) != WF_OK)
+            continue;
         if (timeline_parse_post(&timeline->posts[timeline->count], item))
             ++timeline->count;
     }
 
-    cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
     timeline->cursor[0] = '\0';
-    if (cursor != NULL && cJSON_IsString(cursor) &&
-        cursor->valuestring != NULL) {
-        timeline_copy_json_string(timeline->cursor,
-                                  sizeof(timeline->cursor),
-                                  cursor);
-    }
+    (void)timeline_copy_field(timeline->cursor, sizeof(timeline->cursor),
+                              root, "cursor", 1);
 
-    cJSON_Delete(root);
+    /* The cursor and the posts both pointed into response.body, and everything
+     * has been copied out by now, so the response can go. */
     wf_response_free(&response);
 
     timeline->loading = 0;
