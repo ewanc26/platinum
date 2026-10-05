@@ -81,7 +81,7 @@ platinum_bridge_client *platinum_bridge_client_new(const char *base_url)
         return NULL;
     }
 
-    client->base_url = wf_xrpc_get_base_url(client->xrpc);
+    client->base_url = bridge_strdup(base_url);
     if (client->base_url == NULL) {
         wf_xrpc_client_free(client->xrpc);
         free(client);
@@ -184,9 +184,19 @@ wf_status platinum_bridge_pair(platinum_bridge_client *client,
     }
     out->did = bridge_strdup(item->valuestring);
 
+    item = cJSON_GetObjectItemCaseSensitive(response, "installationId");
+    if (!cJSON_IsString(item) || item->valuestring == NULL ||
+        out->did == NULL) {
+        cJSON_Delete(response);
+        wf_response_free(&raw);
+        platinum_bridge_pairing_free(out);
+        return out->did == NULL ? WF_ERR_ALLOC : WF_ERR_PARSE;
+    }
+    out->installation_id = bridge_strdup(item->valuestring);
+
     cJSON_Delete(response);
     wf_response_free(&raw);
-    if (out->did == NULL) {
+    if (out->did == NULL || out->installation_id == NULL) {
         platinum_bridge_pairing_free(out);
         return WF_ERR_ALLOC;
     }
@@ -205,6 +215,7 @@ void platinum_bridge_pairing_free(platinum_bridge_pairing *pairing)
         return;
     free(pairing->token);
     free(pairing->did);
+    free(pairing->installation_id);
     memset(pairing, 0, sizeof(*pairing));
 }
 

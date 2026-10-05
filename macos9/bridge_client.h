@@ -13,6 +13,7 @@ typedef struct platinum_bridge_pairing {
     int protocol;
     char *token;
     char *did;
+    char *installation_id;
 } platinum_bridge_pairing;
 
 platinum_bridge_client *platinum_bridge_client_new(const char *base_url);

@@ -21,7 +21,7 @@ resolution or the full AT Protocol stack.
 2. Complete AT Protocol OAuth.
 3. The bridge displays a short-lived pairing code.
 4. Platinum sends POST /v1/pair with {"code":"..."}.
-5. The bridge returns a bridge token and DID.
+5. The bridge returns protocol version 1, a bridge token, the account DID, and an installation ID.
 6. Platinum stores the bridge token and uses it for authenticated requests.
 
 The pairing code is single-use and expires after ten minutes. OAuth refresh
@@ -54,6 +54,7 @@ revocable bridge token.
 Do not expose an HTTP-only bridge to an untrusted network. For deployment,
 put it behind HTTPS and an appropriate access boundary.
 
-The initial implementation uses a local file-backed session store. The
-protocol does not depend on that storage implementation, so a later database
+The initial implementation uses local file-backed state. Installation records contain a hashed token, account DID, creation time, last-used time, optional client metadata, and an optional revocation timestamp. The plaintext token is returned only when the installation is issued.
+
+The protocol does not depend on that storage implementation, so a later database
 or managed KV store can replace it.
