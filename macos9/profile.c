@@ -97,7 +97,11 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
     status = platinum_bridge_get(bridge, "/v1/profile", &response);
     if (status != WF_OK) {
         profile->loading = 0;
-        platinum_profile_set_status(profile, "Profile refresh failed.");
+        if (status == WF_ERR_AUTH)
+            platinum_profile_set_status(
+                profile, "Session expired. Pair the account again.");
+        else
+            platinum_profile_set_status(profile, "Profile refresh failed.");
         wf_response_free(&response);
         return status;
     }
