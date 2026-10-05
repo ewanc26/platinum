@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validPostRef } from './domain/api.js'
+import { DomainApi, validPostRef, validSeenAt } from './domain/api.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
@@ -263,6 +263,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
     }
     return json(res, 200, result)
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/notifications/seen') {
+    let input: { seenAt?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const seenAt = validSeenAt(input.seenAt)
+    if (!seenAt) {
+      return json(res, 400, errorBody('invalid_seen_at', 'seenAt must be an ISO 8601 timestamp.'))
+    }
+    return json(res, 200, await domain.markSeen(agent, seenAt))
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/post') {

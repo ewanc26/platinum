@@ -13,6 +13,7 @@ Releases are paused until Platinum has run on Mac OS 9 (#62).
 - Self-update from GitHub releases (`npm run update`), opt-in and confirmed, with SHA-256 verification and rollback.
 - Opt-in app-password sign-in (`POST /v1/login/app-password`), separate from OAuth pairing.
 - Idempotent like and repost with undo (`POST /v1/like`, `POST /v1/repost`); timeline posts carry `liked` and `reposted`.
+- Mark notifications seen (`POST /v1/notifications/seen`), up to a timestamp the client was given.
 - `/health` reports the real package version.
 
 ### Mac client
