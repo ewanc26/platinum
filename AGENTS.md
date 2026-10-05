@@ -612,7 +612,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
-- live bridge-backed timeline/profile/notification screens;
+- live bridge-backed profile/notification screens;
 - bridge-backed post submission;
 - post composition;
 - user-facing error handling;
