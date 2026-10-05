@@ -55,6 +55,8 @@ The repository currently contains:
 - revocable long-lived bridge tokens;
 - file-backed bridge session and token storage;
 - a Classic Mac OS 9 bridge client under `macos9/`;
+- persistent Classic Mac configuration and account-session state;
+- a native event-driven application shell;
 - Wolfram XRPC/HTTP transport integration;
 - a documented HTTP/JSON bridge protocol under `docs/BRIDGE_PROTOCOL.md`;
 - CI for the bridge TypeScript build and type checking.
@@ -136,7 +138,7 @@ Pairing is intentionally browser-assisted:
 3. The bridge displays a short-lived pairing code.
 4. Platinum sends the code to `POST /v1/pair`.
 5. The bridge returns protocol version 1, a bridge token and the account DID.
-6. Platinum stores the bridge token and uses it for subsequent requests.
+6. Platinum stores the bridge token, account DID and installation ID and uses the token for subsequent requests.
 
 The pairing code expires after ten minutes and is single-use.
 
@@ -159,7 +161,7 @@ The initial bridge implementation uses local JSON files under `.platinum-bridge/
 
 ## Building the Classic Mac client
 
-The Mac OS 9 client is being developed as a native application rather than a web wrapper.
+The Mac OS 9 client is a native application rather than a web wrapper. The current native shell opens a standard Classic Mac window, runs a `WaitNextEvent` event loop, and loads/saves the bridge session from the System Folder's Preferences folder.
 
 Build the Wolfram Mac OS 9 transport first, using the macTLS dependency:
 
@@ -170,7 +172,7 @@ cmake -S . -B build-macos9-transport \
 cmake --build build-macos9-transport --target wolfram-macos9-transport
 ```
 
-The exact Platinum application build and CodeWarrior project structure are still under development.
+The exact CodeWarrior project/resource layout is still under development. The checked-in C sources are the portable application layer; the final project file and resource fork will be added with the first UI milestone.
 
 ## Repository layout
 
@@ -186,8 +188,15 @@ platinum/
 │   ├── package.json
 │   └── tsconfig.json
 ├── macos9/
+│   ├── application.c
+│   ├── application.h
 │   ├── bridge_client.c
-│   └── bridge_client.h
+│   ├── bridge_client.h
+│   ├── config.c
+│   ├── config.h
+│   ├── main.c
+│   ├── session.c
+│   └── session.h
 └── .github/
     └── workflows/
         └── ci.yml
