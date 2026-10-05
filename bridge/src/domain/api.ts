@@ -1,5 +1,100 @@
 import type { Agent } from '@atproto/api'
-import type { Notifications, PostResult, Profile, Timeline } from './types.js'
+import type {
+  Author,
+  Notification,
+  Notifications,
+  PostResult,
+  Profile,
+  Timeline,
+  TimelinePost,
+} from './types.js'
+
+const MAX_HANDLE_LENGTH = 255
+const MAX_DISPLAY_NAME_LENGTH = 64
+const MAX_POST_TEXT_LENGTH = 300
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function clipped(value: unknown, maximum: number): string {
+  return stringValue(value).slice(0, maximum)
+}
+
+function authorFrom(value: {
+  did: string
+  handle?: string
+  displayName?: string
+}): Author {
+  return {
+    did: clipped(value.did, MAX_HANDLE_LENGTH),
+    handle: value.handle ? clipped(value.handle, MAX_HANDLE_LENGTH) : undefined,
+    displayName: value.displayName
+      ? clipped(value.displayName, MAX_DISPLAY_NAME_LENGTH)
+      : undefined,
+  }
+}
+
+type TimelinePostView = {
+  uri: string
+  cid: string
+  author: {
+    did: string
+    handle?: string
+    displayName?: string
+  }
+  record: unknown
+  likeCount?: number
+  repostCount?: number
+  replyCount?: number
+  quoteCount?: number
+}
+
+type TimelineFeedItem = {
+  post: TimelinePostView
+}
+
+export function normalizeTimelinePost(feedItem: TimelineFeedItem): TimelinePost {
+  const post = feedItem.post
+  const record =
+    post.record !== null && typeof post.record === 'object'
+      ? (post.record as { text?: unknown; createdAt?: unknown })
+      : {}
+
+  return {
+    uri: clipped(post.uri, 512),
+    cid: clipped(post.cid, 255),
+    author: authorFrom(post.author),
+    text: clipped(record.text, MAX_POST_TEXT_LENGTH),
+    createdAt: clipped(record.createdAt, 64),
+    likeCount: post.likeCount ?? 0,
+    repostCount: post.repostCount ?? 0,
+    replyCount: post.replyCount ?? 0,
+    quoteCount: post.quoteCount ?? 0,
+  }
+}
+
+export function normalizeNotification(notification: {
+  uri: string
+  cid: string
+  author: {
+    did: string
+    handle?: string
+    displayName?: string
+  }
+  reason: string
+  indexedAt: string
+  isRead?: boolean
+}): Notification {
+  return {
+    uri: clipped(notification.uri, 512),
+    cid: clipped(notification.cid, 255),
+    author: authorFrom(notification.author),
+    reason: clipped(notification.reason, 32),
+    indexedAt: clipped(notification.indexedAt, 64),
+    isRead: notification.isRead ?? false,
+  }
+}
 
 export class DomainApi {
   async profile(agent: Agent): Promise<Profile> {
@@ -21,12 +116,20 @@ export class DomainApi {
 
   async timeline(agent: Agent, limit: number, cursor?: string): Promise<Timeline> {
     const result = await agent.getTimeline({ limit, cursor })
-    return { feed: result.data.feed, cursor: result.data.cursor }
+
+    return {
+      posts: result.data.feed.map(normalizeTimelinePost),
+      cursor: result.data.cursor,
+    }
   }
 
   async notifications(agent: Agent, limit: number, cursor?: string): Promise<Notifications> {
     const result = await agent.listNotifications({ limit, cursor })
-    return { notifications: result.data.notifications, cursor: result.data.cursor }
+
+    return {
+      notifications: result.data.notifications.map(normalizeNotification),
+      cursor: result.data.cursor,
+    }
   }
 
   async post(agent: Agent, text: string): Promise<PostResult> {
