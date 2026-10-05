@@ -270,12 +270,311 @@ static void test_valid(void)
                  WF_ERR_PARSE, "one level too deep");
 }
 
+
+static void test_open(void)
+{
+    platinum_json root;
+
+    check_status(platinum_json_open(&root, "{\"a\":1}"), WF_OK, "open object");
+    check(root.text != NULL && root.at != NULL, "open sets both fields");
+
+    check_status(platinum_json_open(&root, NULL), WF_ERR_INVALID_ARG,
+                 "open rejects null body");
+    check_status(platinum_json_open(NULL, "{}"), WF_ERR_INVALID_ARG,
+                 "open rejects null cursor");
+
+    /* The whole document is validated at open, not as it is walked, so a body
+     * that is well formed where the wanted member sits and truncated after it
+     * is rejected rather than half-read. */
+    check_status(platinum_json_open(&root, "{\"a\":1"), WF_ERR_PARSE,
+                 "open rejects truncated object");
+    check_status(platinum_json_open(&root, "{\"a\":1} trailing"), WF_ERR_PARSE,
+                 "open rejects trailing content");
+    check_status(platinum_json_open(&root, "{\"a\":\"\\x\"}"), WF_ERR_PARSE,
+                 "open rejects unknown escape");
+
+    check_status(platinum_json_open(&root, ""), WF_ERR_PARSE,
+                 "open rejects empty body");
+}
+
+static void test_member(void)
+{
+    static const char *doc =
+        "{\"protocol\":1,\"author\":{\"did\":\"did:plc:abc\",\"n\":2},"
+        "\"cursor\":\"c1\"}";
+    platinum_json root;
+    platinum_json author;
+    platinum_json nested;
+    long value = 0;
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "member: open");
+    check_status(platinum_json_member(root, "author", &author), WF_OK,
+                 "member: object found");
+
+    check_status(platinum_json_string(author, "did", NULL, 0),
+                 WF_ERR_INVALID_ARG, "member: zero capacity rejected");
+    check_status(platinum_json_member(root, "author", NULL),
+                 WF_ERR_INVALID_ARG, "member: null cursor rejected");
+
+    check_status(platinum_json_int(author, "n", &value), WF_OK,
+                 "member: nested int");
+    check(value == 2, "member: nested int value");
+
+    check_status(platinum_json_member(root, "missing", &nested),
+                 WF_ERR_NOT_FOUND, "member: absent member");
+
+    /* Looking for a member inside something that is not an object is a shape
+     * error, not a silently absent member: the caller asked for a sub-object
+     * and got a string, which is a different response than one without it. */
+    check_status(platinum_json_member(root, "cursor", &nested), WF_OK,
+                 "member: cursor member found");
+    check_status(platinum_json_member(nested, "anything", &author),
+                 WF_ERR_PARSE, "member: string is not an object");
+}
+
+static void test_element(void)
+{
+    static const char *doc =
+        "{\"posts\":[{\"uri\":\"at://a\"},{\"uri\":\"at://b\"},"
+        "{\"uri\":\"at://c\"}],\"cursor\":\"z\"}";
+    platinum_json root;
+    platinum_json posts;
+    platinum_json item;
+    long count = 0;
+    char uri[64];
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "element: open");
+    check_status(platinum_json_member(root, "posts", &posts), WF_OK,
+                 "element: array found");
+    check_status(platinum_json_count(posts, &count), WF_OK, "element: count");
+    check(count == 3, "element: count value");
+
+    check_status(platinum_json_element(posts, 0, &item), WF_OK,
+                 "element: first");
+    check_status(platinum_json_string(item, "uri", uri, sizeof(uri)), WF_OK,
+                 "element: first uri read");
+    check_str(uri, "at://a", "element: first uri value");
+
+    check_status(platinum_json_element(posts, 2, &item), WF_OK,
+                 "element: last");
+    check_status(platinum_json_string(item, "uri", uri, sizeof(uri)), WF_OK,
+                 "element: last uri read");
+    check_str(uri, "at://c", "element: last uri value");
+
+    check_status(platinum_json_element(posts, 3, &item), WF_ERR_NOT_FOUND,
+                 "element: past the end");
+    check_status(platinum_json_element(posts, -1, &item), WF_ERR_INVALID_ARG,
+                 "element: negative index rejected");
+
+    check_status(platinum_json_count(root, &count), WF_ERR_PARSE,
+                 "element: count on an object is a shape error");
+}
+
+static void test_empty_array(void)
+{
+    static const char *doc = "{\"posts\":[]}";
+    platinum_json root;
+    platinum_json posts;
+    platinum_json item;
+    long count = -1;
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "empty: open");
+    check_status(platinum_json_member(root, "posts", &posts), WF_OK,
+                 "empty: array found");
+    check_status(platinum_json_count(posts, &count), WF_OK,
+                 "empty: count succeeds");
+    check(count == 0, "empty: count is zero");
+    check_status(platinum_json_element(posts, 0, &item), WF_ERR_NOT_FOUND,
+                 "empty: no first element");
+}
+
+static void test_nested_array_of_objects(void)
+{
+    static const char *doc =
+        "{\"items\":["
+        "{\"author\":{\"handle\":\"alice\",\"displayName\":\"Alice A\"},"
+        "\"likeCount\":3,\"read\":true},"
+        "{\"author\":{\"handle\":\"bob\"},\"likeCount\":0,\"read\":false}"
+        "]}";
+    platinum_json root;
+    platinum_json items;
+    platinum_json item;
+    platinum_json author;
+    char handle[32];
+    char name[32];
+    long likes;
+    int read_flag;
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "nested: open");
+    check_status(platinum_json_member(root, "items", &items), WF_OK,
+                 "nested: array found");
+
+    check_status(platinum_json_element(items, 0, &item), WF_OK,
+                 "nested: first element");
+    check_status(platinum_json_member(item, "author", &author), WF_OK,
+                 "nested: author found");
+    check_status(platinum_json_string(author, "handle", handle,
+                                      sizeof(handle)), WF_OK,
+                 "nested: handle read");
+    check_str(handle, "alice", "nested: handle value");
+    check_status(platinum_json_string(author, "displayName", name,
+                                      sizeof(name)), WF_OK,
+                 "nested: displayName read");
+    check_str(name, "Alice A", "nested: displayName value");
+    check_status(platinum_json_int(item, "likeCount", &likes), WF_OK,
+                 "nested: likeCount read");
+    check(likes == 3, "nested: likeCount value");
+    check_status(platinum_json_bool(item, "read", &read_flag), WF_OK,
+                 "nested: read read");
+    check(read_flag == 1, "nested: read is true");
+
+    check_status(platinum_json_element(items, 1, &item), WF_OK,
+                 "nested: second element");
+    check_status(platinum_json_member(item, "author", &author), WF_OK,
+                 "nested: second author found");
+    check_status(platinum_json_bool(item, "read", &read_flag), WF_OK,
+                 "nested: second read read");
+    check(read_flag == 0, "nested: second read is false");
+    check_status(platinum_json_int(item, "likeCount", &likes), WF_OK,
+                 "nested: second likeCount read");
+    check(likes == 0, "nested: second likeCount is zero");
+    check_status(platinum_json_string(author, "displayName", name,
+                                      sizeof(name)), WF_ERR_NOT_FOUND,
+                 "nested: absent displayName is not found");
+}
+
+static void test_bool_rejects_other_types(void)
+{
+    static const char *doc =
+        "{\"a\":true,\"b\":false,\"c\":\"true\",\"d\":1,\"e\":null}";
+    platinum_json root;
+    int flag = -1;
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "bool: open");
+    check_status(platinum_json_bool(root, "a", &flag), WF_OK, "bool: true");
+    check(flag == 1, "bool: true value");
+    check_status(platinum_json_bool(root, "b", &flag), WF_OK, "bool: false");
+    check(flag == 0, "bool: false value");
+
+    /* JSON has no truthiness: a string that reads "true" is not a boolean and
+     * a number is not either. Coercing either would let a response turn a
+     * notification's read flag into whatever it liked. */
+    check_status(platinum_json_bool(root, "c", &flag), WF_ERR_PARSE,
+                 "bool: string is not a boolean");
+    check(flag == 0, "bool: rejected read leaves the output clear");
+    check_status(platinum_json_bool(root, "d", &flag), WF_ERR_PARSE,
+                 "bool: number is not a boolean");
+    check_status(platinum_json_bool(root, "e", &flag), WF_ERR_PARSE,
+                 "bool: null is not a boolean");
+    check_status(platinum_json_bool(root, "missing", &flag),
+                 WF_ERR_NOT_FOUND, "bool: absent member");
+    check_status(platinum_json_bool(root, "a", NULL), WF_ERR_INVALID_ARG,
+                 "bool: null out rejected");
+}
+
+static void test_string_truncating(void)
+{
+    static const char *doc =
+        "{\"short\":\"abc\",\"long\":\"abcdefghij\",\"esc\":\"a\\u00e9b\","
+        "\"longEsc\":\"ab\\u00e9cdef\"}";
+    platinum_json root;
+    char small[5];
+    char roomy[32];
+
+    check_status(platinum_json_open(&root, doc), WF_OK, "clip: open");
+
+    /* A value that fits is identical under both accessors. */
+    check_status(platinum_json_string(root, "short", roomy, sizeof(roomy)),
+                 WF_OK, "clip: short fits strictly");
+    check_str(roomy, "abc", "clip: short value");
+
+    check_status(platinum_json_string_truncating(root, "short", roomy,
+                                                 sizeof(roomy)), WF_OK,
+                 "clip: short fits loosely");
+    check_str(roomy, "abc", "clip: short value loosely");
+
+    /* The strict accessor refuses rather than half-write. */
+    check_status(platinum_json_string(root, "long", small, sizeof(small)),
+                 WF_ERR_ALLOC, "clip: strict refuses an oversized value");
+
+    /* The truncating one clips, stays NUL-terminated and stays inside cap. */
+    check_status(platinum_json_string_truncating(root, "long", small,
+                                                 sizeof(small)), WF_OK,
+                 "clip: truncating accepts an oversized value");
+    check_str(small, "abcd", "clip: clipped value");
+    check(strlen(small) == 4, "clip: clipped value is NUL-terminated in cap");
+
+    /* Clipping must not cut an escape sequence in half: the longest prefix that
+     * is whole units is returned, which here is "a" plus the two-byte é. */
+    check_status(platinum_json_string_truncating(root, "longEsc", small,
+                                                 sizeof(small)), WF_OK,
+                 "clip: oversized escape clipped");
+    check(strlen(small) == 4, "clip: escape clip stops on a unit boundary");
+    check(small[0] == 'a' && small[1] == 'b' &&
+          (unsigned char)small[2] == 0xc3 &&
+          (unsigned char)small[3] == 0xa9,
+          "clip: escaped byte is not split");
+
+    check_status(platinum_json_string_truncating(root, "missing", roomy,
+                                                 sizeof(roomy)),
+                 WF_ERR_NOT_FOUND, "clip: absent member");
+    check_status(platinum_json_string_truncating(root, "esc", roomy, 0),
+                 WF_ERR_INVALID_ARG, "clip: zero capacity rejected");
+
+    check_status(platinum_json_string_truncating(root, "esc", roomy,
+                                                 sizeof(roomy)), WF_OK,
+                 "clip: escape fits");
+    check(strlen(roomy) == 4, "clip: escape decoded to four bytes");
+}
+
+static void test_cursor_against_bad_documents(void)
+{
+    platinum_json root;
+    platinum_json value;
+    char buf[32];
+
+    /* A truncated array must not yield a partial element. */
+    check_status(platinum_json_open(&root, "[{\"a\":1},{\"b\":"), WF_ERR_PARSE,
+                 "bad: truncated array rejected at open");
+
+    /* Same for a body that is fine up to the member and broken after it: the
+     * flat accessor already refused this, and the cursor must too. */
+    check_status(platinum_json_open(&root, "{\"a\":\"ok\",\"b\":tru"), WF_ERR_PARSE,
+                 "bad: truncated tail rejected at open");
+    check_status(platinum_json_open(&root, "{\"a\":\"ok\",\"b\":1}"),
+                 WF_OK, "bad: intact body opens");
+    check_status(platinum_json_string(root, "a", buf, sizeof(buf)), WF_OK,
+                 "bad: intact body reads");
+
+    /* A zeroed cursor is not a valid cursor. */
+    {
+        platinum_json empty;
+
+        empty.text = NULL;
+        empty.at = NULL;
+        check_status(platinum_json_member(empty, "a", &value),
+                     WF_ERR_INVALID_ARG, "bad: zeroed cursor rejected");
+        check_status(platinum_json_element(empty, 0, &value),
+                     WF_ERR_INVALID_ARG, "bad: zeroed cursor element rejected");
+        check_status(platinum_json_count(empty, NULL), WF_ERR_INVALID_ARG,
+                     "bad: zeroed cursor count rejected");
+    }
+}
+
 int main(void)
 {
     test_escape();
     test_get_string();
     test_get_int();
     test_valid();
+    test_open();
+    test_member();
+    test_element();
+    test_empty_array();
+    test_nested_array_of_objects();
+    test_bool_rejects_other_types();
+    test_string_truncating();
+    test_cursor_against_bad_documents();
 
     if (failures != 0) {
         printf("test_json_min: %d of %d checks failed\n", failures, checks);
