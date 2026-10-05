@@ -57,6 +57,8 @@ GET /v1/profile
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 POST /v1/post
+POST /v1/like
+POST /v1/repost
 
 ### Profile response
 
@@ -92,7 +94,9 @@ Timeline responses contain only fields that the Classic Mac client needs:
       "likeCount": 4,
       "repostCount": 2,
       "replyCount": 1,
-      "quoteCount": 0
+      "quoteCount": 0,
+      "liked": false,
+      "reposted": true
     }
   ],
   "cursor": "optional-next-cursor"
@@ -122,6 +126,26 @@ The bridge deliberately does not expose raw feed-view embeds, reply views or App
   "cursor": "optional-next-cursor"
 }
 ```
+
+`liked` and `reposted` say whether the signed-in account has liked or reposted
+the post. The like and repost record URIs stay on the bridge.
+
+### Like and repost
+
+`POST /v1/like` and `POST /v1/repost` take `{"uri":"at://...","cid":"...","on":true}`
+and set the state to `on`. They are idempotent: the bridge reads the current
+state first, so sending `on` twice likes once, and undoing needs no record URI
+from the client. The response is the state now and the count to display:
+
+```json
+{ "uri": "at://did:plc:.../app.bsky.feed.post/...", "on": true, "count": 5 }
+```
+
+The count is the AppView's count adjusted by this change, not a fresh read, so
+it can lag other people's activity until the next refresh. Errors:
+`400 invalid_post_ref` (the uri is not an `app.bsky.feed.post` AT URI, the cid
+is not alphanumeric, or `on` is not a boolean) and `404 post_not_found` when
+asked to like or repost a post that no longer exists.
 
 ### Post response
 

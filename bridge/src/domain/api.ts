@@ -4,6 +4,7 @@ import type {
   Notification,
   Notifications,
   PostResult,
+  ToggleResult,
   Profile,
   Timeline,
   TimelinePost,
@@ -49,6 +50,7 @@ type TimelinePostView = {
   repostCount?: number
   replyCount?: number
   quoteCount?: number
+  viewer?: { like?: string; repost?: string }
 }
 
 type TimelineFeedItem = {
@@ -72,6 +74,8 @@ export function normalizeTimelinePost(feedItem: TimelineFeedItem): TimelinePost 
     repostCount: post.repostCount ?? 0,
     replyCount: post.replyCount ?? 0,
     quoteCount: post.quoteCount ?? 0,
+    liked: typeof post.viewer?.like === 'string',
+    reposted: typeof post.viewer?.repost === 'string',
   }
 }
 
@@ -95,6 +99,17 @@ export function normalizeNotification(notification: {
     indexedAt: clipped(notification.indexedAt, 64),
     isRead: notification.isRead ?? false,
   }
+}
+
+export type ToggleKind = 'like' | 'repost'
+
+/** A post reference from a client. Bounded and shaped, never trusted further. */
+export function validPostRef(uri: unknown, cid: unknown): { uri: string; cid: string } | undefined {
+  if (typeof uri !== 'string' || typeof cid !== 'string') return undefined
+  if (uri.length > 512 || cid.length > 255 || cid.length === 0) return undefined
+  if (!/^at:\/\/did:[a-z]+:[A-Za-z0-9._:%-]+\/app\.bsky\.feed\.post\/[A-Za-z0-9._~:-]+$/.test(uri)) return undefined
+  if (!/^[A-Za-z0-9]+$/.test(cid)) return undefined
+  return { uri, cid }
 }
 
 export class DomainApi {
@@ -133,6 +148,30 @@ export class DomainApi {
       notifications: result.data.notifications.map(normalizeNotification),
       cursor: result.data.cursor,
     }
+  }
+
+  /**
+   * Set like or repost to `on`, idempotently. The current viewer state is read
+   * from the AppView first, so the client sends only the state it wants and
+   * never needs the like or repost record URI; a repeated request is a no-op.
+   */
+  async toggle(agent: Agent, kind: ToggleKind, ref: { uri: string; cid: string }, on: boolean): Promise<ToggleResult> {
+    const result = await agent.getPosts({ uris: [ref.uri] })
+    const post = result.data.posts[0]
+    if (!post) return { uri: ref.uri, on: false, count: 0 }
+    const existing = kind === 'like' ? post.viewer?.like : post.viewer?.repost
+    let count = (kind === 'like' ? post.likeCount : post.repostCount) ?? 0
+
+    if (on && !existing) {
+      if (kind === 'like') await agent.like(ref.uri, ref.cid)
+      else await agent.repost(ref.uri, ref.cid)
+      count += 1
+    } else if (!on && existing) {
+      if (kind === 'like') await agent.deleteLike(existing)
+      else await agent.deleteRepost(existing)
+      count = Math.max(0, count - 1)
+    }
+    return { uri: ref.uri, on, count }
   }
 
   async post(agent: Agent, text: string): Promise<PostResult> {
