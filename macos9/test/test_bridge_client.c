@@ -1,0 +1,492 @@
+/*
+ * test_bridge_client.c -- host-side tests for the Mac OS 9 bridge client.
+ *
+ * The client is compiled into the Wolfram wolfram-macos9-transport target and
+ * cannot be linked on a development host without Open Transport, so the
+ * Wolfram entry points it calls are stubbed here. That makes the pairing path
+ * -- the one place where the client accepts a token from the network and
+ * stores it -- testable against malformed and hostile responses, which is
+ * exactly the code that must not be trusted to a hand-written parser.
+ *
+ * The stubs record what the client asked for, so the tests also assert the
+ * request the client builds, not only how it reads the reply.
+ *
+ * This is a logic and dialect check on a modern compiler. It is not Classic
+ * Mac OS 9 hardware validation.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "bridge_client.h"
+
+/* ------------------------------------------------------------------ */
+/* Recorded calls                                                      */
+/* ------------------------------------------------------------------ */
+
+static char last_url[512];
+static char last_body[512];
+static char last_auth[256];
+static int auth_set;
+static int last_method; /* 0 = none, 1 = GET, 2 = POST */
+
+/* What the next transport call should do. */
+static int fake_status;      /* wf_status to return */
+static long fake_http_status;/* HTTP status to put in the response */
+static const char *fake_body;/* response body to hand back */
+
+static int failures;
+static int checks;
+
+static void check(int condition, const char *what)
+{
+    checks++;
+    if (!condition) {
+        failures++;
+        printf("FAIL: %s\n", what);
+    }
+}
+
+static void check_str(const char *got, const char *want, const char *what)
+{
+    checks++;
+    if (got == NULL || strcmp(got, want) != 0) {
+        failures++;
+        printf("FAIL: %s (got \"%s\", want \"%s\")\n", what,
+               got ? got : "(null)", want);
+    }
+}
+
+static void check_status(wf_status got, wf_status want, const char *what)
+{
+    checks++;
+    if (got != want) {
+        failures++;
+        printf("FAIL: %s (got %d, want %d)\n", what, (int)got, (int)want);
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Wolfram transport stubs                                             */
+/* ------------------------------------------------------------------ */
+
+static char *stub_strdup(const char *value)
+{
+    size_t len;
+    char *copy;
+
+    if (value == NULL)
+        return NULL;
+    len = strlen(value);
+    copy = (char *)malloc(len + 1);
+    if (copy != NULL)
+        memcpy(copy, value, len + 1);
+    return copy;
+}
+
+/*
+ * The real client is opaque, so a one-byte stand-in is enough: the stubs
+ * never dereference it.
+ */
+wf_xrpc_client *wf_xrpc_client_new(const char *service_base_url)
+{
+    static char handle;
+
+    if (service_base_url == NULL || service_base_url[0] == '\0')
+        return NULL;
+    return (wf_xrpc_client *)&handle;
+}
+
+void wf_xrpc_client_free(wf_xrpc_client *client)
+{
+    (void)client;
+}
+
+void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt)
+{
+    (void)client;
+    auth_set = 1;
+    last_auth[0] = '\0';
+    if (access_jwt != NULL) {
+        strncpy(last_auth, access_jwt, sizeof(last_auth) - 1);
+        last_auth[sizeof(last_auth) - 1] = '\0';
+    }
+}
+
+void wf_response_free(wf_response *res)
+{
+    if (res == NULL)
+        return;
+    free(res->body);
+    free(res->dpop_nonce);
+    free(res->set_cookie);
+    free(res->location);
+    memset(res, 0, sizeof(*res));
+}
+
+static void record_response(wf_response *out)
+{
+    /* The real transport populates every field, and wf_response_free is only
+     * documented as safe on a zeroed struct. Leaving the optional header
+     * pointers untouched here would make this stub free stack garbage rather
+     * than expose a real defect. */
+    memset(out, 0, sizeof(*out));
+    out->status = fake_http_status;
+    if (fake_body != NULL) {
+        out->body = stub_strdup(fake_body);
+        if (out->body != NULL)
+            out->body_len = strlen(out->body);
+    }
+}
+
+wf_status wf_http_get(wf_xrpc_client *client, const char *url,
+                      wf_response *out)
+{
+    (void)client;
+    last_method = 1;
+    last_url[0] = '\0';
+    if (url != NULL) {
+        strncpy(last_url, url, sizeof(last_url) - 1);
+        last_url[sizeof(last_url) - 1] = '\0';
+    }
+    if (out != NULL)
+        record_response(out);
+    return (wf_status)fake_status;
+}
+
+wf_status wf_http_post(wf_xrpc_client *client, const char *url,
+                       const char *content_type, const char *body,
+                       const wf_http_header *headers, size_t header_count,
+                       wf_response *out)
+{
+    (void)client;
+    (void)content_type;
+    (void)headers;
+    (void)header_count;
+    last_method = 2;
+    last_url[0] = '\0';
+    last_body[0] = '\0';
+    if (url != NULL) {
+        strncpy(last_url, url, sizeof(last_url) - 1);
+        last_url[sizeof(last_url) - 1] = '\0';
+    }
+    if (body != NULL) {
+        strncpy(last_body, body, sizeof(last_body) - 1);
+        last_body[sizeof(last_body) - 1] = '\0';
+    }
+    if (out != NULL)
+        record_response(out);
+    return (wf_status)fake_status;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tests                                                               */
+/* ------------------------------------------------------------------ */
+
+static void reset_fake(long http_status, const char *body, int status)
+{
+    fake_http_status = http_status;
+    fake_body = body;
+    fake_status = status;
+    last_method = 0;
+    last_url[0] = '\0';
+    last_body[0] = '\0';
+}
+
+static const char *ok_pair =
+    "{\"protocol\":1,\"token\":\"TOKENVALUE\",\"did\":\"did:plc:abc123\","
+    "\"installationId\":\"11111111-2222-3333-4444-555555555555\"}";
+
+static void test_pair_success(void)
+{
+    platinum_bridge_client *client;
+    platinum_bridge_pairing pairing;
+    wf_status status;
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    check(client != NULL, "client created");
+    if (client == NULL)
+        return;
+
+    reset_fake(200, ok_pair, WF_OK);
+    status = platinum_bridge_pair(client, "K7Q2M9", &pairing);
+
+    check_status(status, WF_OK, "pair succeeds");
+    check_str(last_url, "https://bridge.example/v1/pair", "pair URL");
+    check_str(last_body, "{\"code\":\"K7Q2M9\"}", "pair request body");
+    check(pairing.protocol == 1, "pair protocol version");
+    check_str(pairing.token, "TOKENVALUE", "pair token");
+    check_str(pairing.did, "did:plc:abc123", "pair did");
+    check_str(pairing.installation_id, "11111111-2222-3333-4444-555555555555",
+              "pair installation id");
+
+    platinum_bridge_pairing_free(&pairing);
+    check(pairing.token == NULL && pairing.did == NULL,
+          "pairing_free clears the struct");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_pair_escapes_code(void)
+{
+    platinum_bridge_client *client;
+    platinum_bridge_pairing pairing;
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    if (client == NULL) {
+        check(0, "client created for escaping");
+        return;
+    }
+
+    /* A code carrying a quote must not be able to close the JSON string. */
+    reset_fake(200, ok_pair, WF_OK);
+    platinum_bridge_pair(client, "A\"B", &pairing);
+    check_str(last_body, "{\"code\":\"A\\\"B\"}", "pair body escapes quotes");
+
+    reset_fake(200, ok_pair, WF_OK);
+    platinum_bridge_pair(client, "A\\B", &pairing);
+    check_str(last_body, "{\"code\":\"A\\\\B\"}", "pair body escapes backslash");
+
+    platinum_bridge_pairing_free(&pairing);
+    platinum_bridge_client_free(client);
+}
+
+static void test_pair_rejects_bad_input(void)
+{
+    platinum_bridge_client *client;
+    platinum_bridge_pairing pairing;
+    wf_status status;
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    if (client == NULL) {
+        check(0, "client created for rejection");
+        return;
+    }
+
+    /* A code longer than the bridge issues is a user typo, not a network
+     * condition, and must not be sent. */
+    reset_fake(200, ok_pair, WF_OK);
+    status = platinum_bridge_pair(client, "K7Q2M9EXTRA", &pairing);
+    check_status(status, WF_ERR_INVALID_ARG, "over-long code rejected");
+    check(last_method == 0, "over-long code never reaches the network");
+
+    check_status(platinum_bridge_pair(client, NULL, &pairing),
+                 WF_ERR_INVALID_ARG, "null code rejected");
+    check_status(platinum_bridge_pair(NULL, "K7Q2M9", &pairing),
+                 WF_ERR_INVALID_ARG, "null client rejected");
+    check_status(platinum_bridge_pair(client, "K7Q2M9", NULL),
+                 WF_ERR_INVALID_ARG, "null out rejected");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_pair_rejects_bad_responses(void)
+{
+    platinum_bridge_client *client;
+    platinum_bridge_pairing pairing;
+    wf_status status;
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    if (client == NULL) {
+        check(0, "client created for bad responses");
+        return;
+    }
+
+    /* An expired or mistyped code is a normal 401 with a reason in the body.
+     * It must not be mistaken for a pairing. */
+    reset_fake(401, "{\"error\":\"invalid_or_expired_code\"}", WF_ERR_HTTP);
+    status = platinum_bridge_pair(client, "K7Q2M9", &pairing);
+    check_status(status, WF_ERR_HTTP, "expired code reported as HTTP error");
+    check(pairing.token == NULL && pairing.did == NULL &&
+              pairing.installation_id == NULL,
+          "expired code yields no pairing");
+
+    reset_fake(400, "{\"error\":\"invalid_code\"}", WF_ERR_HTTP);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_HTTP, "invalid code reported as HTTP error");
+
+    /* A 200 that is not the documented shape must not produce a half-built
+     * pairing: the caller has to be able to trust that token and did were both
+     * present and valid. */
+    reset_fake(200, "{\"protocol\":1,\"did\":\"did:plc:abc\"}", WF_OK);
+    status = platinum_bridge_pair(client, "K7Q2M9", &pairing);
+    check_status(status, WF_ERR_NOT_FOUND, "missing token reported");
+    check(pairing.token == NULL && pairing.did == NULL &&
+              pairing.installation_id == NULL,
+          "missing token yields no pairing");
+
+    reset_fake(200, "{\"protocol\":1,\"token\":\"T\"}", WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_NOT_FOUND, "missing did reported");
+
+    reset_fake(200,
+               "{\"protocol\":1,\"token\":\"T\",\"did\":\"did:plc:a\"}",
+               WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_NOT_FOUND, "missing installation id reported");
+    check(pairing.token == NULL && pairing.did == NULL &&
+              pairing.installation_id == NULL,
+          "missing installation id yields no pairing");
+
+    reset_fake(200, "{\"protocol\":1,\"token\":123,\"did\":\"d\"}", WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_PARSE, "non-string token rejected");
+
+    /* A truncated body must not yield the token it happens to contain. */
+    reset_fake(200, "{\"protocol\":1,\"token\":\"T\"", WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_PARSE, "truncated body rejected");
+
+    reset_fake(200, "not json at all", WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_PARSE, "non-JSON body rejected");
+
+    reset_fake(200, NULL, WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_PARSE, "empty body rejected");
+
+    /* A future protocol version must be refused explicitly. */
+    reset_fake(200,
+               "{\"protocol\":2,\"token\":\"T\",\"did\":\"did:plc:a\","
+               "\"installationId\":\"i\"}",
+               WF_OK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_UNSUPPORTED, "unknown protocol version refused");
+    check(pairing.token == NULL,
+          "refused version yields no pairing");
+
+    /* Transport failures pass through unchanged. */
+    reset_fake(0, NULL, WF_ERR_NETWORK);
+    check_status(platinum_bridge_pair(client, "K7Q2M9", &pairing),
+                 WF_ERR_NETWORK, "network failure passed through");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_pair_is_repeatable(void)
+{
+    platinum_bridge_client *client;
+    platinum_bridge_pairing pairing;
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    if (client == NULL) {
+        check(0, "client created for repeat");
+        return;
+    }
+
+    /* Reusing one output struct must not leak the previous token, and a failed
+     * second attempt must not leave the first pairing in place looking valid.
+     */
+    reset_fake(200, ok_pair, WF_OK);
+    platinum_bridge_pair(client, "K7Q2M9", &pairing);
+    check_str(pairing.token, "TOKENVALUE", "first pairing token");
+
+    reset_fake(401, "{\"error\":\"invalid_or_expired_code\"}", WF_ERR_HTTP);
+    platinum_bridge_pair(client, "K7Q2M9", &pairing);
+    check(pairing.token == NULL && pairing.did == NULL &&
+              pairing.installation_id == NULL,
+          "failed retry clears the previous pairing");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_token_and_paths(void)
+{
+    platinum_bridge_client *client;
+    wf_response response;
+
+    memset(&response, 0, sizeof(response));
+
+    client = platinum_bridge_client_new("https://bridge.example/");
+    if (client == NULL) {
+        check(0, "client created for paths");
+        return;
+    }
+
+    check_status(platinum_bridge_client_set_token(client, "BRIDGETOKEN"),
+                 WF_OK, "set token");
+    check(auth_set, "token reached the transport");
+    /* Wolfram adds the "Bearer " prefix itself, so the client must pass the
+     * raw token. */
+    check_str(last_auth, "BRIDGETOKEN", "raw token passed to transport");
+
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_get(client, "/v1/profile", &response),
+                 WF_OK, "get profile");
+    check_str(last_url, "https://bridge.example/v1/profile", "get URL");
+    check_str(last_body, "", "get sends no body");
+    wf_response_free(&response);
+
+    check_status(platinum_bridge_revoke(client, &response), WF_OK,
+                 "revoke");
+    check_str(last_url, "https://bridge.example/v1/revoke", "revoke URL");
+
+    check_status(platinum_bridge_client_set_token(NULL, "T"),
+                 WF_ERR_INVALID_ARG, "set token on null client");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_post_validates_body(void)
+{
+    platinum_bridge_client *client;
+    wf_response response;
+
+    memset(&response, 0, sizeof(response));
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    if (client == NULL) {
+        check(0, "client created for post validation");
+        return;
+    }
+
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_post(client, "/v1/post", "{\"text\":\"hi\"}",
+                                      &response),
+                 WF_OK, "valid body accepted");
+    check_str(last_body, "{\"text\":\"hi\"}", "valid body sent");
+    wf_response_free(&response);
+
+    /* Malformed JSON must not reach the network. */
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_post(client, "/v1/post", "{\"text\":",
+                                      &response),
+                 WF_ERR_PARSE, "malformed body rejected");
+    check(last_method == 0, "malformed body never reaches the network");
+
+    check_status(platinum_bridge_post(client, "/v1/post", "{}{}", &response),
+                 WF_ERR_PARSE, "trailing content rejected");
+
+    platinum_bridge_client_free(client);
+}
+
+static void test_client_lifecycle(void)
+{
+    check(platinum_bridge_client_new(NULL) == NULL, "null base URL refused");
+    check(platinum_bridge_client_new("") == NULL, "empty base URL refused");
+
+    platinum_bridge_client_free(NULL);
+    check(1, "freeing null client is safe");
+}
+
+int main(void)
+{
+    test_pair_success();
+    test_pair_escapes_code();
+    test_pair_rejects_bad_input();
+    test_pair_rejects_bad_responses();
+    test_pair_is_repeatable();
+    test_token_and_paths();
+    test_post_validates_body();
+    test_client_lifecycle();
+
+    if (failures != 0) {
+        printf("test_bridge_client: %d of %d checks failed\n", failures,
+               checks);
+        return 1;
+    }
+
+    printf("test_bridge_client: all checks passed\n");
+    return 0;
+}

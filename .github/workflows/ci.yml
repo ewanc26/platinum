@@ -26,3 +26,72 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+
+  # The Mac OS 9 sources are a CodeWarrior-era C89 target that nothing else here
+  # compiles: the bridge job is TypeScript, so a C99 construct or a modern libc
+  # convenience would reach main unnoticed even though a CodeWarrior compiler
+  # rejects both. The flags below mirror Wolfram's own Mac OS 9 CI job
+  # deliberately, because the two targets have to accept the same dialect.
+  # -pedantic-errors is stricter than CodeWarrior and turns GNU extensions into
+  # hard errors.
+  #
+  # This is a dialect and logic check on a modern compiler. It is not a native
+  # CodeWarrior build and it is not Classic Mac OS 9 hardware validation.
+  macos9:
+    name: Mac OS 9 sources (C89)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Only Wolfram's public headers are needed, so the dependency is the
+      # released transport rather than a build of it. Bumping this ref is a
+      # deliberate version change and has to update AGENTS.md and the README in
+      # the same commit.
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: v0.26.0
+          path: wolfram
+
+      - name: Install clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang
+
+      - name: Assert the Mac sources still compile as strict C89
+        run: |
+          set -euo pipefail
+          for f in \
+            macos9/bridge_client.c \
+            macos9/json_min.c \
+            macos9/test/test_bridge_client.c \
+            macos9/test/test_json_min.c
+          do
+            echo "--- $f"
+            clang -std=c89 -pedantic-errors -Wall -Wextra \
+              -Wno-unused-parameter -Werror \
+              -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
+              -I macos9 -I wolfram/include \
+              -c "$f" -o /dev/null
+          done
+
+      - name: Run the Mac-side tests
+        # The transport itself cannot run here: it is built on Open Transport
+        # and macTLS. These tests cover the client's own request building and
+        # its handling of bridge responses by stubbing the Wolfram entry
+        # points, which is what makes the pairing path testable at all.
+        run: |
+          set -euo pipefail
+          CFLAGS=(
+            -std=c89 -pedantic-errors -Wall -Wextra
+            -Wno-unused-parameter -Werror
+            -Wdeclaration-after-statement -Wstrict-prototypes -Wvla
+            -I macos9 -I wolfram/include
+          )
+          clang "${CFLAGS[@]}" -o /tmp/test_json_min \
+            macos9/json_min.c macos9/test/test_json_min.c
+          /tmp/test_json_min
+          clang "${CFLAGS[@]}" -o /tmp/test_bridge_client \
+            macos9/bridge_client.c macos9/json_min.c \
+            macos9/test/test_bridge_client.c
+          /tmp/test_bridge_client
