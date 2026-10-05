@@ -325,6 +325,10 @@ OSErr platinum_config_load(platinum_config *config)
         free(buffer);
         return err;
     }
+    if (bytes_read != file_size) {
+        free(buffer);
+        return eofErr;
+    }
 
     buffer[bytes_read] = '\0';
     version_seen = 0;
