@@ -268,3 +268,6 @@ The native Preferences surface is a modeless document window showing the paired 
 
 
 Pairing is a reusable modeless window rather than a first-run-only dialog. It opens automatically when no account is configured and can also be invoked from File > Pair Account or Account Preferences after sign-out. OAuth remains in the modern browser; the Classic Mac window only collects the bridge URL and six-character pairing code.
+
+
+The Timeline and Notifications lists use native Control Manager scroll bars. The scroll thumb is part of the Classic Mac window chrome rather than a custom-drawn web-style widget and shares state with keyboard/page scrolling.
