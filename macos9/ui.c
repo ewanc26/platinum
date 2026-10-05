@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "timeline.h"
 
 #include <Quickdraw.h>
 #include <string.h>
@@ -15,31 +16,45 @@ static unsigned char kSelected[] = {
     13, 'S', 'e', 'l', 'e', 'c', 't', 'e', 'd', ' ', 'p', 'o', 's', 't'
 };
 static unsigned char kPaired[] = {
-    20, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'a', 'c', 'c', 'o', 'u', 'n', 't', ' ', 'r', 'e', 'a', 'd', 'y'
+    20, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'a', 'c', 'c', 'o', 'u', 'n', 't',
+    ' ', 'r', 'e', 'a', 'd', 'y'
 };
 static unsigned char kNotPaired[] = {
-    35, 'C', 'o', 'n', 'n', 'e', 'c', 't', ' ', 't', 'o', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', 'B', 'r', 'i', 'd', 'g', 'e', ' ', 't', 'o', ' ', 'b', 'e', 'g', 'i', 'n'
-};
-static unsigned char kTimelinePlaceholder[] = {
-    31, 'T', 'i', 'm', 'e', 'l', 'i', 'n', 'e', ' ', 'd', 'a', 't', 'a', ' ', 'w', 'i', 'l', 'l', ' ', 'a', 'p', 'p', 'e', 'a', 'r', ' ', 'h', 'e', 'r', 'e', '.'
+    35, 'C', 'o', 'n', 'n', 'e', 'c', 't', ' ', 't', 'o', ' ', 'P', 'l', 'a',
+    't', 'i', 'n', 'u', 'm', ' ', 'B', 'r', 'i', 'd', 'g', 'e', ' ', 't', 'o',
+    ' ', 'b', 'e', 'g', 'i', 'n'
 };
 static unsigned char kDetailPlaceholder[] = {
-    30, 'S', 'e', 'l', 'e', 'c', 't', ' ', 'a', ' ', 'p', 'o', 's', 't', ' ', 't', 'o', ' ', 'v', 'i', 'e', 'w', ' ', 'd', 'e', 't', 'a', 'i', 'l', 's', '.'
+    30, 'S', 'e', 'l', 'e', 'c', 't', ' ', 'a', ' ', 'p', 'o', 's', 't', ' ',
+    't', 'o', ' ', 'v', 'i', 'e', 'w', ' ', 'd', 'e', 't', 'a', 'i', 'l', 's',
+    '.'
+};
+static unsigned char kMore[] = {
+    6, 'M', 'o', 'r', 'e', '.', '.', '.'
 };
 
 static void platinum_ui_button(const Rect *bounds, StringPtr title)
 {
-    Rect text_rect;
     long text_width;
+    short baseline;
 
     FrameRect(bounds);
     text_width = StringWidth(title);
-    text_rect.left = bounds->left + (short)((bounds->right - bounds->left - text_width) / 2);
-    text_rect.right = text_rect.left + (short)text_width;
-    text_rect.top = bounds->top + 4;
-    text_rect.bottom = text_rect.top + 14;
-    MoveTo(text_rect.left, text_rect.bottom);
+    baseline = bounds->top + 14;
+    MoveTo(bounds->left + (short)((bounds->right - bounds->left - text_width) / 2),
+           baseline);
     DrawString(title);
+}
+
+void platinum_ui_state_init(platinum_ui_state *state)
+{
+    if (state == NULL)
+        return;
+
+    state->navigation = 0;
+    state->selected_post = 0;
+    state->scroll_row = 0;
+    state->show_detail = 1;
 }
 
 void platinum_ui_layout_compute(const Rect *content,
@@ -85,25 +100,123 @@ void platinum_ui_layout_compute(const Rect *content,
     layout->detail.top = content->bottom - detail_height;
 }
 
+static void platinum_ui_draw_post(const platinum_ui_layout *layout,
+                                  const platinum_ui_state *state,
+                                  const platinum_post_preview *post,
+                                  short index)
+{
+    Rect row;
+    short top;
+
+    top = layout->timeline.top + 6 +
+          (short)((index - state->scroll_row) * 64);
+
+    row = layout->timeline;
+    row.top = top;
+    row.bottom = top + 62;
+
+    if (index == state->selected_post) {
+        InsetRect(&row, 2, 2);
+        FrameRect(&row);
+        InsetRect(&row, 2, 2);
+    }
+
+    MoveTo(row.left + 8, row.top + 14);
+    DrawString((StringPtr)post->author);
+
+    MoveTo(row.left + 120, row.top + 14);
+    DrawString((StringPtr)post->handle);
+
+    MoveTo(row.right - 60, row.top + 14);
+    DrawString((StringPtr)post->time);
+
+    MoveTo(row.left + 8, row.top + 34);
+    DrawString((StringPtr)post->line1);
+
+    if (post->line2[0] != 0) {
+        MoveTo(row.left + 8, row.top + 48);
+        DrawString((StringPtr)post->line2);
+    }
+
+    if (post->line3[0] != 0) {
+        MoveTo(row.left + 8, row.top + 60);
+        DrawString((StringPtr)post->line3);
+    }
+}
+
+static void platinum_ui_draw_detail(GrafPtr port,
+                                    const platinum_ui_layout *layout,
+                                    const platinum_ui_state *state)
+{
+    const platinum_post_preview *posts;
+    unsigned short count;
+    const platinum_post_preview *post;
+    Rect button;
+
+    posts = platinum_timeline_posts();
+    count = platinum_timeline_post_count();
+
+    if (count == 0 || state->selected_post >= (short)count) {
+        MoveTo(layout->detail.left + 12, layout->detail.top + 22);
+        DrawString(kSelected);
+        MoveTo(layout->detail.left + 12, layout->detail.top + 46);
+        DrawString(kDetailPlaceholder);
+        return;
+    }
+
+    post = &posts[state->selected_post];
+
+    MoveTo(layout->detail.left + 12, layout->detail.top + 20);
+    DrawString((StringPtr)post->author);
+
+    MoveTo(layout->detail.left + 12, layout->detail.top + 36);
+    DrawString((StringPtr)post->handle);
+
+    MoveTo(layout->detail.left + 12, layout->detail.top + 56);
+    DrawString((StringPtr)post->line1);
+
+    if (post->line2[0] != 0) {
+        MoveTo(layout->detail.left + 12, layout->detail.top + 70);
+        DrawString((StringPtr)post->line2);
+    }
+
+    button = layout->detail;
+    button.left = layout->detail.right - 78;
+    button.right = layout->detail.right - 10;
+    button.top = layout->detail.top + 12;
+    button.bottom = button.top + 20;
+    platinum_ui_button(&button, kMore);
+
+    (void)port;
+}
+
 void platinum_ui_draw(GrafPtr port,
                       const platinum_ui_layout *layout,
+                      const platinum_ui_state *state,
                       const platinum_session *session)
 {
     Rect button;
     Rect divider;
     GrafPtr old_port;
     int paired;
+    const platinum_post_preview *posts;
+    unsigned short count;
+    short first;
+    short visible;
+    short index;
+    short row_top;
 
-    if (port == NULL || layout == NULL || session == NULL)
+    if (port == NULL || layout == NULL || state == NULL || session == NULL)
         return;
 
     GetPort(&old_port);
     SetPort(port);
 
     paired = platinum_session_is_paired(session);
+    posts = platinum_timeline_posts();
+    count = platinum_timeline_post_count();
 
     EraseRect(&port->portRect);
-
     FrameRect(&layout->toolbar);
     FrameRect(&layout->navigation);
     FrameRect(&layout->timeline);
@@ -137,6 +250,11 @@ void platinum_ui_draw(GrafPtr port,
     button.right = button.left + 62;
     platinum_ui_button(&button, kPost);
 
+    row_top = layout->navigation.top + 12;
+    if (state->navigation == 0)
+        InsetRect(&layout->navigation, 2, 2);
+    (void)row_top;
+
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 24);
     DrawString(kHome);
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 52);
@@ -144,23 +262,146 @@ void platinum_ui_draw(GrafPtr port,
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 80);
     DrawString(kProfile);
 
-    MoveTo(layout->timeline.left + 12, layout->timeline.top + 24);
+    MoveTo(layout->timeline.left + 12, layout->timeline.top + 18);
     DrawString(kTimeline);
 
-    MoveTo(layout->timeline.left + 12, layout->timeline.top + 52);
-    DrawString(kTimelinePlaceholder);
+    first = state->scroll_row;
+    visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
+    if (visible < 1)
+        visible = 1;
 
-    MoveTo(layout->detail.left + 12, layout->detail.top + 22);
-    DrawString(kSelected);
+    for (index = first;
+         index < (short)count && index < first + visible;
+         ++index) {
+        platinum_ui_draw_post(layout, state, &posts[index], index);
+    }
 
-    MoveTo(layout->detail.left + 12, layout->detail.top + 46);
+    MoveTo(layout->detail.left + 12, layout->detail.top + 16);
     if (paired)
-        DrawString(kPaired);
-    else
+        platinum_ui_draw_detail(port, layout, state);
+    else {
+        MoveTo(layout->detail.left + 12, layout->detail.top + 46);
         DrawString(kNotPaired);
-
-    MoveTo(layout->detail.left + 12, layout->detail.top + 72);
-    DrawString(kDetailPlaceholder);
+    }
 
     SetPort(old_port);
+}
+
+int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
+                             platinum_ui_state *state,
+                             Point where)
+{
+    short row;
+    short content_top;
+    unsigned short count;
+
+    if (layout == NULL || state == NULL)
+        return PLATINUM_UI_ACTION_NONE;
+
+    if (PtInRect(where, &layout->toolbar)) {
+        if (where.h >= layout->toolbar.left + 96 &&
+            where.h < layout->toolbar.left + 182)
+            return PLATINUM_UI_ACTION_REFRESH;
+
+        if (where.h >= layout->toolbar.left + 190)
+            return PLATINUM_UI_ACTION_COMPOSE;
+    }
+
+    if (PtInRect(where, &layout->navigation)) {
+        row = (where.v - layout->navigation.top - 6) / 28;
+        if (row >= 0 && row <= 2) {
+            state->navigation = row;
+            state->selected_post = 0;
+            state->scroll_row = 0;
+            return PLATINUM_UI_ACTION_NONE;
+        }
+    }
+
+    if (PtInRect(where, &layout->timeline)) {
+        content_top = layout->timeline.top + 6;
+        row = state->scroll_row +
+              (where.v - content_top) / 64;
+        count = platinum_timeline_post_count();
+        if (row >= 0 && row < (short)count) {
+            state->selected_post = row;
+            state->show_detail = 1;
+        }
+    }
+
+    return PLATINUM_UI_ACTION_NONE;
+}
+
+int platinum_ui_handle_key(const platinum_ui_layout *layout,
+                           platinum_ui_state *state,
+                           EventRecord *event)
+{
+    unsigned char key;
+    unsigned short count;
+    short visible;
+
+    if (layout == NULL || state == NULL || event == NULL)
+        return PLATINUM_UI_ACTION_NONE;
+
+    if (event->what != keyDown && event->what != autoKey)
+        return PLATINUM_UI_ACTION_NONE;
+
+    key = (unsigned char)(event->message & charCodeMask);
+    count = platinum_timeline_post_count();
+    visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
+    if (visible < 1)
+        visible = 1;
+
+    if ((event->modifiers & cmdKey) != 0) {
+        if (key == 'r' || key == 'R')
+            return PLATINUM_UI_ACTION_REFRESH;
+        if (key == 'n' || key == 'N')
+            return PLATINUM_UI_ACTION_COMPOSE;
+        if (key == 'q' || key == 'Q')
+            return PLATINUM_UI_ACTION_QUIT;
+    }
+
+    switch (key) {
+        case 30:
+            if (state->selected_post > 0)
+                --state->selected_post;
+            if (state->selected_post < state->scroll_row)
+                state->scroll_row = state->selected_post;
+            break;
+
+        case 31:
+            if (state->selected_post + 1 < (short)count)
+                ++state->selected_post;
+            if (state->selected_post >= state->scroll_row + visible)
+                state->scroll_row = state->selected_post - visible + 1;
+            break;
+
+        case 11:
+            if (state->scroll_row > 0)
+                --state->scroll_row;
+            break;
+
+        case 12:
+            if (state->scroll_row + visible < (short)count)
+                ++state->scroll_row;
+            break;
+
+        case 33:
+            state->scroll_row -= visible;
+            if (state->scroll_row < 0)
+                state->scroll_row = 0;
+            break;
+
+        case 34:
+            state->scroll_row += visible;
+            if (state->scroll_row + visible > (short)count)
+                state->scroll_row = (short)count - visible;
+            if (state->scroll_row < 0)
+                state->scroll_row = 0;
+            break;
+
+        default:
+            break;
+    }
+
+    return PLATINUM_UI_ACTION_NONE;
 }
