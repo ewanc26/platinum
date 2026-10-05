@@ -24,7 +24,7 @@ cmd_commits() {
   local s
   while IFS=$'\t' read -r sha subj; do
     # Merge commits made by GitHub are exempt; everything else must conform.
-    [[ "$subj" =~ ^Merge\  ]] && continue
+    [[ "$subj" =~ ^([Mm]erge[: ]) ]] && continue
     [[ "$subj" =~ $CC_RE ]] || bad "commit $sha: '$subj' is not conventional"
   done < <(git log --format='%h%x09%s' "$1")
 }
