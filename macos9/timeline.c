@@ -102,6 +102,7 @@ static int timeline_parse_post(platinum_post_preview *post,
     const cJSON *handle;
     const cJSON *display_name;
     const cJSON *created_at;
+    char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
 
     if (post == NULL || item == NULL || !cJSON_IsObject(item))
         return 0;
@@ -168,8 +169,6 @@ static int timeline_parse_post(platinum_post_preview *post,
     record = cJSON_GetObjectItemCaseSensitive(item, "text");
     if (record != NULL && cJSON_IsString(record) &&
         record->valuestring != NULL) {
-        char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
-
         if (platinum_text_utf8_to_macroman(record->valuestring,
                                            text_macroman,
                                            sizeof(text_macroman),
