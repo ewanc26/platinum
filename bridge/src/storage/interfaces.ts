@@ -9,6 +9,8 @@ export interface InstallationRecord {
   revokedAt?: string
   clientVersion?: string
   installationLabel?: string
+  /** How the account signed in. Absent means OAuth (records written before app-password existed). */
+  authKind?: 'oauth' | 'app-password'
 }
 
 export interface InstallationStore {
@@ -24,4 +26,5 @@ export interface BridgeStorage {
   sessionStore(): NodeSavedSessionStore
   stateStore(): NodeSavedStateStore
   installations(): InstallationStore
+  appPasswordSessions(): import('../auth/app-password.js').KeyValue<import('../auth/app-password.js').StoredAppSession>
 }
