@@ -112,6 +112,19 @@ export function validPostRef(uri: unknown, cid: unknown): { uri: string; cid: st
   return { uri, cid }
 }
 
+/**
+ * The time a client says it has read up to. It must be an ISO 8601 timestamp
+ * the client was given (an indexedAt); a time in the future is clamped to now so
+ * a wrong Mac clock cannot mark notifications that have not arrived yet.
+ */
+export function validSeenAt(value: unknown, now = new Date()): string | undefined {
+  if (typeof value !== 'string' || value.length > 64) return undefined
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(value)) return undefined
+  const t = Date.parse(value)
+  if (Number.isNaN(t)) return undefined
+  return t > now.getTime() ? now.toISOString() : new Date(t).toISOString()
+}
+
 export class DomainApi {
   async profile(agent: Agent): Promise<Profile> {
     const result = await agent.getProfile({ actor: agent.accountDid })
@@ -172,6 +185,11 @@ export class DomainApi {
       count = Math.max(0, count - 1)
     }
     return { uri: ref.uri, on, count }
+  }
+
+  async markSeen(agent: Agent, seenAt: string): Promise<{ seenAt: string }> {
+    await agent.updateSeenNotifications(seenAt)
+    return { seenAt }
   }
 
   async post(agent: Agent, text: string): Promise<PostResult> {
