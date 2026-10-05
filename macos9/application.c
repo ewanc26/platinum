@@ -206,9 +206,21 @@ static void platinum_application_handle_event(platinum_application *app,
                 choice = MenuSelect(event->where);
                 platinum_application_handle_menu(app, choice);
                 HiliteMenu(0);
-            } else if (part == inGoAway && window == app->window) {
-                app->running = 0;
-            } else if (part == inDrag && window == app->window) {
+            } else if (part == inGoAway) {
+                if (window == app->window) {
+                    app->running = 0;
+                } else if (app->profile.window != NULL &&
+                           window == app->profile.window) {
+                    platinum_profile_close(&app->profile);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (app->compose.window != NULL &&
+                           window == app->compose.window) {
+                    platinum_compose_close(&app->compose);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
+            } else if (part == inDrag) {
                 DragWindow(window, event->where, NULL);
                 InvalRect(&window->portRect);
             } else if (app->profile.window != NULL &&
