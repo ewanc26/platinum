@@ -253,10 +253,14 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
     switch (event->what) {
         case activateEvt:
             if ((WindowPtr)(long)event->message == pairing->window) {
-                if (pairing->active_field == 0)
-                    TEActivate(pairing->bridge_url);
+                TEHandle field;
+
+                field = (pairing->active_field == 0) ? pairing->bridge_url
+                                                     : pairing->code;
+                if (event->modifiers & activeFlag)
+                    TEActivate(field);
                 else
-                    TEActivate(pairing->code);
+                    TEDeactivate(field);
             }
             return PLATINUM_PAIRING_NONE;
 

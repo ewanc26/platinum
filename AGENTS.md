@@ -196,6 +196,21 @@ Long network operations must yield to the host application's event loop through 
 
 Do not hide a blocking network loop inside rendering or input handling.
 
+### Windows
+
+Pass `(WindowPtr)-1L` as `behind` to `NewCWindow`: Inside Macintosh (Toolbox
+Essentials, Window Manager) defines it as "in front of all other windows".
+Classic Mac OS has no per-application window association to set; windows belong
+to the running process. Do not "fix" it.
+
+Event rules every window handler follows:
+
+- `activateEvt` carries `activeFlag` in `event->modifiers`. Set means activate,
+  clear means deactivate. Pass it to `HiliteWindow(window, fHilite)` and choose
+  `TEActivate` or `TEDeactivate` from it. Never activate unconditionally.
+- A `mouseDown` in `inContent` of a window that is not `FrontWindow()` only calls
+  `SelectWindow`; it is not delivered to that window's controls.
+
 ### Memory
 
 Assume memory is constrained.
