@@ -140,8 +140,11 @@ wf_status platinum_session_sign_out(platinum_session *session)
         return WF_ERR_INVALID_ARG;
 
     revoke_status = WF_OK;
-    if (session->bridge != NULL && session->config.bridge_token[0] != '\0')
-        revoke_status = platinum_bridge_revoke(session->bridge, NULL);
+    memset(&response, 0, sizeof(response));
+    if (session->bridge != NULL && session->config.bridge_token[0] != '\0') {
+        revoke_status = platinum_bridge_revoke(session->bridge, &response);
+        wf_response_free(&response);
+    }
 
     clear_status = platinum_config_clear();
 
