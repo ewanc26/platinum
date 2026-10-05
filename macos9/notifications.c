@@ -1,4 +1,5 @@
 #include "notifications.h"
+#include "scrollbar.h"
 #include "text_codec.h"
 
 #include <Quickdraw.h>
@@ -284,6 +285,22 @@ OSErr platinum_notifications_open(platinum_notifications *notifications)
     if (notifications->window == NULL)
         return memFullErr;
 
+    {
+        Rect scrollbar_bounds;
+        scrollbar_bounds = notifications->window->portRect;
+        scrollbar_bounds.left = scrollbar_bounds.right - 15;
+        scrollbar_bounds.top = 28;
+        scrollbar_bounds.bottom -= 40;
+
+        if (platinum_scrollbar_open(&notifications->scrollbar,
+                                    notifications->window,
+                                    &scrollbar_bounds) != noErr) {
+            DisposeWindow(notifications->window);
+            notifications->window = NULL;
+            return memFullErr;
+        }
+    }
+
     SetPort((GrafPtr)notifications->window);
     platinum_notifications_draw(notifications);
     SelectWindow(notifications->window);
@@ -294,6 +311,8 @@ void platinum_notifications_close(platinum_notifications *notifications)
 {
     if (notifications == NULL)
         return;
+
+    platinum_scrollbar_close(&notifications->scrollbar);
 
     if (notifications->window != NULL) {
         DisposeWindow(notifications->window);
@@ -370,6 +389,13 @@ void platinum_notifications_draw(platinum_notifications *notifications)
     close_rect.bottom -= 10;
     notification_button(&close_rect, kClose);
 
+    platinum_scrollbar_set_range(
+        &notifications->scrollbar,
+        (short)notifications->count,
+        visible,
+        notifications->scroll_row);
+    platinum_scrollbar_draw(&notifications->scrollbar);
+
     SetPort(old_port);
 }
 
@@ -401,6 +427,14 @@ int platinum_notifications_handle_event(
             return PLATINUM_NOTIFICATIONS_NONE;
 
         case mouseDown:
+            if (platinum_scrollbar_handle_mouse(
+                    &notifications->scrollbar,
+                    event,
+                    &notifications->scroll_row)) {
+                InvalRect(&notifications->window->portRect);
+                return PLATINUM_NOTIFICATIONS_NONE;
+            }
+
             where = event->where;
             GlobalToLocal(&where);
 
