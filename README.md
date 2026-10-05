@@ -248,3 +248,6 @@ A successful modern-host build does not prove Classic Mac OS 9 compatibility. Na
 ## Licence
 
 See [LICENSE](LICENSE).
+
+
+The live Timeline and Notifications surfaces use the classic Macintosh Control Manager scroll-bar control. Keyboard scrolling, page scrolling and the scroll thumb all operate on the same bounded list position.
