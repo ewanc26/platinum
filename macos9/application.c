@@ -17,28 +17,28 @@ static void platinum_application_handle_event(platinum_application *app,
                                               EventRecord *event);
 static void platinum_application_draw(platinum_application *app);
 
-static const unsigned char kWindowTitle[] = {
+static unsigned char kWindowTitle[] = {
     8, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm'
 };
 
-static const unsigned char kTitle[] = {
+static unsigned char kTitle[] = {
     8, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm'
 };
 
-static const unsigned char kBridgeReady[] = {
-    12, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'r', 'e', 'a', 'd', 'y'
+static unsigned char kBridgeReady[] = {
+    13, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'r', 'e', 'a', 'd', 'y'
 };
 
-static const unsigned char kNotPaired[] = {
+static unsigned char kNotPaired[] = {
     10, 'N', 'o', 't', ' ', 'p', 'a', 'i', 'r', 'e', 'd'
 };
 
-static const unsigned char kPaired[] = {
+static unsigned char kPaired[] = {
     6, 'P', 'a', 'i', 'r', 'e', 'd'
 };
 
-static const unsigned char kNextStep[] = {
-    43, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'c', 'o', 'n', 'f', 'i', 'g', 'u', 'r',
+static unsigned char kNextStep[] = {
+    46, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'c', 'o', 'n', 'f', 'i', 'g', 'u', 'r',
     'a', 't', 'i', 'o', 'n', ' ', 'a', 'n', 'd', ' ', 'p', 'a', 'i', 'r', 'i', 'n',
     'g', ' ', 'U', 'I', ' ', 'c', 'o', 'm', 'e', ' ', 'n', 'e', 'x', 't', '.'
 };
@@ -120,7 +120,7 @@ static void platinum_application_yield(void *userdata)
     if (app == NULL || !app->running)
         return;
 
-    if (WaitNextEvent(updateMask | activateMask, &event, 0, NULL))
+    if (WaitNextEvent(updateMask | activMask, &event, 0, NULL))
         platinum_application_handle_event(app, &event);
 }
 
