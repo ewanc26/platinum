@@ -42,6 +42,9 @@ static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
     platinum_application *app);
+static void platinum_application_recover_auth(
+    platinum_application *app,
+    wf_status status);
 static void platinum_application_open_preferences(
     platinum_application *app);
 static void platinum_application_sign_out(
@@ -550,7 +553,11 @@ static void platinum_application_refresh_timeline(platinum_application *app)
 
     app->ui.scroll_row = 0;
     app->ui.selected_post = 0;
-    platinum_timeline_refresh(&app->timeline, bridge);
+    {
+        wf_status status;
+        status = platinum_timeline_refresh(&app->timeline, bridge);
+        platinum_application_recover_auth(app, status);
+    }
     if (app->timeline.count == 0) {
         app->ui.scroll_row = 0;
         app->ui.selected_post = 0;
@@ -772,7 +779,7 @@ static void platinum_application_post_status(platinum_application *app,
 
     if (status == WF_ERR_AUTH)
         platinum_compose_set_status(&app->compose,
-                                    "Session expired; pair the account again.");
+                                    "Session expired. Use File > Pair Account; your draft is preserved.");
     else if (status == WF_ERR_HTTP)
         platinum_compose_set_status(&app->compose,
                                     "The bridge rejected the post.");
@@ -884,7 +891,11 @@ static void platinum_application_open_profile(platinum_application *app)
 
     bridge = platinum_session_bridge(&app->session);
     if (bridge != NULL)
-        platinum_profile_refresh(&app->profile, bridge);
+        {
+        wf_status status;
+        status = platinum_profile_refresh(&app->profile, bridge);
+        platinum_application_recover_auth(app, status);
+    }
 }
 
 static void platinum_application_open_notifications(platinum_application *app)
@@ -921,7 +932,11 @@ static void platinum_application_refresh_notifications(
     if (bridge == NULL)
         return;
 
-    platinum_notifications_refresh(&app->notifications, bridge);
+    {
+        wf_status status;
+        status = platinum_notifications_refresh(&app->notifications, bridge);
+        platinum_application_recover_auth(app, status);
+    }
     if (app->notifications.window != NULL)
         InvalRect(&app->notifications.window->portRect);
 }
