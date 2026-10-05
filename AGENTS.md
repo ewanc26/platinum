@@ -124,6 +124,7 @@ platinum/
 │   ├── compose.h
 │   ├── config.c
 │   ├── notifications.c
+│   ├── notifications_feed.c
 │   ├── notifications.h
 │   ├── preferences.c
 │   ├── preferences.h
