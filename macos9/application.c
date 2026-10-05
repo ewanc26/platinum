@@ -154,6 +154,7 @@ void platinum_application_dispose(platinum_application *app)
         app->window = NULL;
     }
 
+    platinum_compose_close(&app->compose);
     platinum_session_close(&app->session);
     platinum_application_dispose_menus(app);
 }
@@ -194,23 +195,34 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (part == inDrag && window == app->window) {
                 DragWindow(window, event->where, NULL);
                 InvalRect(&window->portRect);
+            } else if (app->compose.window != NULL &&
+                       window == app->compose.window) {
+                action = platinum_compose_handle_event(&app->compose, event);
+                if (action == PLATINUM_COMPOSE_CANCEL ||
+                    action == PLATINUM_COMPOSE_POST) {
+                    platinum_compose_close(&app->compose);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
             } else if (window == app->window) {
                 action = platinum_ui_handle_mouse(&app->layout,
                                                   &app->ui,
                                                   event->where);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
-                else if (action == PLATINUM_UI_ACTION_REFRESH ||
-                         action == PLATINUM_UI_ACTION_COMPOSE)
-                    platinum_application_invalidate(app);
-                else
-                    platinum_application_invalidate(app);
+                else if (action == PLATINUM_UI_ACTION_COMPOSE) {
+                    if (platinum_compose_open(&app->compose) == noErr)
+                        SelectWindow(app->compose.window);
+                }
+                platinum_application_invalidate(app);
             }
             break;
 
         case updateEvt:
             window = (WindowPtr)event->message;
-            if (window == app->window) {
+            if (app->compose.window != NULL && window == app->compose.window) {
+                platinum_compose_handle_event(&app->compose, event);
+            } else if (window == app->window) {
                 BeginUpdate(window);
                 platinum_ui_layout_compute(&window->portRect, &app->layout);
                 platinum_application_draw(app);
@@ -220,19 +232,34 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)event->message;
-            if (window == app->window)
+            if (app->compose.window != NULL && window == app->compose.window) {
+                platinum_compose_handle_event(&app->compose, event);
+            } else if (window == app->window) {
                 HiliteWindow(window, (event->modifiers & activeFlag) != 0);
+            }
             break;
 
         case keyDown:
         case autoKey:
-            action = platinum_ui_handle_key(&app->layout, &app->ui, event);
-            if (action == PLATINUM_UI_ACTION_QUIT)
-                app->running = 0;
-            else if (action != PLATINUM_UI_ACTION_NONE)
+            if (app->compose.window != NULL &&
+                FrontWindow() == app->compose.window) {
+                action = platinum_compose_handle_event(&app->compose, event);
+                if (action == PLATINUM_COMPOSE_CANCEL ||
+                    action == PLATINUM_COMPOSE_POST) {
+                    platinum_compose_close(&app->compose);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
+            } else {
+                action = platinum_ui_handle_key(&app->layout, &app->ui, event);
+                if (action == PLATINUM_UI_ACTION_QUIT)
+                    app->running = 0;
+                else if (action == PLATINUM_UI_ACTION_COMPOSE) {
+                    if (platinum_compose_open(&app->compose) == noErr)
+                        SelectWindow(app->compose.window);
+                }
                 platinum_application_invalidate(app);
-            else
-                platinum_application_invalidate(app);
+            }
             break;
 
         default:
@@ -372,8 +399,14 @@ static void platinum_application_handle_menu(platinum_application *app,
     item = (short)(choice & 0xFFFF);
 
     if (menu_id == kFileMenuID) {
-        if (item == 1 || item == 2) {
-            platinum_application_invalidate(app);
+        if (item == 1) {
+            if (platinum_compose_open(&app->compose) == noErr)
+                SelectWindow(app->compose.window);
+        } else if (item == 2) {
+            if (app->compose.window != NULL)
+                platinum_compose_close(&app->compose);
+            else
+                app->running = 0;
         } else if (item == 3) {
             app->running = 0;
         }
