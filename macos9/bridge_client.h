@@ -36,6 +36,14 @@ wf_status platinum_bridge_post(platinum_bridge_client *client,
                                const char *json_body,
                                wf_response *out);
 
+/*
+ * Percent-encode `value` for use as a query-string value: everything except
+ * RFC 3986 unreserved characters (A-Z a-z 0-9 - . _ ~) becomes %XX. Writes a
+ * NUL-terminated result into `out` and returns its length, or -1 if it does
+ * not fit (in which case `out` holds an empty string).
+ */
+long platinum_bridge_query_escape(const char *value, char *out, long capacity);
+
 wf_status platinum_bridge_revoke(platinum_bridge_client *client,
                                  wf_response *out);
 
