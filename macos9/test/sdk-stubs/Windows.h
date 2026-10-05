@@ -27,7 +27,7 @@ void InvalRect(const Rect *r);
 void SelectWindow(WindowPtr window);
 WindowPtr FrontWindow(void);
 void InitWindows(void);
-void HiliteWindow(WindowPtr window);
+void HiliteWindow(WindowPtr window, Boolean fHilite);
 short DragWindow(WindowPtr window, Point startPoint, const Rect *dragRect);
 
 void BeginUpdate(WindowPtr window);
