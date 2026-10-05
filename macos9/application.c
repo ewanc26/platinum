@@ -310,7 +310,11 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case updateEvt:
             window = (WindowPtr)event->message;
-            if (app->notifications.window != NULL &&
+            if (app->preferences.window != NULL &&
+                window == app->preferences.window) {
+                platinum_preferences_handle_event(&app->preferences,
+                                                  event);
+            } else if (app->notifications.window != NULL &&
                 window == app->notifications.window) {
                 platinum_notifications_handle_event(&app->notifications,
                                                     event);
@@ -328,7 +332,11 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)event->message;
-            if (app->notifications.window != NULL &&
+            if (app->preferences.window != NULL &&
+                window == app->preferences.window) {
+                platinum_preferences_handle_event(&app->preferences,
+                                                  event);
+            } else if (app->notifications.window != NULL &&
                 window == app->notifications.window) {
                 platinum_notifications_handle_event(&app->notifications,
                                                     event);
