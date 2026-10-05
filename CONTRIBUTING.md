@@ -19,7 +19,12 @@ file is the flow.
 5. Wait for the `CI gate` check to go green. If it is red, read the job log,
    reproduce it locally, fix the cause and push again. Skipping or deleting a
    test is not a fix.
-6. Merge only a green pull request. A red `main` is fixed before anything else.
+6. Merge only a green pull request, by **rebase**. Every commit lands on `main`
+   as written, so each one is a conventional commit that builds and passes on
+   its own; write review fixes as real `fix(scope): ...` commits. Do not merge
+   `main` into a branch and do not force-push. If a branch falls behind or
+   conflicts, cut a fresh branch from `main`, cherry-pick, open a new PR that
+   links the old one, and close the old one. A red `main` is fixed before anything else.
 
 `tools/check-flow.sh` is what the `Flow and drift` job runs, so you can run the
 same checks before pushing:
@@ -39,7 +44,8 @@ disagrees with either. It publishes nothing.
 
 | Rule | Enforced by |
 | --- | --- |
-| Conventional PR title and commits | `Flow and drift` job |
+| Conventional PR title and commits; no merge commits in a PR | `Flow and drift` job |
+| Rebase merging only | repository setting; see the `needs-owner` issue |
 | PR body has What / Why / Verification | `Flow and drift` job |
 | Parity matrix matches the code, and cited issues are open | `Flow and drift` job |
 | Every Mac source is compiled in CI; docs match the pinned Wolfram | `Flow and drift` job |
