@@ -156,10 +156,8 @@ OSErr platinum_application_init(platinum_application *app)
 
     SetRect(&bounds, 48, 40, 688, 520);
 
-    app->window = NewCWindow(&bounds, 1, 0,
-                             documentProc,
-                             (WindowPtr)-1L, 1, 0L);
-    SetWindowTitle(app->window, kWindowTitle);
+    app->window = NewCWindow(NULL, &bounds, kWindowTitle, 1,
+                             documentProc, (WindowPtr)-1L, 1, 0L);
     if (app->window == NULL) {
         platinum_session_close(&app->session);
         platinum_application_dispose_menus(app);

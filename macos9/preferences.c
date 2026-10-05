@@ -65,10 +65,8 @@ OSErr platinum_preferences_open(platinum_preferences *preferences,
     preferences->status[0] = '\0';
 
     SetRect(&bounds, 128, 92, 608, 386);
-    preferences->window = NewCWindow(&bounds, 1, 0,
-                                     documentProc,
-                                     (WindowPtr)-1L, 1, 0L);
-    SetWindowTitle(preferences->window, kPreferencesTitle);
+    preferences->window = NewCWindow(NULL, &bounds, kPreferencesTitle, 1,
+                                     documentProc, (WindowPtr)-1L, 1, 0L);
     if (preferences->window == NULL) {
         preferences->session = NULL;
         return memFullErr;

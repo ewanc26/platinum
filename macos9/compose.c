@@ -80,10 +80,8 @@ OSErr platinum_compose_open(platinum_compose *compose)
     memset(compose, 0, sizeof(*compose));
 
     SetRect(&bounds, 126, 84, 594, 396);
-    compose->window = NewCWindow(&bounds, 1, 0,
-                                 documentProc,
-                                 (WindowPtr)-1L, 1, 0L);
-    SetWindowTitle(compose->window, kComposeTitle);
+    compose->window = NewCWindow(NULL, &bounds, kComposeTitle, 1,
+                                 documentProc, (WindowPtr)-1L, 1, 0L);
     if (compose->window == NULL)
         return memFullErr;
 

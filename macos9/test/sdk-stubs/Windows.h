@@ -13,18 +13,14 @@ typedef struct StubWindow {
 
 typedef WindowPtr WindowRef;
 
-/* The Classic Mac OS signature: seven parameters, in this order. The real SDK
- * declares documentProc with this same function-pointer return type, which is
- * why a procedure can be passed to NewCWindow by name. */
-typedef ProcPtr (*WindowProc)(WindowPtr window, int message,
-                               ParamStructRec *param, Ptr lParam);
+/* The Classic Mac OS signature: eight parameters, in this order. procID is a
+ * window definition ID, not a function pointer; documentProc is that constant. */
+#define documentProc 0
 
-WindowPtr NewCWindow(const Rect *boundsRect, Boolean isVisible, short procID,
-                     WindowProc handlerProc, WindowPtr behind,
-                     Boolean inGoToState, long refCon);
-
-ProcPtr documentProc(WindowPtr window, int message, ParamStructRec *param,
-                     Ptr lParam);
+WindowPtr NewCWindow(void *wStorage, const Rect *boundsRect,
+                     const unsigned char *title, Boolean visible,
+                     short procID, WindowPtr behind, Boolean goAwayFlag,
+                     long refCon);
 
 void DisposeWindow(WindowPtr window);
 void InvalRect(const Rect *r);
@@ -33,7 +29,6 @@ WindowPtr FrontWindow(void);
 void InitWindows(void);
 void HiliteWindow(WindowPtr window);
 short DragWindow(WindowPtr window, Point startPoint, const Rect *dragRect);
-void SetWindowTitle(WindowPtr window, Str255 title);
 
 void BeginUpdate(WindowPtr window);
 void EndUpdate(WindowPtr window);
