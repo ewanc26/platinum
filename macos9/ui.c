@@ -33,6 +33,13 @@ static unsigned char kMore[] = {
     6, 'M', 'o', 'r', 'e', '.', '.', '.'
 };
 
+static void platinum_ui_text(const char *text)
+{
+    if (text == NULL)
+        return;
+    DrawText(text, 0, (short)strlen(text));
+}
+
 static void platinum_ui_button(const Rect *bounds, StringPtr title)
 {
     long text_width;
@@ -122,25 +129,25 @@ static void platinum_ui_draw_post(const platinum_ui_layout *layout,
     }
 
     MoveTo(row.left + 8, row.top + 14);
-    DrawString((StringPtr)post->author);
+    platinum_ui_text(post->author);
 
     MoveTo(row.left + 120, row.top + 14);
-    DrawString((StringPtr)post->handle);
+    platinum_ui_text(post->handle);
 
     MoveTo(row.right - 60, row.top + 14);
-    DrawString((StringPtr)post->time);
+    platinum_ui_text(post->time);
 
     MoveTo(row.left + 8, row.top + 34);
-    DrawString((StringPtr)post->line1);
+    platinum_ui_text(post->line1);
 
     if (post->line2[0] != 0) {
         MoveTo(row.left + 8, row.top + 48);
-        DrawString((StringPtr)post->line2);
+        platinum_ui_text(post->line2);
     }
 
     if (post->line3[0] != 0) {
         MoveTo(row.left + 8, row.top + 60);
-        DrawString((StringPtr)post->line3);
+        platinum_ui_text(post->line3);
     }
 }
 
@@ -251,8 +258,6 @@ void platinum_ui_draw(GrafPtr port,
     platinum_ui_button(&button, kPost);
 
     row_top = layout->navigation.top + 12;
-    if (state->navigation == 0)
-        InsetRect(&layout->navigation, 2, 2);
     (void)row_top;
 
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 24);
@@ -361,37 +366,37 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
     }
 
     switch (key) {
-        case 30:
+        case upArrow:
             if (state->selected_post > 0)
                 --state->selected_post;
             if (state->selected_post < state->scroll_row)
                 state->scroll_row = state->selected_post;
             break;
 
-        case 31:
+        case downArrow:
             if (state->selected_post + 1 < (short)count)
                 ++state->selected_post;
             if (state->selected_post >= state->scroll_row + visible)
                 state->scroll_row = state->selected_post - visible + 1;
             break;
 
-        case 11:
+        case leftArrow:
             if (state->scroll_row > 0)
                 --state->scroll_row;
             break;
 
-        case 12:
+        case rightArrow:
             if (state->scroll_row + visible < (short)count)
                 ++state->scroll_row;
             break;
 
-        case 33:
+        case pageUp:
             state->scroll_row -= visible;
             if (state->scroll_row < 0)
                 state->scroll_row = 0;
             break;
 
-        case 34:
+        case pageDown:
             state->scroll_row += visible;
             if (state->scroll_row + visible > (short)count)
                 state->scroll_row = (short)count - visible;
