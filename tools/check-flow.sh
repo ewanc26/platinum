@@ -6,6 +6,7 @@
 #   tools/check-flow.sh body <file>           PR body has the template's sections
 #   tools/check-flow.sh commits <range>       every commit subject is conventional
 #   tools/check-flow.sh release <tag>         tag matches package.json and CHANGELOG
+#   tools/check-flow.sh duplication           shared logic stays in Wolfram (see tools/ownership.txt)
 #
 # Exit status is non-zero on the first failed group; every violation in that
 # group is printed first.
@@ -74,12 +75,44 @@ cmd_drift() {
   done
 }
 
+# Shared logic belongs in Wolfram. Three rules:
+#  1. The Mac client speaks only the bridge protocol, so no AT Protocol method
+#     string (NSID) may appear under macos9/ at all.
+#  2. The bridge calls @atproto/api; a raw NSID literal under bridge/src/ means
+#     hand-rolled protocol, which is allowed only as a "port" file.
+#  3. Every source is in tools/ownership.txt with an owner and a reason, so a new
+#     file has to say whether it duplicates Wolfram before it can land.
+cmd_duplication() {
+  local own=tools/ownership.txt nsid='"(com\.atproto|app\.bsky|chat\.bsky|tools\.ozone|uk\.ewancroft)\.[A-Za-z.]+"'
+  local f owner rest hit
+  while IFS= read -r hit; do
+    bad "$hit: the Mac client holds an AT Protocol method string; it must go through the bridge"
+  done < <(grep -rnoE --include='*.c' --include='*.h' "$nsid" macos9 --exclude-dir=test 2>/dev/null)
+  while IFS=: read -r f rest; do
+    owner=$(awk -v p="$f" '$1==p {print $2}' "$own")
+    [ "$owner" = port ] || bad "$f holds a raw NSID ($rest); protocol belongs in Wolfram or @atproto/api, or mark the file 'port' with its Wolfram issue in $own"
+  done < <(grep -rnoE --include='*.ts' "$nsid" bridge/src 2>/dev/null | sed -E 's/:[0-9]+:/:/')
+  while IFS= read -r f; do
+    grep -qE "^$f[[:space:]]" "$own" || bad "$f is not in $own; give it an owner and say whether it duplicates Wolfram"
+  done < <(find bridge/src macos9 -path macos9/test -prune -o -path macos9/resources -prune -o -type f \( -name '*.ts' -o -name '*.c' -o -name '*.h' \) -print | sort)
+  while read -r f owner rest; do
+    [[ -z "$f" || "$f" == \#* ]] && continue
+    [ -f "$f" ] || bad "$own lists $f, which does not exist"
+    case "$owner" in
+      platform|bridge|protocol) ;;
+      port) [[ "$rest" =~ (wolfram#[0-9]+|\.h) ]] || bad "$f is a port but names no Wolfram issue or header" ;;
+      *) bad "$f has unknown owner '$owner'" ;;
+    esac
+  done < "$own"
+}
+
 case "${1:-}" in
   drift) cmd_drift ;;
   title) cmd_title "${2:-}" ;;
   body) cmd_body "${2:?file}" ;;
   commits) cmd_commits "${2:?range}" ;;
   release) cmd_release "${2:?tag}" ;;
+  duplication) cmd_duplication ;;
   *) sed -n '2,10p' "$0"; exit 2 ;;
 esac
 [ "$fail" = 0 ] && echo "ok: ${1}"
