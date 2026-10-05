@@ -65,9 +65,8 @@ OSErr platinum_preferences_open(platinum_preferences *preferences,
     preferences->status[0] = '\0';
 
     SetRect(&bounds, 128, 92, 608, 386);
-    preferences->window = NewCWindow(NULL, bounds, kPreferencesTitle,
-                                     true, documentProc, (WindowPtr)-1L,
-                                     true, 0L);
+    preferences->window = NewCWindow(NULL, &bounds, kPreferencesTitle, 1,
+                                     documentProc, (WindowPtr)-1L, 1, 0L);
     if (preferences->window == NULL) {
         preferences->session = NULL;
         return memFullErr;
@@ -187,7 +186,7 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
 
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message == preferences->window) {
+            if ((WindowPtr)(long)event->message == preferences->window) {
                 BeginUpdate(preferences->window);
                 platinum_preferences_draw(preferences);
                 EndUpdate(preferences->window);
@@ -195,9 +194,8 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
             return PLATINUM_PREFERENCES_NONE;
 
         case activateEvt:
-            if ((WindowPtr)event->message == preferences->window)
-                HiliteWindow(preferences->window,
-                             (event->modifiers & activeFlag) != 0);
+            if ((WindowPtr)(long)event->message == preferences->window)
+                HiliteWindow(preferences->window);
             return PLATINUM_PREFERENCES_NONE;
 
         case mouseDown:

@@ -3,7 +3,7 @@
 #include "text_codec.h"
 
 #include <Quickdraw.h>
-#include <cJSON.h>
+#include "json_min.h"
 #include <string.h>
 
 static unsigned char kNotificationsTitle[] = {
@@ -16,45 +16,63 @@ static const char kLoading[] = "Loading notifications...";
 static const char kEmpty[] = "No notifications.";
 static const char kRefreshHint[] = "Command-R to refresh.";
 
+/*
+ * Copy a string member of `object` into `destination` as MacRoman.
+ *
+ * A member that is absent or is not a string leaves the destination empty: the
+ * bridge is trusted to send the documented shape, so a field of the wrong type
+ * is a response this client does not understand. Values that are simply long
+ * are clipped rather than dropped, so a verbose author keeps their name.
+ */
 static void notification_copy(char *destination,
                               long capacity,
-                              const cJSON *value)
+                              platinum_json object,
+                              const char *name)
 {
+    char utf8[PLATINUM_TEXT_UTF8_CAPACITY];
     long length;
 
     if (destination == NULL || capacity <= 0)
         return;
 
     destination[0] = '\0';
-    if (value == NULL || !cJSON_IsString(value) ||
-        value->valuestring == NULL)
+    if (platinum_json_string_truncating(object, name, utf8, sizeof(utf8))
+        != WF_OK)
         return;
 
-    length = platinum_text_utf8_to_macroman(value->valuestring,
-                                            destination,
-                                            capacity,
-                                            NULL);
+    length = platinum_text_utf8_to_macroman(utf8, destination, capacity, NULL);
     if (length < 0)
         destination[0] = '\0';
 }
 
 static void notification_time(char *destination,
                               long capacity,
-                              const cJSON *value)
+                              platinum_json object,
+                              const char *name)
 {
+    char raw[64];
+
     if (destination == NULL || capacity <= 0)
         return;
 
     destination[0] = '\0';
-    if (value == NULL || !cJSON_IsString(value) ||
-        value->valuestring == NULL)
+    if (platinum_json_string_truncating(object, name, raw, sizeof(raw))
+        != WF_OK)
         return;
 
-    if (strlen(value->valuestring) >= 16 && capacity >= 6) {
-        memcpy(destination, value->valuestring + 11, 5);
+    /* RFC 3339 puts the clock time at a fixed offset after the date's "T".
+     * Anything shorter is not that shape, so it is shown as it arrived rather
+     * than sliced out of the middle. */
+    if (strlen(raw) >= 16 && capacity >= 6) {
+        memcpy(destination, raw + 11, 5);
         destination[5] = '\0';
     } else {
-        notification_copy(destination, capacity, value);
+        long length = platinum_text_utf8_to_macroman(raw,
+                                                     destination,
+                                                     capacity,
+                                                     NULL);
+        if (length < 0)
+            destination[0] = '\0';
     }
 }
 
@@ -81,70 +99,63 @@ static void notifications_status(platinum_notifications *notifications,
         InvalRect(&notifications->window->portRect);
 }
 
-static long notification_number(const cJSON *value,
-                                const char *name)
+static int notification_read_flag(platinum_json value, const char *name)
 {
-    const cJSON *item;
+    int flag = 0;
 
-    item = cJSON_GetObjectItemCaseSensitive(value, name);
-    if (item == NULL || !cJSON_IsBool(item))
+    /* Only true and false are booleans. A string reading "true" is not one, and
+     * treating it as read would mark a notification the user has not seen. */
+    if (platinum_json_bool(value, name, &flag) != WF_OK)
         return 0;
-    return cJSON_IsTrue(item);
+
+    return flag;
 }
 
 static int notifications_parse_item(platinum_notification *item,
-                                     const cJSON *value)
+                                     platinum_json value)
 {
-    const cJSON *author;
-    const cJSON *did;
-    const cJSON *handle;
-    const cJSON *display_name;
-    const cJSON *indexed_at;
+    platinum_json author;
+    char did[128];
 
-    if (item == NULL || value == NULL || !cJSON_IsObject(value))
+    if (item == NULL)
         return 0;
 
     memset(item, 0, sizeof(*item));
 
-    if (!notification_copy(item->uri, sizeof(item->uri),
-                           cJSON_GetObjectItemCaseSensitive(value, "uri")))
-        return 0;
-    if (!notification_copy(item->cid, sizeof(item->cid),
-                           cJSON_GetObjectItemCaseSensitive(value, "cid")))
+    notification_copy(item->uri, sizeof(item->uri), value, "uri");
+    notification_copy(item->cid, sizeof(item->cid), value, "cid");
+    if (item->uri[0] == '\0' || item->cid[0] == '\0')
         return 0;
 
-    author = cJSON_GetObjectItemCaseSensitive(value, "author");
-    if (author == NULL || !cJSON_IsObject(author))
+    if (platinum_json_member(value, "author", &author) != WF_OK)
         return 0;
 
-    did = cJSON_GetObjectItemCaseSensitive(author, "did");
-    if (did == NULL || !cJSON_IsString(did))
+    notification_copy(did, sizeof(did), author, "did");
+    if (did[0] == '\0')
         return 0;
 
-    handle = cJSON_GetObjectItemCaseSensitive(author, "handle");
-    display_name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
-
-    notification_copy(item->author, sizeof(item->author), display_name);
+    /* Display name, then handle, then DID, so an account with no display name
+     * still reads as something. */
+    notification_copy(item->author, sizeof(item->author), author,
+                      "displayName");
     if (item->author[0] == '\0')
-        notification_copy(item->author, sizeof(item->author), handle);
+        notification_copy(item->author, sizeof(item->author), author,
+                          "handle");
     if (item->author[0] == '\0')
-        notification_copy(item->author, sizeof(item->author), did);
+        notification_copy(item->author, sizeof(item->author), author, "did");
 
-    item->handle[0] = '@';
-    if (handle != NULL && cJSON_IsString(handle) &&
-        handle->valuestring != NULL) {
-        notification_copy(item->handle + 1,
-                          sizeof(item->handle) - 1,
-                          handle);
-    } else {
-        item->handle[1] = '\0';
-    }
+    /* An @handle with no handle behind it would read as a bare "@". */
+    item->handle[0] = '\0';
+    notification_copy(item->handle + 1, sizeof(item->handle) - 1, author,
+                      "handle");
+    if (item->handle[1] != '\0')
+        item->handle[0] = '@';
+    else
+        item->handle[0] = '\0';
 
-    notification_copy(item->reason, sizeof(item->reason),
-                      cJSON_GetObjectItemCaseSensitive(value, "reason"));
-    indexed_at = cJSON_GetObjectItemCaseSensitive(value, "indexedAt");
-    notification_time(item->time, sizeof(item->time), indexed_at);
-    item->is_read = (int)notification_number(value, "isRead");
+    notification_copy(item->reason, sizeof(item->reason), value, "reason");
+    notification_time(item->time, sizeof(item->time), value, "indexedAt");
+    item->is_read = notification_read_flag(value, "isRead");
 
     return 1;
 }
@@ -163,12 +174,11 @@ wf_status platinum_notifications_refresh(
     platinum_bridge_client *bridge)
 {
     wf_response response;
-    cJSON *root;
-    cJSON *items;
-    cJSON *cursor;
-    cJSON *value;
-    int index;
-    int parsed;
+    platinum_json root;
+    platinum_json items;
+    platinum_json value;
+    long index;
+    long available;
     wf_status status;
 
     if (notifications == NULL || bridge == NULL)
@@ -195,8 +205,9 @@ wf_status platinum_notifications_refresh(
         return status;
     }
 
-    root = cJSON_Parse(response.body != NULL ? response.body : "");
-    if (root == NULL) {
+    status = platinum_json_open(&root,
+                               response.body != NULL ? response.body : "");
+    if (status != WF_OK) {
         notifications->loading = 0;
         notifications_status(notifications,
                              "The bridge returned invalid notifications.");
@@ -204,9 +215,11 @@ wf_status platinum_notifications_refresh(
         return WF_ERR_PARSE;
     }
 
-    items = cJSON_GetObjectItemCaseSensitive(root, "notifications");
-    if (items == NULL || !cJSON_IsArray(items)) {
-        cJSON_Delete(root);
+    /* notifications has to be an array. A response that omits it is reported as
+     * invalid rather than shown as an empty list, because those are different
+     * facts and conflating them hides a broken bridge. */
+    if (platinum_json_member(root, "notifications", &items) != WF_OK ||
+        platinum_json_count(items, &available) != WF_OK) {
         notifications->loading = 0;
         notifications_status(notifications,
                              "The bridge returned an invalid notification list.");
@@ -214,28 +227,23 @@ wf_status platinum_notifications_refresh(
         return WF_ERR_PARSE;
     }
 
-    parsed = cJSON_GetArraySize(items);
-    if (parsed > PLATINUM_NOTIFICATIONS_MAX)
-        parsed = PLATINUM_NOTIFICATIONS_MAX;
+    if (available > PLATINUM_NOTIFICATIONS_MAX)
+        available = PLATINUM_NOTIFICATIONS_MAX;
 
-    for (index = 0; index < parsed; ++index) {
-        value = cJSON_GetArrayItem(items, index);
+    for (index = 0; index < available; ++index) {
+        if (platinum_json_element(items, index, &value) != WF_OK)
+            continue;
         if (notifications_parse_item(
                 &notifications->items[notifications->count],
                 value))
             ++notifications->count;
     }
 
-    cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
     notifications->cursor[0] = '\0';
-    if (cursor != NULL && cJSON_IsString(cursor) &&
-        cursor->valuestring != NULL) {
-        notification_copy(notifications->cursor,
-                          sizeof(notifications->cursor),
-                          cursor);
-    }
+    notification_copy(notifications->cursor, sizeof(notifications->cursor),
+                      root, "cursor");
 
-    cJSON_Delete(root);
+    /* Everything has been copied out of response.body by now. */
     wf_response_free(&response);
 
     notifications->loading = 0;
@@ -283,9 +291,8 @@ OSErr platinum_notifications_open(platinum_notifications *notifications)
     }
 
     SetRect(&bounds, 86, 60, 666, 440);
-    notifications->window = NewCWindow(NULL, bounds, kNotificationsTitle,
-                                       true, documentProc, (WindowPtr)-1L,
-                                       true, 0L);
+    notifications->window = NewCWindow(NULL, &bounds, kNotificationsTitle, 1,
+                                       documentProc, (WindowPtr)-1L, 1, 0L);
     if (notifications->window == NULL)
         return memFullErr;
 
@@ -417,7 +424,7 @@ int platinum_notifications_handle_event(
 
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message == notifications->window) {
+            if ((WindowPtr)(long)event->message == notifications->window) {
                 BeginUpdate(notifications->window);
                 platinum_notifications_draw(notifications);
                 EndUpdate(notifications->window);
@@ -425,9 +432,8 @@ int platinum_notifications_handle_event(
             return PLATINUM_NOTIFICATIONS_NONE;
 
         case activateEvt:
-            if ((WindowPtr)event->message == notifications->window)
-                HiliteWindow(notifications->window,
-                             (event->modifiers & activeFlag) != 0);
+            if ((WindowPtr)(long)event->message == notifications->window)
+                HiliteWindow(notifications->window);
             return PLATINUM_NOTIFICATIONS_NONE;
 
         case mouseDown:
