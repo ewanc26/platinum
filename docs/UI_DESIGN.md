@@ -271,7 +271,7 @@ The first complete UI milestone should therefore be a convincing static shell po
 
 Do not add a web view, HTML/CSS rendering, a mobile-style tab bar, a modern card-based UI, rounded-corner application chrome, giant icon-only navigation, a permanently visible OAuth/browser panel, or a custom widget toolkit when the Macintosh Toolbox can provide the behaviour.
 
-The native Notifications surface is a modeless document window backed by `GET /v1/notifications`. It supports bounded scrolling, Command-R refresh and standard window close/drag behaviour. Opening or refreshing it marks notifications seen up to the newest one loaded; rows keep the unread mark they arrived with until the next refresh, so you can still see which were new.
+The native Notifications surface is a modeless document window backed by `GET /v1/notifications`. It supports bounded scrolling, Command-R refresh and standard window close/drag behaviour. Opening or refreshing it marks notifications seen up to the newest one loaded; rows keep the unread mark they arrived with until the next refresh, so you can still see which were new. Down Arrow at the bottom of the list loads the next page; at most forty rows are kept.
 
 
 The native Preferences surface is a modeless document window showing the paired bridge URL, account DID and installation ID. Its Sign Out action calls the bridge revocation endpoint before clearing the local session; a local sign-out is still completed if remote revocation cannot be confirmed.

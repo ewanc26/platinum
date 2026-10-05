@@ -789,7 +789,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - native event-driven application shell;
 - initial Classic Mac UI layout and visual specification;
 - interactive navigation and timeline selection;
-- bounded timeline paging (forty rows kept, `platinum_timeline_load_older`);
+- bounded timeline and notification paging (forty rows kept each);
 - like and repost with undo (Post menu, `POST /v1/like` and `/v1/repost`);
 - notifications marked seen on view, by the newest item's own timestamp;
 - native TextEdit compose window and bridge-backed post submission;
