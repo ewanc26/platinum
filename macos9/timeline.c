@@ -154,7 +154,18 @@ static int timeline_parse_post(platinum_post_preview *post,
     }
 
     created_at = cJSON_GetObjectItemCaseSensitive(item, "createdAt");
-    timeline_copy_json_string(post->time, sizeof(post->time), created_at);
+    post->time[0] = '\0';
+    if (created_at != NULL && cJSON_IsString(created_at) &&
+        created_at->valuestring != NULL) {
+        if (strlen(created_at->valuestring) >= 16) {
+            memcpy(post->time, created_at->valuestring + 11, 5);
+            post->time[5] = '\0';
+        } else {
+            timeline_copy_json_string(post->time,
+                                      sizeof(post->time),
+                                      created_at);
+        }
+    }
 
     record = cJSON_GetObjectItemCaseSensitive(item, "text");
     if (record != NULL && cJSON_IsString(record) &&
