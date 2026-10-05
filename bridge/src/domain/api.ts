@@ -35,7 +35,7 @@ function authorFrom(value: {
   }
 }
 
-export function normalizeTimelinePost(post: {
+type TimelinePostView = {
   uri: string
   cid: string
   author: {
@@ -48,7 +48,14 @@ export function normalizeTimelinePost(post: {
   repostCount?: number
   replyCount?: number
   quoteCount?: number
-}): TimelinePost {
+}
+
+type TimelineFeedItem = {
+  post: TimelinePostView
+}
+
+export function normalizeTimelinePost(feedItem: TimelineFeedItem): TimelinePost {
+  const post = feedItem.post
   const record =
     post.record !== null && typeof post.record === 'object'
       ? (post.record as { text?: unknown; createdAt?: unknown })
