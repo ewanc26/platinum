@@ -284,7 +284,7 @@ void platinum_ui_draw(GrafPtr port,
     DrawString(kTimeline);
 
     status = platinum_timeline_status(timeline);
-    if (count == 0 || (status != NULL && status[0] != ' ')) {
+    if (count == 0 || (status != NULL && status[0] != '\\0')) {
         MoveTo(layout->timeline.left + 12, layout->timeline.top + 40);
         if (status != NULL)
             platinum_ui_text(status);
@@ -316,13 +316,14 @@ void platinum_ui_draw(GrafPtr port,
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_timeline *timeline,
                              Point where)
 {
     short row;
     short content_top;
     unsigned short count;
 
-    if (layout == NULL || state == NULL)
+    if (layout == NULL || state == NULL || timeline == NULL)
         return PLATINUM_UI_ACTION_NONE;
 
     if (PtInRect(where, &layout->toolbar)) {
@@ -360,20 +361,22 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_timeline *timeline,
                            EventRecord *event)
 {
     unsigned char key;
     unsigned short count;
     short visible;
 
-    if (layout == NULL || state == NULL || event == NULL)
+    if (layout == NULL || state == NULL || timeline == NULL ||
+        event == NULL)
         return PLATINUM_UI_ACTION_NONE;
 
     if (event->what != keyDown && event->what != autoKey)
         return PLATINUM_UI_ACTION_NONE;
 
     key = (unsigned char)(event->message & charCodeMask);
-    count = platinum_timeline_post_count();
+    count = platinum_timeline_post_count(timeline);
     visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
     if (visible < 1)
         visible = 1;
