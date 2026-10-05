@@ -26,6 +26,9 @@ export interface TimelinePost {
   repostCount: number
   replyCount: number
   quoteCount: number
+  /** Whether the signed-in account has liked / reposted this post. */
+  liked: boolean
+  reposted: boolean
 }
 
 export interface Timeline {
@@ -45,6 +48,13 @@ export interface Notification {
 export interface Notifications {
   notifications: Notification[]
   cursor?: string
+}
+
+/** Result of POST /v1/like and /v1/repost: the state now, and the count to show. */
+export interface ToggleResult {
+  uri: string
+  on: boolean
+  count: number
 }
 
 export interface PostResult {
