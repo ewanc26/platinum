@@ -9,13 +9,16 @@ static unsigned char kPreferencesTitle[] = {
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
+static unsigned char kPair[] = {
+    4, 'P', 'a', 'i', 'r'
+};
 static unsigned char kSignOut[] = {
     8, 'S', 'i', 'g', 'n', ' ', 'O', 'u', 't'
 };
 
 static void preferences_text(const char *text, short x, short y)
 {
-    if (text == NULL || text[0] == '\\0')
+    if (text == NULL || text[0] == '\0')
         return;
 
     MoveTo(x, y);
@@ -59,7 +62,7 @@ OSErr platinum_preferences_open(platinum_preferences *preferences,
     }
 
     preferences->session = session;
-    preferences->status[0] = '\\0';
+    preferences->status[0] = '\0';
 
     SetRect(&bounds, 128, 92, 608, 386);
     preferences->window = NewCWindow(NULL, bounds, kPreferencesTitle,
@@ -97,7 +100,7 @@ void platinum_preferences_set_status(platinum_preferences *preferences,
     if (preferences == NULL)
         return;
 
-    preferences->status[0] = '\\0';
+    preferences->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -106,7 +109,7 @@ void platinum_preferences_set_status(platinum_preferences *preferences,
         length = PLATINUM_PREFERENCES_STATUS_MAX;
 
     memcpy(preferences->status, status, (size_t)length);
-    preferences->status[length] = '\\0';
+    preferences->status[length] = '\0';
 
     if (preferences->window != NULL)
         InvalRect(&preferences->window->portRect);
@@ -117,6 +120,7 @@ void platinum_preferences_draw(platinum_preferences *preferences)
     GrafPtr old_port;
     Rect close_rect;
     Rect sign_out_rect;
+    Rect pair_rect;
     const platinum_config *config;
 
     if (preferences == NULL || preferences->window == NULL ||
@@ -144,11 +148,18 @@ void platinum_preferences_draw(platinum_preferences *preferences)
                          16, 60);
     }
 
-    if (preferences->status[0] != '\\0')
+    if (preferences->status[0] != '\0')
         preferences_text(preferences->status, 16, 148);
 
+    pair_rect = preferences->window->portRect;
+    pair_rect.left = pair_rect.right - 258;
+    pair_rect.right = pair_rect.left + 54;
+    pair_rect.top = pair_rect.bottom - 34;
+    pair_rect.bottom -= 10;
+    preferences_button(&pair_rect, kPair);
+
     sign_out_rect = preferences->window->portRect;
-    sign_out_rect.left = sign_out_rect.right - 170;
+    sign_out_rect.left = pair_rect.right + 8;
     sign_out_rect.right = sign_out_rect.left + 76;
     sign_out_rect.top = sign_out_rect.bottom - 34;
     sign_out_rect.bottom -= 10;
@@ -168,6 +179,7 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
     Point where;
     Rect sign_out_rect;
     Rect close_rect;
+    Rect pair_rect;
 
     if (preferences == NULL || event == NULL ||
         preferences->window == NULL)
@@ -192,8 +204,14 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
             where = event->where;
             GlobalToLocal(&where);
 
+            pair_rect = preferences->window->portRect;
+            pair_rect.left = pair_rect.right - 258;
+            pair_rect.right = pair_rect.left + 54;
+            pair_rect.top = pair_rect.bottom - 34;
+            pair_rect.bottom -= 10;
+
             sign_out_rect = preferences->window->portRect;
-            sign_out_rect.left = sign_out_rect.right - 170;
+            sign_out_rect.left = pair_rect.right + 8;
             sign_out_rect.right = sign_out_rect.left + 76;
             sign_out_rect.top = sign_out_rect.bottom - 34;
             sign_out_rect.bottom -= 10;
@@ -201,6 +219,9 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
             close_rect = sign_out_rect;
             close_rect.left = sign_out_rect.right + 8;
             close_rect.right = close_rect.left + 62;
+
+            if (PtInRect(where, &pair_rect))
+                return PLATINUM_PREFERENCES_PAIR;
 
             if (PtInRect(where, &sign_out_rect)) {
                 if (platinum_session_is_paired(preferences->session))

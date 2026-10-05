@@ -24,7 +24,7 @@ static void profile_copy(char *destination,
     if (destination == NULL || capacity <= 0)
         return;
 
-    destination[0] = '\\0';
+    destination[0] = '\0';
     if (value == NULL || !cJSON_IsString(value) ||
         value->valuestring == NULL)
         return;
@@ -34,7 +34,7 @@ static void profile_copy(char *destination,
                                             capacity,
                                             NULL);
     if (length < 0)
-        destination[0] = '\\0';
+        destination[0] = '\0';
 }
 
 static long profile_number(const cJSON *root, const char *name)
@@ -56,7 +56,7 @@ void platinum_profile_set_status(platinum_profile *profile,
     if (profile == NULL)
         return;
 
-    profile->status[0] = '\\0';
+    profile->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -65,7 +65,7 @@ void platinum_profile_set_status(platinum_profile *profile,
         length = PLATINUM_PROFILE_STATUS_MAX;
 
     memcpy(profile->status, status, (size_t)length);
-    profile->status[length] = '\\0';
+    profile->status[length] = '\0';
 
     if (profile->window != NULL)
         InvalRect(&profile->window->portRect);
@@ -126,7 +126,7 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
     wf_response_free(&response);
 
     profile->loading = 0;
-    if (profile->handle[0] == '\\0' && profile->did[0] == '\\0')
+    if (profile->handle[0] == '\0' && profile->did[0] == '\0')
         platinum_profile_set_status(profile, kNoProfile);
     else
         platinum_profile_set_status(profile, NULL);
@@ -136,7 +136,7 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
 
 static void profile_text(const char *text, short x, short y)
 {
-    if (text == NULL || text[0] == '\\0')
+    if (text == NULL || text[0] == '\0')
         return;
 
     MoveTo(x, y);
@@ -205,18 +205,18 @@ void platinum_profile_draw(platinum_profile *profile)
     SetPort((GrafPtr)profile->window);
     EraseRect(&profile->window->portRect);
 
-    if (profile->display_name[0] != '\\0')
+    if (profile->display_name[0] != '\0')
         profile_text(profile->display_name, 16, 28);
     else
         profile_text(profile->handle, 16, 28);
 
-    if (profile->handle[0] != '\\0')
+    if (profile->handle[0] != '\0')
         profile_text(profile->handle, 16, 48);
 
-    if (profile->description[0] != '\\0')
+    if (profile->description[0] != '\0')
         profile_text(profile->description, 16, 76);
 
-    if (profile->status[0] != '\\0')
+    if (profile->status[0] != '\0')
         profile_text(profile->status, 16, 104);
 
     sprintf(counts, "Followers: %ld   Following: %ld   Posts: %ld",

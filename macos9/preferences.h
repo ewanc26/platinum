@@ -21,7 +21,8 @@ typedef struct platinum_preferences {
 enum {
     PLATINUM_PREFERENCES_NONE = 0,
     PLATINUM_PREFERENCES_CLOSE = 1,
-    PLATINUM_PREFERENCES_SIGN_OUT = 2
+    PLATINUM_PREFERENCES_SIGN_OUT = 2,
+    PLATINUM_PREFERENCES_PAIR = 3
 };
 
 void platinum_preferences_init(platinum_preferences *preferences);

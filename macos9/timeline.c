@@ -40,7 +40,7 @@ static void timeline_set_status(platinum_timeline *timeline,
     if (timeline == NULL)
         return;
 
-    timeline->status[0] = '\\0';
+    timeline->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -49,7 +49,7 @@ static void timeline_set_status(platinum_timeline *timeline,
         length = PLATINUM_TIMELINE_STATUS_MAX;
 
     memcpy(timeline->status, status, (size_t)length);
-    timeline->status[length] = '\\0';
+    timeline->status[length] = '\0';
 }
 
 static void timeline_copy_wrapped_text(platinum_post_preview *post,
@@ -64,9 +64,9 @@ static void timeline_copy_wrapped_text(platinum_post_preview *post,
     if (post == NULL)
         return;
 
-    post->line1[0] = '\\0';
-    post->line2[0] = '\\0';
-    post->line3[0] = '\\0';
+    post->line1[0] = '\0';
+    post->line2[0] = '\0';
+    post->line3[0] = '\0';
 
     if (text == NULL)
         return;
@@ -88,7 +88,7 @@ static void timeline_copy_wrapped_text(platinum_post_preview *post,
             destination = post->line3;
 
         memcpy(destination, text + offset, (size_t)chunk);
-        destination[chunk] = '\\0';
+        destination[chunk] = '\0';
         offset += chunk;
     }
 }
@@ -128,16 +128,16 @@ static int timeline_parse_post(platinum_post_preview *post,
     handle = cJSON_GetObjectItemCaseSensitive(author, "handle");
     display_name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
 
-    post->author[0] = '\\0';
+    post->author[0] = '\0';
     if (display_name != NULL)
         timeline_copy_json_string(post->author,
                                   sizeof(post->author),
                                   display_name);
-    if (post->author[0] == '\\0' && handle != NULL)
+    if (post->author[0] == '\0' && handle != NULL)
         timeline_copy_json_string(post->author,
                                   sizeof(post->author),
                                   handle);
-    if (post->author[0] == '\\0')
+    if (post->author[0] == '\0')
         timeline_copy_json_string(post->author,
                                   sizeof(post->author),
                                   value);
@@ -149,7 +149,7 @@ static int timeline_parse_post(platinum_post_preview *post,
                                   sizeof(post->handle) - 1,
                                   handle);
     } else {
-        post->handle[1] = '\\0';
+        post->handle[1] = '\0';
     }
 
     created_at = cJSON_GetObjectItemCaseSensitive(item, "createdAt");
@@ -251,7 +251,7 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
     }
 
     cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
-    timeline->cursor[0] = '\\0';
+    timeline->cursor[0] = '\0';
     if (cursor != NULL && cJSON_IsString(cursor) &&
         cursor->valuestring != NULL) {
         timeline_copy_json_string(timeline->cursor,
