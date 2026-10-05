@@ -8,6 +8,7 @@
 #include "profile.h"
 #include "notifications.h"
 #include "preferences.h"
+#include "pairing.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -24,6 +25,7 @@ typedef struct platinum_application {
     platinum_profile profile;
     platinum_notifications notifications;
     platinum_preferences preferences;
+    platinum_pairing pairing;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
