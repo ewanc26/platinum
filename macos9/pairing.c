@@ -45,7 +45,7 @@ static char *pairing_copy_handle(TEHandle text, char *buffer, long capacity)
         memcpy(buffer, *handle, (size_t)copy_length);
     HSetState(handle, state);
 
-    buffer[copy_length] = '\\0';
+    buffer[copy_length] = '\0';
     return buffer;
 }
 
@@ -158,7 +158,7 @@ void platinum_pairing_close(platinum_pairing *pairing)
     }
 
     pairing->active_field = 0;
-    pairing->status[0] = '\\0';
+    pairing->status[0] = '\0';
 }
 
 void platinum_pairing_draw(platinum_pairing *pairing)
@@ -191,7 +191,7 @@ void platinum_pairing_draw(platinum_pairing *pairing)
     FrameRect(&code_frame);
     TEUpdate(&code_frame, pairing->code);
 
-    if (pairing->status[0] != '\\0')
+    if (pairing->status[0] != '\0')
         pairing_text(pairing->status, 18, 214);
 
     cancel_rect = pairing->window->portRect;
@@ -313,7 +313,7 @@ OSErr platinum_pairing_get_bridge_url(const platinum_pairing *pairing,
     if (pairing_copy_handle(pairing->bridge_url, buffer, capacity) == NULL)
         return memFullErr;
 
-    if (buffer[0] == '\\0')
+    if (buffer[0] == '\0')
         return paramErr;
 
     return noErr;
@@ -358,7 +358,7 @@ OSErr platinum_pairing_get_code(const platinum_pairing *pairing,
         buffer[output++] = ch;
     }
 
-    buffer[output] = '\\0';
+    buffer[output] = '\0';
     if (output != PLATINUM_PAIRING_CODE_MAX)
         return paramErr;
 
@@ -373,7 +373,7 @@ void platinum_pairing_set_status(platinum_pairing *pairing,
     if (pairing == NULL)
         return;
 
-    pairing->status[0] = '\\0';
+    pairing->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -382,7 +382,7 @@ void platinum_pairing_set_status(platinum_pairing *pairing,
         length = PLATINUM_PAIRING_STATUS_MAX;
 
     memcpy(pairing->status, status, (size_t)length);
-    pairing->status[length] = '\\0';
+    pairing->status[length] = '\0';
 
     if (pairing->window != NULL)
         InvalRect(&pairing->window->portRect);
