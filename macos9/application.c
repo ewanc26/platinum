@@ -13,6 +13,7 @@
 #include "mac9_tls.h"
 #include "ui.h"
 #include "timeline.h"
+#include <cJSON.h>
 
 #define kFileMenuID 128
 #define kEditMenuID 129
@@ -31,6 +32,9 @@ static void platinum_application_handle_menu(platinum_application *app,
 static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
 static void platinum_application_refresh_timeline(platinum_application *app);
+static void platinum_application_submit_post(platinum_application *app);
+static void platinum_application_post_status(platinum_application *app,
+                                             wf_status status);
 
 static unsigned char kWindowTitle[] = {
     15, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', '-', ' ',
@@ -206,11 +210,12 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (app->compose.window != NULL &&
                        window == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
-                if (action == PLATINUM_COMPOSE_CANCEL ||
-                    action == PLATINUM_COMPOSE_POST) {
+                if (action == PLATINUM_COMPOSE_CANCEL) {
                     platinum_compose_close(&app->compose);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (action == PLATINUM_COMPOSE_POST) {
+                    platinum_application_submit_post(app);
                 }
             } else if (window == app->window) {
                 action = platinum_ui_handle_mouse(&app->layout,
@@ -255,11 +260,12 @@ static void platinum_application_handle_event(platinum_application *app,
             if (app->compose.window != NULL &&
                 FrontWindow() == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
-                if (action == PLATINUM_COMPOSE_CANCEL ||
-                    action == PLATINUM_COMPOSE_POST) {
+                if (action == PLATINUM_COMPOSE_CANCEL) {
                     platinum_compose_close(&app->compose);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (action == PLATINUM_COMPOSE_POST) {
+                    platinum_application_submit_post(app);
                 }
             } else {
                 action = platinum_ui_handle_key(&app->layout,
@@ -483,4 +489,95 @@ static void platinum_application_handle_menu(platinum_application *app,
     } else if (menu_id == kHelpMenuID) {
         platinum_application_invalidate(app);
     }
+}
+
+static void platinum_application_post_status(platinum_application *app,
+                                             wf_status status)
+{
+    if (app == NULL || app->compose.window == NULL)
+        return;
+
+    if (status == WF_ERR_AUTH)
+        platinum_compose_set_status(&app->compose,
+                                    "Session expired; pair the account again.");
+    else if (status == WF_ERR_HTTP)
+        platinum_compose_set_status(&app->compose,
+                                    "The bridge rejected the post.");
+    else if (status == WF_ERR_NETWORK || status == WF_ERR_TIMEOUT)
+        platinum_compose_set_status(&app->compose,
+                                    "The bridge could not be reached.");
+    else
+        platinum_compose_set_status(&app->compose,
+                                    "The post could not be sent.");
+}
+
+static void platinum_application_submit_post(platinum_application *app)
+{
+    char text[PLATINUM_COMPOSE_MAX_TEXT + 1];
+    char *body;
+    cJSON *request;
+    wf_response response;
+    wf_status status;
+    platinum_bridge_client *bridge;
+
+    if (app == NULL || app->compose.window == NULL)
+        return;
+
+    if (!platinum_session_is_paired(&app->session)) {
+        platinum_compose_set_status(&app->compose,
+                                    "Pair an account before posting.");
+        return;
+    }
+
+    if (platinum_compose_get_text(&app->compose,
+                                  text,
+                                  sizeof(text)) != noErr) {
+        platinum_compose_set_status(&app->compose,
+                                    "Enter up to 300 ASCII characters.");
+        return;
+    }
+
+    request = cJSON_CreateObject();
+    if (request == NULL) {
+        platinum_compose_set_status(&app->compose,
+                                    "Not enough memory to prepare the post.");
+        return;
+    }
+
+    cJSON_AddStringToObject(request, "text", text);
+    body = cJSON_PrintUnformatted(request);
+    cJSON_Delete(request);
+    if (body == NULL) {
+        platinum_compose_set_status(&app->compose,
+                                    "Not enough memory to prepare the post.");
+        return;
+    }
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL) {
+        free(body);
+        platinum_compose_set_status(&app->compose,
+                                    "The bridge session is unavailable.");
+        return;
+    }
+
+    platinum_compose_set_posting(&app->compose, 1);
+    platinum_application_invalidate(app);
+    memset(&response, 0, sizeof(response));
+
+    status = platinum_bridge_post(bridge, "/v1/post", body, &response);
+    free(body);
+    wf_response_free(&response);
+    platinum_compose_set_posting(&app->compose, 0);
+
+    if (status != WF_OK) {
+        platinum_application_post_status(app, status);
+        return;
+    }
+
+    platinum_compose_set_status(&app->compose, NULL);
+    platinum_compose_close(&app->compose);
+    SelectWindow(app->window);
+    platinum_application_refresh_timeline(app);
+    platinum_application_invalidate(app);
 }

@@ -1,5 +1,6 @@
 #include "compose.h"
 
+#include <Memory.h>
 #include <Quickdraw.h>
 #include <string.h>
 
@@ -12,9 +13,41 @@ static unsigned char kCancel[] = {
 static unsigned char kPost[] = {
     4, 'P', 'o', 's', 't'
 };
-static unsigned char kCountPrefix[] = {
-    0
-};
+static const char kPosting[] = "Posting...";
+static const char kLimit[] = "Maximum 300 characters.";
+static const char kAsciiOnly[] = "ASCII text only for this release.";
+
+static char *compose_copy_handle(TEHandle text, char *buffer, long capacity)
+{
+    Handle handle;
+    Size length;
+    long copy_length;
+    SignedByte state;
+
+    if (text == NULL || buffer == NULL || capacity <= 0)
+        return NULL;
+
+    handle = TEGetText(text);
+    if (handle == NULL)
+        return NULL;
+
+    length = GetHandleSize(handle);
+    if (length < 0)
+        return NULL;
+
+    copy_length = (long)length;
+    if (copy_length >= capacity)
+        copy_length = capacity - 1;
+
+    state = HGetState(handle);
+    HLock(handle);
+    if (copy_length > 0)
+        memcpy(buffer, *handle, (size_t)copy_length);
+    HSetState(handle, state);
+
+    buffer[copy_length] = '\\0';
+    return buffer;
+}
 
 static void platinum_compose_button(const Rect *bounds, StringPtr title)
 {
@@ -29,11 +62,19 @@ static void platinum_compose_button(const Rect *bounds, StringPtr title)
     DrawString(title);
 }
 
+static void platinum_compose_text(const char *text, short x, short y)
+{
+    if (text == NULL)
+        return;
+
+    MoveTo(x, y);
+    DrawText((Ptr)text, 0, (short)strlen(text));
+}
+
 OSErr platinum_compose_open(platinum_compose *compose)
 {
     Rect bounds;
     Rect text_rect;
-    OSErr err;
 
     if (compose == NULL)
         return paramErr;
@@ -60,13 +101,13 @@ OSErr platinum_compose_open(platinum_compose *compose)
 
     TEAutoView(true, compose->text);
     TESetSelect(0, 0, compose->text);
+    compose->status[0] = '\\0';
 
     SetPort((GrafPtr)compose->window);
     platinum_compose_draw(compose);
     TEActivate(compose->text);
 
-    err = noErr;
-    return err;
+    return noErr;
 }
 
 void platinum_compose_close(platinum_compose *compose)
@@ -84,6 +125,9 @@ void platinum_compose_close(platinum_compose *compose)
         DisposeWindow(compose->window);
         compose->window = NULL;
     }
+
+    compose->posting = 0;
+    compose->status[0] = '\\0';
 }
 
 void platinum_compose_draw(platinum_compose *compose)
@@ -103,8 +147,11 @@ void platinum_compose_draw(platinum_compose *compose)
 
     text_frame = compose->text->viewRect;
     FrameRect(&text_frame);
-
     TEUpdate(&compose->window->portRect, compose->text);
+
+    if (compose->status[0] != '\\0')
+        platinum_compose_text(compose->status, 14,
+                              compose->window->portRect.bottom - 48);
 
     cancel_rect = compose->window->portRect;
     cancel_rect.left = cancel_rect.right - 160;
@@ -118,10 +165,22 @@ void platinum_compose_draw(platinum_compose *compose)
     post_rect.right = post_rect.left + 58;
     platinum_compose_button(&post_rect, kPost);
 
-    MoveTo(14, compose->window->portRect.bottom - 12);
-    DrawString(kCountPrefix);
+    if (compose->posting) {
+        platinum_compose_text(kPosting, 14, 28);
+    }
 
     SetPort(old_port);
+}
+
+static int compose_point_in_text(Point where, TEHandle text)
+{
+    Rect rect;
+
+    if (text == NULL)
+        return 0;
+
+    rect = text->viewRect;
+    return PtInRect(where, &rect) != 0;
 }
 
 int platinum_compose_handle_event(platinum_compose *compose,
@@ -136,7 +195,8 @@ int platinum_compose_handle_event(platinum_compose *compose,
 
     switch (event->what) {
         case activateEvt:
-            if ((WindowPtr)event->message == compose->window)
+            if ((WindowPtr)event->message == compose->window &&
+                !compose->posting)
                 TEActivate(compose->text);
             return PLATINUM_COMPOSE_NONE;
 
@@ -149,6 +209,9 @@ int platinum_compose_handle_event(platinum_compose *compose,
             return PLATINUM_COMPOSE_NONE;
 
         case mouseDown:
+            if (compose->posting)
+                return PLATINUM_COMPOSE_NONE;
+
             where = event->where;
             GlobalToLocal(&where);
 
@@ -168,17 +231,20 @@ int platinum_compose_handle_event(platinum_compose *compose,
             if (PtInRect(where, &post_rect))
                 return PLATINUM_COMPOSE_POST;
 
-            TEClick(where, (event->modifiers & shiftKey) != 0,
-                    compose->text);
+            if (compose_point_in_text(where, compose->text))
+                TEClick(where, (event->modifiers & shiftKey) != 0,
+                        compose->text);
             return PLATINUM_COMPOSE_NONE;
 
         case keyDown:
         case autoKey:
+            if (compose->posting)
+                return PLATINUM_COMPOSE_NONE;
+
             if ((event->modifiers & cmdKey) != 0 &&
                 ((event->message & charCodeMask) == 'w' ||
-                 (event->message & charCodeMask) == 'W')) {
+                 (event->message & charCodeMask) == 'W'))
                 return PLATINUM_COMPOSE_CANCEL;
-            }
 
             TEKey((short)(event->message & charCodeMask),
                   compose->text);
@@ -189,4 +255,66 @@ int platinum_compose_handle_event(platinum_compose *compose,
     }
 
     return PLATINUM_COMPOSE_NONE;
+}
+
+OSErr platinum_compose_get_text(const platinum_compose *compose,
+                                char *buffer,
+                                long capacity)
+{
+    long length;
+    long i;
+
+    if (compose == NULL || compose->text == NULL ||
+        buffer == NULL || capacity <= 0)
+        return paramErr;
+
+    if (compose_copy_handle(compose->text, buffer, capacity) == NULL)
+        return memFullErr;
+
+    length = (long)strlen(buffer);
+    if (length == 0)
+        return paramErr;
+
+    if (length > PLATINUM_COMPOSE_MAX_TEXT)
+        return overrunErr;
+
+    for (i = 0; i < length; ++i) {
+        if ((unsigned char)buffer[i] >= 128)
+            return paramErr;
+    }
+
+    return noErr;
+}
+
+void platinum_compose_set_posting(platinum_compose *compose,
+                                  int posting)
+{
+    if (compose == NULL)
+        return;
+
+    compose->posting = posting != 0;
+    if (compose->posting)
+        platinum_compose_set_status(compose, kPosting);
+}
+
+void platinum_compose_set_status(platinum_compose *compose,
+                                 const char *status)
+{
+    long length;
+
+    if (compose == NULL)
+        return;
+
+    compose->status[0] = '\\0';
+    if (status != NULL) {
+        length = (long)strlen(status);
+        if (length > PLATINUM_COMPOSE_STATUS_MAX)
+            length = PLATINUM_COMPOSE_STATUS_MAX;
+
+        memcpy(compose->status, status, (size_t)length);
+        compose->status[length] = '\\0';
+    }
+
+    if (compose->window != NULL)
+        InvalRect(&compose->window->portRect);
 }
