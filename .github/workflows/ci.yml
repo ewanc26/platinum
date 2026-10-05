@@ -68,10 +68,16 @@ jobs:
           set -euo pipefail
           for f in \
             macos9/bridge_client.c \
+            macos9/compose.c \
             macos9/config.c \
             macos9/json_min.c \
+            macos9/main.c \
+            macos9/pairing.c \
+            macos9/preferences.c \
             macos9/scrollbar.c \
+            macos9/session.c \
             macos9/text_codec.c \
+            macos9/ui.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c
           do

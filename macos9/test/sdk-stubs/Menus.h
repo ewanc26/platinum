@@ -17,6 +17,8 @@ typedef MenuPtr MenuHandle;
 void InitMenus(void);
 void InitCursor(void);
 void DrawMenuBar(void);
+long MenuSelect(Point pt);
+void HiliteMenu(long menuID);
 SInt16 MenuBarHitTest(short x, short y);
 
 MenuHandle GetMenu(short menuID);

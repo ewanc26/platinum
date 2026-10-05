@@ -283,9 +283,10 @@ OSErr platinum_notifications_open(platinum_notifications *notifications)
     }
 
     SetRect(&bounds, 86, 60, 666, 440);
-    notifications->window = NewCWindow(NULL, bounds, kNotificationsTitle,
-                                       true, documentProc, (WindowPtr)-1L,
-                                       true, 0L);
+    notifications->window = NewCWindow(&bounds, 1, 0,
+                                       documentProc,
+                                       (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(notifications->window, kNotificationsTitle);
     if (notifications->window == NULL)
         return memFullErr;
 

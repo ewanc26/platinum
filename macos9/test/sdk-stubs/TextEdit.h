@@ -7,6 +7,7 @@
 #include <Windows.h>
 
 typedef struct StubTextEditRecord {
+    Rect viewRect;
     long selStart;
     long selLength;
 } TextEditRecord;
@@ -20,6 +21,9 @@ TEHandle TENew(const Rect *boundsRect, const Rect *viewRect, Boolean grow,
                WindowPtr window, TEHandle dest, Ptr callBack);
 void TEDispose(TEHandle te);
 
+void TEKey(KeyMap keyMap, TEHandle te);
+void TEActivate(TEHandle te);
+void TEDeactivate(TEHandle te);
 void TEClick(Point where, Boolean extendSelection,
              short count, short wordCount, TEHandle te);
 void TEAutoView(TEHandle te, short maxSize);
@@ -29,7 +33,7 @@ void TESetCaret(TEHandle te, Point caretPos);
 void TEInsert(const Ptr text, long insertLength, TEHandle te);
 void TECopy(TEHandle te, StringPtr dest);
 void TEPaste(TEHandle te, Handle textHandle);
-void TEUpdate(TEHandle te, long insertionPoint, long deletionPoint);
+void TEUpdate(const Rect *updateRect, TEHandle te);
 void TEForceRedraw(TEHandle te, Boolean redrawLater);
 Handle TEGetText(TEHandle te);
 void TESetText(TEHandle te, Handle textHandle);

@@ -18,6 +18,7 @@ typedef signed long SInt32;
 typedef unsigned long UInt32;
 typedef unsigned long Size;
 typedef unsigned short OSType;
+typedef UInt32 KeyMap[4];
 
 typedef char *Ptr;
 typedef Ptr *Handle;
@@ -72,6 +73,7 @@ typedef RectPtr *RgnHandle;
 typedef BitMap *BitMapPtr;
 typedef PixMap *PixMapPtr;
 typedef void *GrafPtr;
+typedef struct StubWindow *WindowPtr;
 
 typedef unsigned char FontFamily;
 typedef unsigned char FontStyle;
@@ -84,7 +86,6 @@ typedef struct StubFontMetrics {
 
 typedef struct StubProc { long stub; } ProcStruct;
 typedef ProcStruct *ProcPtr;
-typedef ProcPtr *WindowProc;
 
 typedef struct StubParamStructRec { long stub; } ParamStructRec;
 
@@ -93,11 +94,16 @@ typedef struct StubParamStructRec { long stub; } ParamStructRec;
 #define nil 0L
 
 #define noErr 0
+#define inMenuBar 1
+#define inGoAway 2
+#define inDrag 5
+#define inContent 4
 #define paramErr -50
 #define fnfErr -43
 #define memFullErr -108
 #define dirFErr -64
 #define eofErr -39
+#define overrunErr -55
 
 #define systemFont 0
 #define smSystemScript 0

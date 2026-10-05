@@ -9,7 +9,7 @@ typedef unsigned short EventMask;
 
 typedef struct StubEventRecord {
     EventKind what;
-    unsigned short message;
+    SInt16 message;
     unsigned long when;
     Point where;
     unsigned long modifiers;
@@ -56,7 +56,10 @@ typedef EventRecord *EventPtr;
 #define optionKey 0x0400
 #define controlKey 0x0800
 
+#define everyEvent 0xFFFF
+
 Boolean GetNextEvent(EventMask mask, EventRecord *event);
+Boolean WaitNextEvent(EventMask mask, EventRecord *event, SInt32 tick, ProcPtr idleProc);
 Boolean PeekEvent(EventMask mask, EventRecord *event, Boolean clearOnReturn);
 Boolean ReceiveEvent(EventMask mask, long timeout, EventRecord *event,
                      Boolean flushOnRtn, Boolean flushLowPriorityOnly);

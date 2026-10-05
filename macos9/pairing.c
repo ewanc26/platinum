@@ -1,4 +1,5 @@
 #include "pairing.h"
+#include "text_codec.h"
 
 #include <Quickdraw.h>
 #include <Memory.h>
@@ -59,7 +60,7 @@ static void pairing_set_text(TEHandle text, const char *value)
     length = (long)strlen(value);
     if (length > 0)
         TEInsert((Ptr)value, length, text);
-    TESetSelect(length, length, text);
+    TESetSelection(text, length, length);
 }
 
 static void pairing_text(const char *text, short x, short y)
@@ -101,27 +102,45 @@ OSErr platinum_pairing_open(platinum_pairing *pairing,
     memset(pairing, 0, sizeof(*pairing));
 
     SetRect(&bounds, 96, 66, 640, 376);
-    pairing->window = NewCWindow(NULL, bounds, kPairingTitle, true,
-                                 documentProc, (WindowPtr)-1L, true, 0L);
+    pairing->window = NewCWindow(&bounds, 1, 0,
+                                 documentProc,
+                                 (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(pairing->window, kPairingTitle);
     if (pairing->window == NULL)
         return memFullErr;
 
     SetRect(&url_rect, 18, 50, bounds.right - bounds.left - 18, 72);
-    pairing->bridge_url = TENew(&url_rect, &url_rect);
+    pairing->bridge_url = TENew(&url_rect,
+                                &url_rect,
+                                0,
+                                PLATINUM_PAIRING_URL_MAX,
+                                0,
+                                0,
+                                pairing->window,
+                                NULL,
+                                NULL);
     if (pairing->bridge_url == NULL) {
         platinum_pairing_close(pairing);
         return memFullErr;
     }
 
     SetRect(&code_rect, 18, 164, 150, 188);
-    pairing->code = TENew(&code_rect, &code_rect);
+    pairing->code = TENew(&code_rect,
+                           &code_rect,
+                           0,
+                           PLATINUM_PAIRING_CODE_MAX,
+                           0,
+                           0,
+                           pairing->window,
+                           NULL,
+                           NULL);
     if (pairing->code == NULL) {
         platinum_pairing_close(pairing);
         return memFullErr;
     }
 
-    TEAutoView(true, pairing->bridge_url);
-    TEAutoView(true, pairing->code);
+    TEAutoView(pairing->bridge_url, 0);
+    TEAutoView(pairing->code, 0);
 
     if (bridge_url != NULL)
         pairing_set_text(pairing->bridge_url, bridge_url);
@@ -228,13 +247,14 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
     Rect pair_rect;
     TEHandle target;
     unsigned char key;
+    KeyMap key_map;
 
     if (pairing == NULL || event == NULL || pairing->window == NULL)
         return PLATINUM_PAIRING_NONE;
 
     switch (event->what) {
         case activateEvt:
-            if ((WindowPtr)event->message == pairing->window) {
+            if ((WindowPtr)(long)event->message == pairing->window) {
                 if (pairing->active_field == 0)
                     TEActivate(pairing->bridge_url);
                 else
@@ -243,7 +263,7 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
             return PLATINUM_PAIRING_NONE;
 
         case updateEvt:
-            if ((WindowPtr)event->message == pairing->window) {
+            if ((WindowPtr)(long)event->message == pairing->window) {
                 BeginUpdate(pairing->window);
                 platinum_pairing_draw(pairing);
                 EndUpdate(pairing->window);
@@ -273,10 +293,14 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
             if (pairing_point_in_field(where, pairing->bridge_url)) {
                 pairing->active_field = 0;
                 TEClick(where, (event->modifiers & shiftKey) != 0,
+                            0,
+                            0,
                         pairing->bridge_url);
             } else if (pairing_point_in_field(where, pairing->code)) {
                 pairing->active_field = 1;
                 TEClick(where, (event->modifiers & shiftKey) != 0,
+                            0,
+                            0,
                         pairing->code);
             }
             return PLATINUM_PAIRING_NONE;
@@ -291,8 +315,12 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
 
             target = pairing->active_field == 0 ?
                 pairing->bridge_url : pairing->code;
-            if (target != NULL)
-                TEKey((short)(event->message & charCodeMask), target);
+            if (target != NULL) {
+                platinum_text_key_map(key_map,
+                                      (short)(event->message & charCodeMask),
+                                      event->modifiers);
+                TEKey(key_map, target);
+            }
             return PLATINUM_PAIRING_NONE;
 
         default:

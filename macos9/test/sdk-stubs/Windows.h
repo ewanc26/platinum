@@ -11,10 +11,15 @@ typedef struct StubWindow {
     short wRefCon;
 } WindowRecord;
 
-typedef WindowRecord *WindowPtr;
 typedef WindowPtr WindowRef;
 
 /* The Classic Mac OS signature. Seven parameters, in this order. */
+/* A window procedure. The real SDK declares documentProc with this same
+ * function-pointer return type, which is why it can be passed to NewCWindow
+ * by name. */
+typedef ProcPtr (*WindowProc)(WindowPtr window, int message,
+                               ParamStructRec *param, Ptr lParam);
+
 WindowPtr NewCWindow(const Rect *boundsRect, Boolean isVisible, short procID,
                      WindowProc handlerProc, WindowPtr behind,
                      Boolean inGoToState, long refCon);
@@ -33,6 +38,11 @@ void DisableWindow(WindowPtr window);
 void BringWindowToFront(WindowPtr window);
 WindowPtr FrontWindow(void);
 void GetWindowRect(WindowPtr window, Rect *rect);
+void SetWindowTitle(WindowPtr window, Str255 title);
+void GetWindowTitle(WindowPtr window, Str255 title);
+void SetWindowTitle(WindowPtr window, Str255 title);
+void SetWindowRefCon(WindowPtr window, long refCon);
+long GetWindowRefCon(WindowPtr window);
 void HiliteWindow(WindowPtr window);
 #define activeFlag 0
 

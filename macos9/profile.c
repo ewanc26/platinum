@@ -174,8 +174,10 @@ OSErr platinum_profile_open(platinum_profile *profile)
     }
 
     SetRect(&bounds, 116, 70, 616, 390);
-    profile->window = NewCWindow(NULL, bounds, kProfileTitle, true,
-                                 documentProc, (WindowPtr)-1L, true, 0L);
+    profile->window = NewCWindow(&bounds, 1, 0,
+                                 documentProc,
+                                 (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(profile->window, kProfileTitle);
     if (profile->window == NULL)
         return memFullErr;
 

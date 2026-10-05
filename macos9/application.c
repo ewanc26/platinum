@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mac9_tls.h"
 #include "ui.h"
 #include "timeline.h"
 #include "profile.h"
@@ -156,8 +155,10 @@ OSErr platinum_application_init(platinum_application *app)
 
     SetRect(&bounds, 48, 40, 688, 520);
 
-    app->window = NewCWindow(NULL, bounds, kWindowTitle, true,
-                             documentProc, (WindowPtr)-1L, true, 0L);
+    app->window = NewCWindow(&bounds, 1, 0,
+                             documentProc,
+                             (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(app->window, kWindowTitle);
     if (app->window == NULL) {
         platinum_session_close(&app->session);
         platinum_application_dispose_menus(app);
@@ -521,7 +522,7 @@ static void platinum_application_draw(platinum_application *app)
     GetPort(&old_port);
     SetPort((GrafPtr)app->window);
 
-    platinum_ui_draw((GrafPtr)app->window,
+    platinum_ui_draw(app->window,
                      &app->layout,
                      &app->ui,
                      &app->session,

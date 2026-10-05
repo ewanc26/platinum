@@ -4,6 +4,7 @@
 
 #include <MacTypes.h>
 
+
 void SetRect(Rect *r, short top, short left, short bottom, short right);
 void InsetRect(Rect *r, short dx, short dy);
 void OffsetRect(Rect *r, short dx, short dy);
@@ -12,6 +13,7 @@ Boolean PtInRect(Point pt, const Rect *r);
 
 void FrameRect(const Rect *r);
 void EraseRect(const Rect *r);
+short FindWindow(Point pt, WindowPtr *window);
 void FillRect(const Rect *r, Pattern *pat);
 void PaintRect(const Rect *r);
 void InvalRect(const Rect *r);
@@ -31,6 +33,7 @@ void DrawChar(char c);
 void DrawString(StringPtr s);
 
 short StringWidth(StringPtr s);
+void GlobalToLocal(Point *pt);
 short CharWidth(short c);
 void GetFontMetrics(FontFamily family, FontStyle style, FontMetrics *metrics);
 

@@ -16,7 +16,7 @@ typedef ControlRecord *ControlPtr;
 typedef ControlPtr ControlHandle;
 
 typedef void (*ControlActionProc)(ControlHandle control, short part);
-typedef ProcPtr *ControlActionUPP;
+typedef ProcPtr ControlActionUPP;
 
 /* Standard control procedures live in the real Controls.h. */
 void scrollBarProc(ControlHandle control, short part);

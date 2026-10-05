@@ -6,6 +6,7 @@
 
 #include <Events.h>
 #include <Quickdraw.h>
+#include <Windows.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,7 +39,7 @@ enum {
 void platinum_ui_state_init(platinum_ui_state *state);
 void platinum_ui_layout_compute(const Rect *content,
                                 platinum_ui_layout *layout);
-void platinum_ui_draw(GrafPtr port,
+void platinum_ui_draw(WindowPtr window,
                       const platinum_ui_layout *layout,
                       const platinum_ui_state *state,
                       const platinum_session *session,
