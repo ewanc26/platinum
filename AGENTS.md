@@ -90,7 +90,11 @@ The important current paths are:
 ```
 platinum/
 ├── AGENTS.md
+├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── README.md
+├── tools/
+│   └── check-flow.sh
 ├── docs/
 │   └── BRIDGE_PROTOCOL.md
 ├── bridge/
@@ -604,6 +608,30 @@ Keep commits atomic and use conventional commit messages, for example:
 - `refactor(bridge): isolate token store`.
 
 Do not combine unrelated cleanup with a feature change.
+
+Flow rules, all enforced by `tools/check-flow.sh` via the `Flow and drift` job
+unless marked otherwise:
+
+- Never commit to `main`. Branch, open a PR, merge only when `CI gate` is green
+  (merge rule: by convention until the owner requires `CI gate` in branch
+  protection; see CONTRIBUTING.md).
+- PR titles and every commit subject are conventional commits.
+- A PR body has `## What this changes`, `## Why` and `## Verification` and says
+  what the verification does not prove.
+- Every `macos9/**/*.c` file is listed in the C89 job in `ci.yml` and named in
+  section 3 of this file. Adding a source means editing both.
+- The Wolfram ref pinned in `ci.yml` appears in README.md and this file. Bump
+  all three together.
+- A new job in `ci.yml` that should block merge goes in `gate.needs`.
+- Releases: tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
+  `CHANGELOG.md` section. `release-check` rejects a mismatch. Publish nothing
+  from CI.
+- Run `tools/check-flow.sh drift` before pushing.
+
+Rationale: the same rules are applied across the stack and the script is the
+single copy, so local and CI behaviour cannot differ. Wolfram does not yet host
+shared reusable workflows; if it does, replace the local copy rather than
+forking it.
 
 If a change crosses the Platinum/Wolfram boundary, keep the changes independently reviewable where practical.
 
