@@ -120,6 +120,13 @@ Standard Undo, Cut, Copy, Paste and Select All commands as applicable, followed 
 
 Load Older Posts fetches the next page of the timeline. Pressing Down Arrow on the last row does the same; the fetch is never started by scrolling, so it cannot begin in the middle of scroll-bar tracking. The list keeps at most forty posts: loading past that drops the newest ones from the top, and the selection stays on the post it was on.
 
+### Post
+
+- Like or Unlike (Command-L)
+- Repost or Undo Repost (Command-E)
+
+Both act on the selected timeline post and flip whatever the row currently shows. The detail pane spells the state out in words ("4 likes (you liked it)"), so it never depends on colour or a glyph. The bridge is idempotent, so a command sent twice does no harm.
+
 ### Window
 
 - Timeline

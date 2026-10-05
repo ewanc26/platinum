@@ -28,8 +28,8 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Reply | yes | yes | [#27](https://github.com/ewanc26/platinum/issues/27) |
 | Quote post | yes | yes | [#29](https://github.com/ewanc26/platinum/issues/29) |
 | Reply gates | yes | no | [#29](https://github.com/ewanc26/platinum/issues/29) |
-| Like and unlike | yes | yes | [#28](https://github.com/ewanc26/platinum/issues/28) |
-| Repost and undo | yes | yes | [#28](https://github.com/ewanc26/platinum/issues/28) |
+| Like and unlike | yes | yes | implemented (`macos9/timeline.c`) |
+| Repost and undo | yes | yes | implemented (`bridge/src/domain/api.ts`) |
 | Own profile | yes | yes | implemented (`macos9/profile.c`) |
 | Other people's profiles | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
 | Follow and unfollow | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
@@ -55,4 +55,4 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-10 implemented, 30 tracked by an open issue, 1 not possible.
+12 implemented, 28 tracked by an open issue, 1 not possible.

@@ -26,6 +26,7 @@
 #define kViewMenuID 130
 #define kWindowMenuID 131
 #define kHelpMenuID 132
+#define kPostMenuID 133
 
 static void platinum_application_yield(void *userdata);
 static void platinum_application_handle_event(platinum_application *app,
@@ -39,6 +40,8 @@ static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
 static void platinum_application_refresh_timeline(platinum_application *app);
 static void platinum_application_load_older(platinum_application *app);
+static void platinum_application_engage(platinum_application *app,
+                                        int repost);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
@@ -72,6 +75,14 @@ static unsigned char kWindowTitle[] = {
 static unsigned char kFileMenu[] = { 4, 'F', 'i', 'l', 'e' };
 static unsigned char kEditMenu[] = { 4, 'E', 'd', 'i', 't' };
 static unsigned char kViewMenu[] = { 4, 'V', 'i', 'e', 'w' };
+static unsigned char kPostMenu[] = { 4, 'P', 'o', 's', 't' };
+static unsigned char kLikeItem[] = {
+    14, 'L', 'i', 'k', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'l', 'i', 'k', 'e'
+};
+static unsigned char kRepostItem[] = {
+    21, 'R', 'e', 'p', 'o', 's', 't', ' ', 'o', 'r', ' ', 'U', 'n', 'd', 'o',
+    ' ', 'R', 'e', 'p', 'o', 's', 't'
+};
 static unsigned char kWindowMenu[] = { 6, 'W', 'i', 'n', 'd', 'o', 'w' };
 static unsigned char kHelpMenu[] = { 4, 'H', 'e', 'l', 'p' };
 
@@ -390,6 +401,10 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_open_notifications(app);
                 } else if (action == PLATINUM_UI_ACTION_LOAD_OLDER) {
                     platinum_application_load_older(app);
+                } else if (action == PLATINUM_UI_ACTION_LIKE) {
+                    platinum_application_engage(app, 0);
+                } else if (action == PLATINUM_UI_ACTION_REPOST) {
+                    platinum_application_engage(app, 1);
                 }
                 platinum_application_invalidate(app);
             }
@@ -584,6 +599,31 @@ static void platinum_application_refresh_timeline(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/* Like or repost the selected post, or undo it if the row says it is done. */
+static void platinum_application_engage(platinum_application *app, int repost)
+{
+    platinum_bridge_client *bridge;
+    const platinum_post_preview *post;
+    wf_status status;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    post = &app->timeline.posts[index];
+    status = platinum_timeline_set_engagement(
+        &app->timeline, bridge, (unsigned short)index, repost,
+        repost ? !post->reposted : !post->liked);
+    platinum_application_recover_auth(app, status);
+    platinum_application_invalidate(app);
+}
+
 static void platinum_application_load_older(platinum_application *app)
 {
     platinum_bridge_client *bridge;
@@ -678,11 +718,13 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     app->file_menu = NewMenu(kFileMenuID, kFileMenu);
     app->edit_menu = NewMenu(kEditMenuID, kEditMenu);
     app->view_menu = NewMenu(kViewMenuID, kViewMenu);
+    app->post_menu = NewMenu(kPostMenuID, kPostMenu);
     app->window_menu = NewMenu(kWindowMenuID, kWindowMenu);
     app->help_menu = NewMenu(kHelpMenuID, kHelpMenu);
 
     if (app->file_menu == NULL || app->edit_menu == NULL ||
-        app->view_menu == NULL || app->window_menu == NULL ||
+        app->view_menu == NULL || app->post_menu == NULL ||
+        app->window_menu == NULL ||
         app->help_menu == NULL) {
         platinum_application_dispose_menus(app);
         return memFullErr;
@@ -720,6 +762,11 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->view_menu, kLoadOlder);
     SetItemCmdChar(app->view_menu, 1, 'r');
 
+    AppendMenu(app->post_menu, kLikeItem);
+    AppendMenu(app->post_menu, kRepostItem);
+    SetItemCmdChar(app->post_menu, 1, 'l');
+    SetItemCmdChar(app->post_menu, 2, 'e');
+
     AppendMenu(app->window_menu, kTimelineWindow);
     AppendMenu(app->window_menu, kNotificationsWindow);
     AppendMenu(app->window_menu, kProfileWindow);
@@ -731,6 +778,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     InsertMenu(app->file_menu, 0);
     InsertMenu(app->edit_menu, 0);
     InsertMenu(app->view_menu, 0);
+    InsertMenu(app->post_menu, 0);
     InsertMenu(app->window_menu, 0);
     InsertMenu(app->help_menu, 0);
     DrawMenuBar();
@@ -752,6 +800,11 @@ static void platinum_application_dispose_menus(platinum_application *app)
         DeleteMenu(kWindowMenuID);
         DisposeMenu(app->window_menu);
         app->window_menu = NULL;
+    }
+    if (app->post_menu != NULL) {
+        DeleteMenu(kPostMenuID);
+        DisposeMenu(app->post_menu);
+        app->post_menu = NULL;
     }
     if (app->view_menu != NULL) {
         DeleteMenu(kViewMenuID);
@@ -815,6 +868,8 @@ static void platinum_application_handle_menu(platinum_application *app,
         } else if (item == 3) {
             platinum_application_load_older(app);
         }
+    } else if (menu_id == kPostMenuID) {
+        platinum_application_engage(app, item == 2);
     } else if (menu_id == kWindowMenuID) {
         if (item == 2)
             platinum_application_open_notifications(app);
