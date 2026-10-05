@@ -5,6 +5,7 @@
 #include "compose.h"
 #include "ui.h"
 #include "timeline.h"
+#include "profile.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -18,6 +19,7 @@ typedef struct platinum_application {
     platinum_ui_state ui;
     platinum_compose compose;
     platinum_timeline timeline;
+    platinum_profile profile;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;

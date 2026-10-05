@@ -13,6 +13,7 @@
 #include "mac9_tls.h"
 #include "ui.h"
 #include "timeline.h"
+#include "profile.h"
 #include <cJSON.h>
 
 #define kFileMenuID 128
@@ -32,6 +33,7 @@ static void platinum_application_handle_menu(platinum_application *app,
 static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
 static void platinum_application_refresh_timeline(platinum_application *app);
+static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_submit_post(platinum_application *app);
 static void platinum_application_post_status(platinum_application *app,
                                              wf_status status);
@@ -99,6 +101,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_session_init(&app->session);
     platinum_ui_state_init(&app->ui);
     platinum_timeline_init(&app->timeline);
+    platinum_profile_init(&app->profile);
 
     InitGraf(&qd.thePort);
     InitFonts();
@@ -166,6 +169,7 @@ void platinum_application_dispose(platinum_application *app)
         app->window = NULL;
     }
 
+    platinum_profile_close(&app->profile);
     platinum_compose_close(&app->compose);
     platinum_session_close(&app->session);
     platinum_application_dispose_menus(app);
@@ -202,11 +206,31 @@ static void platinum_application_handle_event(platinum_application *app,
                 choice = MenuSelect(event->where);
                 platinum_application_handle_menu(app, choice);
                 HiliteMenu(0);
-            } else if (part == inGoAway && window == app->window) {
-                app->running = 0;
-            } else if (part == inDrag && window == app->window) {
+            } else if (part == inGoAway) {
+                if (window == app->window) {
+                    app->running = 0;
+                } else if (app->profile.window != NULL &&
+                           window == app->profile.window) {
+                    platinum_profile_close(&app->profile);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (app->compose.window != NULL &&
+                           window == app->compose.window) {
+                    platinum_compose_close(&app->compose);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
+            } else if (part == inDrag) {
                 DragWindow(window, event->where, NULL);
                 InvalRect(&window->portRect);
+            } else if (app->profile.window != NULL &&
+                       window == app->profile.window) {
+                action = platinum_profile_handle_event(&app->profile, event);
+                if (action == PLATINUM_PROFILE_CLOSE) {
+                    platinum_profile_close(&app->profile);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
             } else if (app->compose.window != NULL &&
                        window == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
@@ -229,6 +253,8 @@ static void platinum_application_handle_event(platinum_application *app,
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
                     if (platinum_compose_open(&app->compose) == noErr)
                         SelectWindow(app->compose.window);
+                } else if (action == PLATINUM_UI_ACTION_PROFILE) {
+                    platinum_application_open_profile(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -236,7 +262,9 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case updateEvt:
             window = (WindowPtr)event->message;
-            if (app->compose.window != NULL && window == app->compose.window) {
+            if (app->profile.window != NULL && window == app->profile.window) {
+                platinum_profile_handle_event(&app->profile, event);
+            } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
                 BeginUpdate(window);
@@ -248,7 +276,9 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)event->message;
-            if (app->compose.window != NULL && window == app->compose.window) {
+            if (app->profile.window != NULL && window == app->profile.window) {
+                platinum_profile_handle_event(&app->profile, event);
+            } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
                 HiliteWindow(window, (event->modifiers & activeFlag) != 0);
@@ -257,7 +287,15 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case keyDown:
         case autoKey:
-            if (app->compose.window != NULL &&
+            if (app->profile.window != NULL &&
+                FrontWindow() == app->profile.window) {
+                action = platinum_profile_handle_event(&app->profile, event);
+                if (action == PLATINUM_PROFILE_CLOSE) {
+                    platinum_profile_close(&app->profile);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                }
+            } else if (app->compose.window != NULL &&
                 FrontWindow() == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
                 if (action == PLATINUM_COMPOSE_CANCEL) {
@@ -279,6 +317,8 @@ static void platinum_application_handle_event(platinum_application *app,
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
                     if (platinum_compose_open(&app->compose) == noErr)
                         SelectWindow(app->compose.window);
+                } else if (action == PLATINUM_UI_ACTION_PROFILE) {
+                    platinum_application_open_profile(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -485,7 +525,10 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_invalidate(app);
         }
     } else if (menu_id == kWindowMenuID) {
-        platinum_application_invalidate(app);
+        if (item == 3)
+            platinum_application_open_profile(app);
+        else
+            platinum_application_invalidate(app);
     } else if (menu_id == kHelpMenuID) {
         platinum_application_invalidate(app);
     }
@@ -580,4 +623,25 @@ static void platinum_application_submit_post(platinum_application *app)
     SelectWindow(app->window);
     platinum_application_refresh_timeline(app);
     platinum_application_invalidate(app);
+}
+
+static void platinum_application_open_profile(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+
+    if (app == NULL)
+        return;
+
+    if (!platinum_session_is_paired(&app->session)) {
+        platinum_profile_set_status(&app->profile,
+                                    "Pair an account before viewing Profile.");
+        return;
+    }
+
+    if (platinum_profile_open(&app->profile) != noErr)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge != NULL)
+        platinum_profile_refresh(&app->profile, bridge);
 }
