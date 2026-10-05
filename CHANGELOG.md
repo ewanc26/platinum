@@ -6,7 +6,25 @@ here.
 
 ## [Unreleased]
 
-- Bridge self-update from GitHub releases (`npm run update`), with SHA-256 verification and rollback.
+Releases are paused until Platinum has run on Mac OS 9 (#62).
+
+### Bridge
+
+- Self-update from GitHub releases (`npm run update`), opt-in and confirmed, with SHA-256 verification and rollback.
+- Opt-in app-password sign-in (`POST /v1/login/app-password`), separate from OAuth pairing.
+- Idempotent like and repost with undo (`POST /v1/like`, `POST /v1/repost`); timeline posts carry `liked` and `reposted`.
+- `/health` reports the real package version.
+
+### Mac client
+
+- Timeline paging, keeping at most forty posts.
+- Like and repost the selected post from the Post menu.
+- Windows hilite and deactivate correctly, and a click on a background window brings it forward.
+- The application state is no longer on the stack.
+
+### Repository
+
+- Flow checks, a single `CI gate`, the parity matrix, the Wolfram duplication guard, generated logo and icon, and a release dry run on every PR.
 
 ## [0.3.1]
 

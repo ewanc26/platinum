@@ -22,6 +22,9 @@ tag="v$version"
 cd "$(git rev-parse --show-toplevel)"
 fail() { echo "release: $*" >&2; exit 1; }
 
+if [ "$dry" = 0 ] && [ -e RELEASES_PAUSED ]; then
+  fail "releases are paused (RELEASES_PAUSED, issue #62); only --dry-run is allowed"
+fi
 if [ "$dry" = 0 ]; then
   [[ "$(git rev-parse --abbrev-ref HEAD)" == main ]] || fail "must be on main"
   [[ -z "$(git status --porcelain)" ]] || fail "working tree is not clean"

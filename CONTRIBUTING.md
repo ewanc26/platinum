@@ -36,6 +36,9 @@ tools/check-flow.sh commits origin/main..HEAD
 
 ## Releases
 
+Releases are paused until I've run Platinum on Mac OS 9 (#62). While the `RELEASES_PAUSED` file exists, `scripts/release.sh` only does `--dry-run`, which CI runs on every pull request. Add a line to the Unreleased section of `CHANGELOG.md` in any PR that changes behaviour.
+
+
 Tag `vX.Y.Z` only after bumping `bridge/package.json` and adding a section to
 [CHANGELOG.md](CHANGELOG.md). The `release-check` workflow rejects a tag that
 disagrees with either. It publishes nothing.

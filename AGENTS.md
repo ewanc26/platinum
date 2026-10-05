@@ -656,7 +656,12 @@ unless marked otherwise:
 - The Wolfram ref pinned in `ci.yml` appears in README.md and this file. Bump
   all three together.
 - A new job in `ci.yml` that should block merge goes in `gate.needs`.
-- Releases: tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
+- Releases are paused (`RELEASES_PAUSED`, #62). Never tag, never run
+  `scripts/release.sh` without `--dry-run`, and never delete `RELEASES_PAUSED`;
+  that is the owner's call. No workflow may publish on its own: `release-check`
+  only verifies a pushed tag. Add a line under Unreleased in `CHANGELOG.md` with
+  every behaviour change.
+- Releases (once unpaused): tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
   `CHANGELOG.md` section. `release-check` rejects a mismatch. Publish nothing
   from CI.
 - Feature status lives in `docs/parity.tsv`; `docs/PARITY.md` is generated from it
