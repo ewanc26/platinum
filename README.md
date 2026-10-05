@@ -54,6 +54,7 @@ The repository currently contains:
 - short-lived, single-use browser pairing codes;
 - revocable long-lived bridge tokens;
 - file-backed bridge session and token storage;
+- compact, stable timeline and notification response contracts;
 - a Classic Mac OS 9 bridge client under `macos9/`;
 - persistent Classic Mac configuration and account-session state;
 - a native event-driven application shell;
