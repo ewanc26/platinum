@@ -94,7 +94,8 @@ platinum/
 ├── CONTRIBUTING.md
 ├── README.md
 ├── tools/
-│   └── check-flow.sh
+│   ├── check-flow.sh
+│   └── check-parity.sh
 ├── docs/
 │   └── BRIDGE_PROTOCOL.md
 ├── bridge/
@@ -641,7 +642,12 @@ unless marked otherwise:
 - Releases: tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
   `CHANGELOG.md` section. `release-check` rejects a mismatch. Publish nothing
   from CI.
-- Run `tools/check-flow.sh drift` before pushing.
+- Feature status lives in `docs/parity.tsv`; `docs/PARITY.md` is generated from it
+  with `tools/check-parity.sh --write`. A feature is `implemented` only with a
+  file and string that exist in the code; otherwise it names an open issue. When
+  you ship or file a feature, edit the row in the same PR. CI fails on a stale
+  `PARITY.md`, a missing evidence string, or a closed issue still cited.
+- Run `tools/check-flow.sh drift` and `tools/check-parity.sh` before pushing.
 
 Rationale: the same rules are applied across the stack and the script is the
 single copy, so local and CI behaviour cannot differ. Wolfram does not yet host

@@ -77,6 +77,8 @@ The bridge currently exposes:
 
 See [docs/BRIDGE_PROTOCOL.md](docs/BRIDGE_PROTOCOL.md) for the protocol contract.
 
+What Cobalt and Indigo do that I haven't done yet is listed, with an issue for each gap, in [docs/PARITY.md](docs/PARITY.md). It is checked against the code by CI, so it won't claim more than exists.
+
 ## Requirements
 
 ### Platinum Bridge
