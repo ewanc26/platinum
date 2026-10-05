@@ -2,6 +2,7 @@
 #define PLATINUM_UI_H
 
 #include "session.h"
+#include "timeline.h"
 
 #include <Events.h>
 #include <Quickdraw.h>
@@ -14,6 +15,7 @@ typedef struct platinum_ui_layout {
     Rect toolbar;
     Rect navigation;
     Rect timeline;
+    Rect timeline_scrollbar;
     Rect detail;
 } platinum_ui_layout;
 
@@ -28,7 +30,9 @@ enum {
     PLATINUM_UI_ACTION_NONE = 0,
     PLATINUM_UI_ACTION_REFRESH = 1,
     PLATINUM_UI_ACTION_COMPOSE = 2,
-    PLATINUM_UI_ACTION_QUIT = 3
+    PLATINUM_UI_ACTION_QUIT = 3,
+    PLATINUM_UI_ACTION_PROFILE = 4,
+    PLATINUM_UI_ACTION_NOTIFICATIONS = 5
 };
 
 void platinum_ui_state_init(platinum_ui_state *state);
@@ -37,14 +41,17 @@ void platinum_ui_layout_compute(const Rect *content,
 void platinum_ui_draw(GrafPtr port,
                       const platinum_ui_layout *layout,
                       const platinum_ui_state *state,
-                      const platinum_session *session);
+                      const platinum_session *session,
+                      const platinum_timeline *timeline);
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_timeline *timeline,
                              Point where);
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_timeline *timeline,
                            EventRecord *event);
 
 #ifdef __cplusplus
