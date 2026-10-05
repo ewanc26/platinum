@@ -341,7 +341,7 @@ OSErr platinum_pairing_get_code(const platinum_pairing *pairing,
 
     for (i = 0; i < input; ++i) {
         ch = raw[i];
-        if (ch == ' ' || ch == '-' || ch == '\\r' || ch == '\\n' ||
+        if (ch == ' ' || ch == '-' || ch == '\r' || ch == '\n' ||
             ch == '	')
             continue;
 
