@@ -1,29 +1,28 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { readFile, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
 import { Agent } from '@atproto/api'
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
-import { FileStore, PairingStore } from './store.js'
+import { loadConfig } from './config.js'
+import { AtprotoClient } from './atproto/client.js'
+import { PairingService } from './auth/pairing.js'
+import { TokenService } from './auth/tokens.js'
+import { DomainApi } from './domain/api.js'
+import { upstreamError } from './atproto/errors.js'
+import { BridgeError, errorBody } from './http/errors.js'
+import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
+import { FileStorage } from './storage/file.js'
 
-const port = Number(process.env.PLATINUM_BRIDGE_PORT ?? 8787)
-const host = process.env.PLATINUM_BRIDGE_HOST ?? '127.0.0.1'
-const baseUrl = process.env.PLATINUM_BRIDGE_URL ?? 'http://' + host + ':' + port
-const publicUrl = process.env.PLATINUM_BRIDGE_PUBLIC_URL ?? baseUrl
-const dataDir = resolve(process.env.PLATINUM_BRIDGE_DATA_DIR ?? '.platinum-bridge')
-const version = '0.2.0'
-const maxBodyBytes = 64 * 1024
-
-await mkdir(dataDir, { recursive: true })
-const store = new FileStore(dataDir)
-await store.init()
-const pairing = new PairingStore()
+const config = loadConfig()
+const storage = new FileStorage(config.dataDir)
+await storage.init()
 
 const oauth = new NodeOAuthClient({
   clientMetadata: {
-    client_id: new URL('/client-metadata.json', publicUrl).href,
+    client_id: new URL('/client-metadata.json', config.publicUrl).href,
     client_name: 'Platinum Bridge',
-    client_uri: publicUrl,
-    redirect_uris: [new URL('/atproto-oauth-callback', publicUrl).href],
+    client_uri: config.publicUrl,
+    redirect_uris: [new URL('/atproto-oauth-callback', config.publicUrl).href],
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     application_type: 'web',
@@ -31,87 +30,72 @@ const oauth = new NodeOAuthClient({
     dpop_bound_access_tokens: true,
     scope: 'atproto',
   },
-  stateStore: store.stateStore(),
-  sessionStore: store.sessionStore(),
+  stateStore: storage.stateStore(),
+  sessionStore: storage.sessionStore(),
 })
 
-type TokenRecord = { did: string }
-const tokenPath = resolve(dataDir, 'tokens.json')
+const pairing = new PairingService()
+const tokens = new TokenService(storage.installations())
+const atproto = new AtprotoClient(oauth)
+const domain = new DomainApi()
 
-async function tokens(): Promise<Record<string, TokenRecord>> {
+await migrateLegacyTokens()
+
+async function migrateLegacyTokens(): Promise<void> {
   try {
-    return JSON.parse(await readFile(tokenPath, 'utf8')) as Record<string, TokenRecord>
+    const content = await readFile(join(config.dataDir, 'tokens.json'), 'utf8')
+    const legacy = JSON.parse(content) as Record<string, { did: string }>
+
+    for (const [token, record] of Object.entries(legacy)) {
+      if (record?.did) {
+        await tokens.issue(record.did, token)
+      }
+    }
+
+    await unlink(join(config.dataDir, 'tokens.json'))
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}
-    throw error
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
 }
 
-async function tokenAgent(token: string): Promise<Agent | undefined> {
-  const record = (await tokens())[token]
+function bearerToken(req: IncomingMessage): string | undefined {
+  const authorization = req.headers.authorization
+  return authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
+}
+
+function limit(value: string | null): number {
+  const parsed = Number(value ?? 20)
+  if (!Number.isFinite(parsed)) return 20
+  return Math.min(Math.max(Math.trunc(parsed), 1), 50)
+}
+
+async function authenticatedAgent(req: IncomingMessage): Promise<Agent | undefined> {
+  const token = bearerToken(req)
+  if (!token) return undefined
+
+  const record = await tokens.authenticate(token)
   if (!record) return undefined
-  const session = await oauth.restore(record.did)
-  return new Agent(session)
-}
 
-function json(res: ServerResponse, status: number, value: unknown): void {
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-  })
-  res.end(JSON.stringify(value))
-}
-
-function html(res: ServerResponse, status: number, value: string): void {
-  res.writeHead(status, {
-    'content-type': 'text/html; charset=utf-8',
-    'cache-control': 'no-store',
-  })
-  res.end(value)
-}
-
-function redirect(res: ServerResponse, location: string): void {
-  res.writeHead(302, { location, 'cache-control': 'no-store' })
-  res.end()
-}
-
-async function readBody(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = []
-  let length = 0
-  for await (const chunk of req) {
-    const part = Buffer.from(chunk)
-    length += part.length
-    if (length > maxBodyBytes) throw new Error('request body too large')
-    chunks.push(part)
-  }
-  return Buffer.concat(chunks).toString('utf8')
+  return atproto.forInstallation(record)
 }
 
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const url = new URL(req.url ?? '/', baseUrl)
+  const url = new URL(req.url ?? '/', config.baseUrl)
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    return json(res, 200, { ok: true, service: 'platinum-bridge', version })
+    return json(res, 200, { ok: true, service: 'platinum-bridge', version: config.version })
   }
 
   if (req.method === 'GET' && url.pathname === '/client-metadata.json') {
     return json(res, 200, oauth.clientMetadata)
   }
 
-  if (req.method === 'POST' && url.pathname === '/v1/revoke') {
-    const authorization = req.headers.authorization
-    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
-    if (!token) return json(res, 401, { error: 'missing_bearer_token' })
-    const data = await tokens()
-    if (!data[token]) return json(res, 404, { error: 'invalid_token' })
-    delete data[token]
-    await writeFile(tokenPath, JSON.stringify(data, null, 2), { mode: 0o600 })
-    return json(res, 200, { ok: true })
-  }
-
   if (req.method === 'GET' && url.pathname === '/login') {
     const handle = url.searchParams.get('handle')
-    if (!handle) return html(res, 400, '<h1>Platinum</h1><p>A Bluesky handle is required.</p>')
+    if (!handle) {
+      return html(res, 400, '<h1>Platinum</h1><p>A Bluesky handle is required.</p>')
+    }
+
     const target = await oauth.authorize(handle)
     return redirect(res, target.toString())
   }
@@ -119,81 +103,134 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'GET' && url.pathname === '/atproto-oauth-callback') {
     const { session } = await oauth.callback(url.searchParams)
     const code = pairing.create(session.did)
+
     return html(
       res,
       200,
       '<!doctype html><meta charset="utf-8"><title>Platinum pairing</title>' +
-      '<style>body{font:20px system-ui;max-width:36rem;margin:4rem auto;padding:1rem}code{font-size:2rem;letter-spacing:.25rem}</style>' +
-      '<h1>Platinum</h1><p>OAuth succeeded. Enter this pairing code in Platinum:</p>' +
-      '<p><code>' + code + '</code></p><p>The code expires in ten minutes and can only be used once.</p>',
+        '<style>body{font:20px system-ui;max-width:36rem;margin:4rem auto;padding:1rem}code{font-size:2rem;letter-spacing:.25rem}</style>' +
+        '<h1>Platinum</h1><p>OAuth succeeded. Enter this pairing code in Platinum:</p>' +
+        '<p><code>' + code + '</code></p><p>The code expires in ten minutes and can only be used once.</p>',
     )
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/pair') {
-    let input: { code?: string }
+    let input: { code?: string; clientVersion?: string; installationLabel?: string }
+
     try {
-      input = JSON.parse(await readBody(req)) as { code?: string }
-    } catch {
-      return json(res, 400, { error: 'invalid_json' })
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as { code?: string }
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
     }
-    if (!input.code || !/^[A-Z2-9]{6}$/i.test(input.code)) return json(res, 400, { error: 'invalid_code' })
+
+    if (!input.code || !/^[A-Z2-9]{6}$/i.test(input.code)) {
+      return json(res, 400, errorBody('invalid_code', 'The pairing code is invalid.'))
+    }
+
     const record = pairing.exchange(input.code)
-    if (!record) return json(res, 401, { error: 'invalid_or_expired_code' })
+    if (!record) {
+      return json(res, 401, errorBody('invalid_or_expired_code', 'The pairing code is invalid or expired.'))
+    }
 
-    const data = await tokens()
-    data[record.token] = { did: record.did }
-    await writeFile(tokenPath, JSON.stringify(data, null, 2), { mode: 0o600 })
-
-    return json(res, 200, { protocol: 1, token: record.token, did: record.did })
+    const issued = await tokens.issue(record.did, record.token, {
+      clientVersion: input.clientVersion,
+      installationLabel: input.installationLabel,
+    })
+    return json(res, 200, {
+      protocol: 1,
+      token: issued.token,
+      did: issued.record.did,
+      installationId: issued.record.id,
+    })
   }
 
-  const authorization = req.headers.authorization
-  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
-  if (!token) return json(res, 401, { error: 'missing_bearer_token' })
+  if (req.method === 'POST' && url.pathname === '/v1/revoke') {
+    const token = bearerToken(req)
+    if (!token) {
+      return json(res, 401, errorBody('missing_bearer_token', 'A Platinum installation token is required.'))
+    }
 
-  const agent = await tokenAgent(token)
-  if (!agent) return json(res, 401, { error: 'invalid_token' })
+    const revoked = await tokens.revoke(token)
+    if (!revoked) {
+      return json(res, 404, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
+    }
+
+    return json(res, 200, { ok: true })
+  }
+
+  const token = bearerToken(req)
+  const agent = await authenticatedAgent(req)
+  if (!agent) {
+    return json(
+      res,
+      401,
+      errorBody(
+        token ? 'invalid_token' : 'missing_bearer_token',
+        token
+          ? 'The Platinum installation token is not valid.'
+          : 'A Platinum installation token is required.',
+      ),
+    )
+  }
 
   if (req.method === 'GET' && url.pathname === '/v1/profile') {
-    const result = await agent.getProfile({ actor: agent.accountDid })
-    return json(res, 200, result.data)
+    return json(res, 200, await domain.profile(agent))
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/timeline') {
-    const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 20), 1), 50)
     const cursor = url.searchParams.get('cursor') ?? undefined
-    const result = await agent.getTimeline({ limit, cursor })
-    return json(res, 200, result.data)
+    return json(res, 200, await domain.timeline(agent, limit(url.searchParams.get('limit')), cursor))
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/notifications') {
-    const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 20), 1), 50)
     const cursor = url.searchParams.get('cursor') ?? undefined
-    const result = await agent.listNotifications({ limit, cursor })
-    return json(res, 200, result.data)
+    return json(res, 200, await domain.notifications(agent, limit(url.searchParams.get('limit')), cursor))
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/post') {
     let input: { text?: string }
+
     try {
-      input = JSON.parse(await readBody(req)) as { text?: string }
-    } catch {
-      return json(res, 400, { error: 'invalid_json' })
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as { text?: string }
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
     }
-    if (!input.text?.trim()) return json(res, 400, { error: 'missing_text' })
-    if (input.text.length > 300) return json(res, 400, { error: 'text_too_long' })
-    const result = await agent.post({ text: input.text })
-    return json(res, 200, result)
+
+    if (!input.text?.trim()) {
+      return json(res, 400, errorBody('missing_text', 'Post text is required.'))
+    }
+    if (input.text.length > 300) {
+      return json(res, 400, errorBody('text_too_long', 'Post text must not exceed 300 characters.'))
+    }
+
+    return json(res, 200, await domain.post(agent, input.text))
   }
 
-  return json(res, 404, { error: 'not_found' })
+  return json(res, 404, { error: 'not_found', message: 'The requested endpoint does not exist.' })
 }
 
 createServer((req, res) => {
   route(req, res).catch(error => {
+    if (error instanceof BridgeError) {
+      json(res, error.status, errorBody(error.code, error.message))
+      return
+    }
+
+    const mapped = upstreamError(error)
+    if (mapped.code === 'upstream_error') {
+      json(res, mapped.status, errorBody(mapped.code, mapped.message))
+      return
+    }
+
     console.error('Platinum Bridge request failed')
-    json(res, 500, { error: 'bridge_error' })
+    json(res, 500, errorBody('bridge_error', 'The backend could not complete the request.'))
   })
-}).listen(port, host, () => {
-  console.log('Platinum Bridge listening on ' + baseUrl)
+}).listen(config.port, config.host, () => {
+  console.log('Platinum Bridge listening on ' + config.baseUrl)
 })
