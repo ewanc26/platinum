@@ -47,7 +47,6 @@ void DrawChar(char c);
 void DrawString(StringPtr s);
 
 short StringWidth(StringPtr s);
-void GlobalToLocal(Point *pt);
 short CharWidth(short c);
 void GetFontMetrics(FontFamily family, FontStyle style, FontMetrics *metrics);
 
