@@ -1,0 +1,132 @@
+#include "scrollbar.h"
+
+#include <Quickdraw.h>
+#include <string.h>
+
+static unsigned char kEmptyTitle[] = { 0 };
+
+OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
+                              WindowPtr window,
+                              const Rect *bounds)
+{
+    if (scrollbar == NULL || window == NULL || bounds == NULL)
+        return paramErr;
+
+    memset(scrollbar, 0, sizeof(*scrollbar));
+    scrollbar->window = window;
+    scrollbar->bounds = *bounds;
+
+    scrollbar->control = NewControl(window,
+                                    &scrollbar->bounds,
+                                    kEmptyTitle,
+                                    true,
+                                    0,
+                                    0,
+                                    0,
+                                    scrollBarProc,
+                                    0L);
+    if (scrollbar->control == NULL) {
+        scrollbar->window = NULL;
+        return memFullErr;
+    }
+
+    return noErr;
+}
+
+void platinum_scrollbar_close(platinum_scrollbar *scrollbar)
+{
+    if (scrollbar == NULL)
+        return;
+
+    if (scrollbar->control != NULL) {
+        DisposeControl(scrollbar->control);
+        scrollbar->control = NULL;
+    }
+
+    scrollbar->window = NULL;
+}
+
+void platinum_scrollbar_set_range(platinum_scrollbar *scrollbar,
+                                  short total,
+                                  short visible,
+                                  short value)
+{
+    short maximum;
+
+    if (scrollbar == NULL || scrollbar->control == NULL)
+        return;
+
+    if (total < 0)
+        total = 0;
+    if (visible < 1)
+        visible = 1;
+
+    maximum = total - visible;
+    if (maximum < 0)
+        maximum = 0;
+
+    if (value < 0)
+        value = 0;
+    if (value > maximum)
+        value = maximum;
+
+    SetCtlMin(scrollbar->control, 0);
+    SetCtlMax(scrollbar->control, maximum);
+    SetCtlValue(scrollbar->control, value);
+
+    if (maximum == 0)
+        HideControl(scrollbar->control);
+    else
+        ShowControl(scrollbar->control);
+}
+
+short platinum_scrollbar_value(
+    const platinum_scrollbar *scrollbar)
+{
+    if (scrollbar == NULL || scrollbar->control == NULL)
+        return 0;
+
+    return GetCtlValue(scrollbar->control);
+}
+
+int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
+                                     EventRecord *event,
+                                     short *value)
+{
+    GrafPtr old_port;
+    Point where;
+    short result;
+
+    if (scrollbar == NULL || scrollbar->control == NULL ||
+        event == NULL || value == NULL ||
+        event->what != mouseDown)
+        return 0;
+
+    GetPort(&old_port);
+    SetPort((GrafPtr)scrollbar->window);
+
+    where = event->where;
+    GlobalToLocal(&where);
+
+    if (!PtInRect(where, &scrollbar->bounds)) {
+        SetPort(old_port);
+        return 0;
+    }
+
+    result = TrackControl(scrollbar->control,
+                          where,
+                          (ProcPtr)-1L);
+    if (result != 0)
+        *value = GetCtlValue(scrollbar->control);
+
+    SetPort(old_port);
+    return result != 0;
+}
+
+void platinum_scrollbar_draw(platinum_scrollbar *scrollbar)
+{
+    if (scrollbar == NULL || scrollbar->control == NULL)
+        return;
+
+    Draw1Control(scrollbar->control);
+}
