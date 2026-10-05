@@ -1,6 +1,6 @@
 {
   "name": "@ewanc26/platinum-bridge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Modern AT Protocol bridge for the Platinum Mac OS 9 Bluesky client",
   "type": "module",
