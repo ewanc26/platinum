@@ -59,6 +59,7 @@ GET /v1/notifications?limit=20&cursor=...
 POST /v1/post
 POST /v1/like
 POST /v1/repost
+POST /v1/notifications/seen
 
 ### Profile response
 
@@ -129,6 +130,15 @@ The bridge deliberately does not expose raw feed-view embeds, reply views or App
 
 `liked` and `reposted` say whether the signed-in account has liked or reposted
 the post. The like and repost record URIs stay on the bridge.
+
+### Marking notifications seen
+
+`POST /v1/notifications/seen` with `{"seenAt":"2026-10-05T00:01:00.000Z"}` marks
+everything up to that time as read. Send the `indexedAt` of the newest
+notification you displayed, exactly as the bridge sent it, not the Mac's clock:
+notifications that arrive after the list was fetched then stay unread. A time in
+the future is clamped to the bridge's now. Returns `{"seenAt": "..."}`; `400
+invalid_seen_at` for anything that is not an ISO 8601 timestamp.
 
 ### Like and repost
 
