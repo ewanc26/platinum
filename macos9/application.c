@@ -15,6 +15,7 @@
 #include "timeline.h"
 #include "profile.h"
 #include "notifications.h"
+#include "preferences.h"
 #include "text_codec.h"
 #include <cJSON.h>
 
@@ -38,6 +39,10 @@ static void platinum_application_refresh_timeline(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
+    platinum_application *app);
+static void platinum_application_open_preferences(
+    platinum_application *app);
+static void platinum_application_sign_out(
     platinum_application *app);
 static void platinum_application_submit_post(platinum_application *app);
 static void platinum_application_post_status(platinum_application *app,
@@ -108,6 +113,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_timeline_init(&app->timeline);
     platinum_profile_init(&app->profile);
     platinum_notifications_init(&app->notifications);
+    platinum_preferences_init(&app->preferences);
 
     InitGraf(&qd.thePort);
     InitFonts();
@@ -175,6 +181,7 @@ void platinum_application_dispose(platinum_application *app)
         app->window = NULL;
     }
 
+    platinum_preferences_close(&app->preferences);
     platinum_notifications_close(&app->notifications);
     platinum_profile_close(&app->profile);
     platinum_compose_close(&app->compose);
@@ -226,6 +233,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_notifications_close(&app->notifications);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->preferences.window != NULL &&
+                           window == app->preferences.window) {
+                    platinum_preferences_close(&app->preferences);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->compose.window != NULL &&
                            window == app->compose.window) {
                     platinum_compose_close(&app->compose);
@@ -253,6 +265,17 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
                     platinum_application_refresh_notifications(app);
+                }
+            } else if (app->preferences.window != NULL &&
+                       window == app->preferences.window) {
+                action = platinum_preferences_handle_event(
+                    &app->preferences, event);
+                if (action == PLATINUM_PREFERENCES_CLOSE) {
+                    platinum_preferences_close(&app->preferences);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
+                    platinum_application_sign_out(app);
                 }
             } else if (app->compose.window != NULL &&
                        window == app->compose.window) {
@@ -320,7 +343,18 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case keyDown:
         case autoKey:
-            if (app->notifications.window != NULL &&
+            if (app->preferences.window != NULL &&
+                FrontWindow() == app->preferences.window) {
+                action = platinum_preferences_handle_event(
+                    &app->preferences, event);
+                if (action == PLATINUM_PREFERENCES_CLOSE) {
+                    platinum_preferences_close(&app->preferences);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
+                    platinum_application_sign_out(app);
+                }
+            } else if (app->notifications.window != NULL &&
                 FrontWindow() == app->notifications.window) {
                 action = platinum_notifications_handle_event(
                     &app->notifications, event);
@@ -482,6 +516,12 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     SetItemCmdChar(app->edit_menu, 3, 'c');
     SetItemCmdChar(app->edit_menu, 4, 'v');
     SetItemCmdChar(app->edit_menu, 5, 'a');
+    SetItemCmdChar(app->edit_menu, 6, ',');
+    DisableItem(app->edit_menu, 1);
+    DisableItem(app->edit_menu, 2);
+    DisableItem(app->edit_menu, 3);
+    DisableItem(app->edit_menu, 4);
+    DisableItem(app->edit_menu, 5);
 
     AppendMenu(app->view_menu, kRefreshMenu);
     AppendMenu(app->view_menu, kShowDetail);
@@ -563,6 +603,9 @@ static void platinum_application_handle_menu(platinum_application *app,
         } else if (item == 3) {
             app->running = 0;
         }
+    } else if (menu_id == kEditMenuID) {
+        if (item == 6)
+            platinum_application_open_preferences(app);
     } else if (menu_id == kViewMenuID) {
         if (item == 1) {
             platinum_application_refresh_timeline(app);
@@ -625,7 +668,7 @@ static void platinum_application_submit_post(platinum_application *app)
                                   text,
                                   sizeof(text)) != noErr) {
         platinum_compose_set_status(&app->compose,
-                                    "Enter up to 300 ASCII characters.");
+                                    "Enter up to 300 MacRoman characters.");
         return;
     }
 
@@ -742,4 +785,42 @@ static void platinum_application_refresh_notifications(
     platinum_notifications_refresh(&app->notifications, bridge);
     if (app->notifications.window != NULL)
         InvalRect(&app->notifications.window->portRect);
+}
+
+static void platinum_application_open_preferences(
+    platinum_application *app)
+{
+    if (app == NULL)
+        return;
+
+    platinum_preferences_open(&app->preferences, &app->session);
+}
+
+static void platinum_application_sign_out(
+    platinum_application *app)
+{
+    wf_status status;
+
+    if (app == NULL)
+        return;
+
+    status = platinum_session_sign_out(&app->session);
+
+    platinum_profile_close(&app->profile);
+    platinum_notifications_close(&app->notifications);
+    platinum_timeline_init(&app->timeline);
+    app->ui.selected_post = 0;
+    app->ui.scroll_row = 0;
+
+    if (status != WF_OK) {
+        platinum_preferences_set_status(
+            &app->preferences,
+            "Signed out locally; bridge revocation may have failed.");
+        platinum_application_invalidate(app);
+        return;
+    }
+
+    platinum_preferences_close(&app->preferences);
+    SelectWindow(app->window);
+    platinum_application_invalidate(app);
 }
