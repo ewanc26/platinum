@@ -72,7 +72,7 @@ OSErr platinum_session_set_bridge_url(platinum_session *session,
     updated = session->config;
     if (platinum_config_set_bridge_url(&updated, bridge_url) != noErr) {
         platinum_bridge_client_free(bridge);
-        return errFSNameTooLong;
+        return paramErr;
     }
 
     if (platinum_config_save(&updated) != noErr) {
@@ -128,6 +128,7 @@ wf_status platinum_session_sign_out(platinum_session *session)
 {
     wf_status revoke_status;
     OSErr clear_status;
+    wf_response response;
 
     if (session == NULL)
         return WF_ERR_INVALID_ARG;
