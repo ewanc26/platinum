@@ -186,6 +186,13 @@ static int timeline_parse_post(platinum_post_preview *post,
     post->repost_count = timeline_json_number(item, "repostCount");
     post->reply_count = timeline_json_number(item, "replyCount");
     post->quote_count = timeline_json_number(item, "quoteCount");
+
+    /* Absent or not a boolean reads as "no": the bridge never sends a record
+     * URI, only these two flags. */
+    if (platinum_json_bool(item, "liked", &post->liked) != WF_OK)
+        post->liked = 0;
+    if (platinum_json_bool(item, "reposted", &post->reposted) != WF_OK)
+        post->reposted = 0;
     return 1;
 }
 
@@ -335,6 +342,75 @@ int platinum_timeline_has_older(const platinum_timeline *timeline)
 {
     return timeline != NULL && timeline->cursor[0] != '\0' &&
            timeline->count > 0;
+}
+
+wf_status platinum_timeline_set_engagement(platinum_timeline *timeline,
+                                           platinum_bridge_client *bridge,
+                                           unsigned short index,
+                                           int repost,
+                                           int on)
+{
+    platinum_post_preview *post;
+    char uri[sizeof(timeline->posts[0].uri) * 2];
+    char cid[sizeof(timeline->posts[0].cid) * 2];
+    char body[sizeof(uri) + sizeof(cid) + 48];
+    wf_response response;
+    platinum_json root;
+    long count;
+    int now_on;
+    wf_status status;
+
+    if (timeline == NULL || bridge == NULL || index >= timeline->count)
+        return WF_ERR_INVALID_ARG;
+
+    post = &timeline->posts[index];
+    if (platinum_json_escape(uri, sizeof(uri), post->uri) != WF_OK ||
+        platinum_json_escape(cid, sizeof(cid), post->cid) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+
+    strcpy(body, "{\"uri\":\"");
+    strcat(body, uri);
+    strcat(body, "\",\"cid\":\"");
+    strcat(body, cid);
+    strcat(body, on ? "\",\"on\":true}" : "\",\"on\":false}");
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_post(bridge, repost ? "/v1/repost" : "/v1/like",
+                                  body, &response);
+    if (status != WF_OK) {
+        if (status == WF_ERR_AUTH)
+            timeline_set_status(timeline,
+                                "Session expired. Pair the account again.");
+        else if (response.status == 404)
+            timeline_set_status(timeline, "That post no longer exists.");
+        else
+            timeline_set_status(timeline, repost ? "The repost did not go through."
+                                                 : "The like did not go through.");
+        wf_response_free(&response);
+        return status;
+    }
+
+    /* Both members are required: a reply missing either is not trusted to
+     * change what the row says. */
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_bool(root, "on", &now_on) != WF_OK ||
+        platinum_json_int(root, "count", &count) != WF_OK || count < 0) {
+        timeline_set_status(timeline, "The bridge returned an invalid reply.");
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+    wf_response_free(&response);
+
+    if (repost) {
+        post->reposted = now_on;
+        post->repost_count = count;
+    } else {
+        post->liked = now_on;
+        post->like_count = count;
+    }
+    timeline_set_status(timeline, NULL);
+    return WF_OK;
 }
 
 const platinum_post_preview *platinum_timeline_posts(

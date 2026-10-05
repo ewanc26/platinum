@@ -156,11 +156,68 @@ static void test_escape(void)
           "reserved characters are encoded");
 }
 
+static void test_engagement(void)
+{
+    static platinum_timeline timeline;
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_timeline_init(&timeline);
+    respond(WF_OK,
+            "{\"posts\":[{\"uri\":\"at://p/1\",\"cid\":\"c1\",\"author\":"
+            "{\"did\":\"did:plc:a\"},\"likeCount\":4,\"repostCount\":2,"
+            "\"liked\":true,\"reposted\":\"true\"}]}");
+    check(platinum_timeline_refresh(&timeline, bridge) == WF_OK, "engagement page loads");
+    check(timeline.posts[0].liked == 1, "liked flag is read");
+    check(timeline.posts[0].reposted == 0, "a string \"true\" is not a boolean");
+
+    respond(WF_OK, "{\"uri\":\"at://p/1\",\"on\":false,\"count\":3}");
+    status = platinum_timeline_set_engagement(&timeline, bridge, 0, 0, 0);
+    check(status == WF_OK, "unlike succeeds");
+    check(last_method == 2 && strstr(last_url, "/v1/like") != NULL, "unlike posts to /v1/like");
+    check(strcmp(last_body, "{\"uri\":\"at://p/1\",\"cid\":\"c1\",\"on\":false}") == 0,
+          "body carries uri, cid and on");
+    check(timeline.posts[0].liked == 0 && timeline.posts[0].like_count == 3,
+          "row follows the bridge's answer");
+
+    respond(WF_OK, "{\"uri\":\"at://p/1\",\"on\":true,\"count\":3}");
+    status = platinum_timeline_set_engagement(&timeline, bridge, 0, 1, 1);
+    check(status == WF_OK && strstr(last_url, "/v1/repost") != NULL, "repost posts to /v1/repost");
+    check(timeline.posts[0].reposted == 1 && timeline.posts[0].repost_count == 3,
+          "repost state and count updated");
+
+    respond(WF_ERR_HTTP, "{\"error\":\"upstream_error\"}");
+    status = platinum_timeline_set_engagement(&timeline, bridge, 0, 0, 1);
+    check(status != WF_OK && timeline.posts[0].liked == 0 &&
+              timeline.posts[0].like_count == 3,
+          "a failed like changes nothing");
+    check(strcmp(platinum_timeline_status(&timeline), "The like did not go through.") == 0,
+          "a failed like says so");
+
+    respond(WF_OK, "{\"on\":true}");
+    status = platinum_timeline_set_engagement(&timeline, bridge, 0, 0, 1);
+    check(status == WF_ERR_PARSE && timeline.posts[0].liked == 0,
+          "a reply without a count is not trusted");
+
+    respond(WF_OK, "{\"on\":true,\"count\":-1}");
+    check(platinum_timeline_set_engagement(&timeline, bridge, 0, 0, 1) == WF_ERR_PARSE,
+          "a negative count is refused");
+
+    last_method = 0;
+    check(platinum_timeline_set_engagement(&timeline, bridge, 5, 0, 1) == WF_ERR_INVALID_ARG &&
+              last_method == 0,
+          "out-of-range row makes no request");
+
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
     test_paging();
     test_long_cursor();
     test_escape();
+    test_engagement();
     if (failures != 0) {
         printf("test_timeline: %d of %d checks failed\n", failures, checks);
         return 1;

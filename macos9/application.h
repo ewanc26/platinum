@@ -31,6 +31,7 @@ typedef struct platinum_application {
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
+    MenuHandle post_menu;
     MenuHandle window_menu;
     MenuHandle help_menu;
     int running;

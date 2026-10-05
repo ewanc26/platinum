@@ -4,6 +4,7 @@
 #include <Quickdraw.h>
 #include <TextEdit.h>
 #include <Windows.h>
+#include <stdio.h>
 #include <string.h>
 
 static unsigned char kHome[] = { 4, 'H', 'o', 'm', 'e' };
@@ -188,6 +189,19 @@ static void platinum_ui_draw_detail(WindowPtr window,
     if (post->line2[0] != 0) {
         MoveTo(layout->detail.left + 12, layout->detail.top + 70);
         platinum_ui_text(post->line2);
+    }
+
+    /* State is spelt out in words, never shown by colour or a glyph alone. */
+    {
+        char line[96];
+        sprintf(line, "%ld %s%s   %ld %s%s",
+                post->like_count, post->like_count == 1 ? "like" : "likes",
+                post->liked ? " (you liked it)" : "",
+                post->repost_count,
+                post->repost_count == 1 ? "repost" : "reposts",
+                post->reposted ? " (you reposted it)" : "");
+        MoveTo(layout->detail.left + 12, layout->detail.top + 90);
+        platinum_ui_text(line);
     }
 
     button = layout->detail;
@@ -392,6 +406,10 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
             return PLATINUM_UI_ACTION_COMPOSE;
         if (key == 'q' || key == 'Q')
             return PLATINUM_UI_ACTION_QUIT;
+        if (key == 'l' || key == 'L')
+            return PLATINUM_UI_ACTION_LIKE;
+        if (key == 'e' || key == 'E')
+            return PLATINUM_UI_ACTION_REPOST;
     }
 
     switch (key) {

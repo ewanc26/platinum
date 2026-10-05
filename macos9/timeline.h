@@ -32,6 +32,8 @@ typedef struct platinum_post_preview {
     long repost_count;
     long reply_count;
     long quote_count;
+    int liked;
+    int reposted;
 } platinum_post_preview;
 
 typedef struct platinum_timeline {
@@ -56,6 +58,19 @@ wf_status platinum_timeline_load_older(platinum_timeline *timeline,
                                        platinum_bridge_client *bridge,
                                        unsigned short *dropped);
 int platinum_timeline_has_older(const platinum_timeline *timeline);
+
+/*
+ * Set the signed-in account's like (repost = 0) or repost (repost = 1) of the
+ * post at `index` to `on`, through POST /v1/like or /v1/repost, and update the
+ * row from the bridge's answer. The bridge is idempotent, so sending the state
+ * the row already shows is harmless. On failure the row is left unchanged and
+ * the status says why.
+ */
+wf_status platinum_timeline_set_engagement(platinum_timeline *timeline,
+                                           platinum_bridge_client *bridge,
+                                           unsigned short index,
+                                           int repost,
+                                           int on);
 const platinum_post_preview *platinum_timeline_posts(
     const platinum_timeline *timeline);
 unsigned short platinum_timeline_post_count(
