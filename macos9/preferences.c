@@ -18,7 +18,7 @@ static unsigned char kSignOut[] = {
 
 static void preferences_text(const char *text, short x, short y)
 {
-    if (text == NULL || text[0] == '\\0')
+    if (text == NULL || text[0] == '\0')
         return;
 
     MoveTo(x, y);
@@ -62,7 +62,7 @@ OSErr platinum_preferences_open(platinum_preferences *preferences,
     }
 
     preferences->session = session;
-    preferences->status[0] = '\\0';
+    preferences->status[0] = '\0';
 
     SetRect(&bounds, 128, 92, 608, 386);
     preferences->window = NewCWindow(NULL, bounds, kPreferencesTitle,
@@ -100,7 +100,7 @@ void platinum_preferences_set_status(platinum_preferences *preferences,
     if (preferences == NULL)
         return;
 
-    preferences->status[0] = '\\0';
+    preferences->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -109,7 +109,7 @@ void platinum_preferences_set_status(platinum_preferences *preferences,
         length = PLATINUM_PREFERENCES_STATUS_MAX;
 
     memcpy(preferences->status, status, (size_t)length);
-    preferences->status[length] = '\\0';
+    preferences->status[length] = '\0';
 
     if (preferences->window != NULL)
         InvalRect(&preferences->window->portRect);
@@ -148,7 +148,7 @@ void platinum_preferences_draw(platinum_preferences *preferences)
                          16, 60);
     }
 
-    if (preferences->status[0] != '\\0')
+    if (preferences->status[0] != '\0')
         preferences_text(preferences->status, 16, 148);
 
     pair_rect = preferences->window->portRect;
