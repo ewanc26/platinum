@@ -70,7 +70,7 @@ OSErr platinum_application_init(platinum_application *app)
 
     SetRect(&bounds, 72, 56, 600, 416);
 
-    app->window = NewCWindow(NULL, bounds, (Str255)kWindowTitle, true,
+    app->window = NewCWindow(NULL, bounds, kWindowTitle, true,
                              documentProc, (WindowPtr)-1L, true, 0L);
     if (app->window == NULL) {
         platinum_session_close(&app->session);
@@ -187,19 +187,19 @@ static void platinum_application_draw(platinum_application *app)
     EraseRect(&app->window->portRect);
 
     MoveTo(20, 28);
-    DrawString((StringPtr)kTitle);
+    DrawString(kTitle);
 
     MoveTo(20, 56);
-    DrawString((StringPtr)kBridgeReady);
+    DrawString(kBridgeReady);
 
     MoveTo(20, 84);
     if (platinum_session_is_paired(&app->session))
-        DrawString((StringPtr)kPaired);
+        DrawString(kPaired);
     else
-        DrawString((StringPtr)kNotPaired);
+        DrawString(kNotPaired);
 
     MoveTo(20, 120);
-    DrawString((StringPtr)kNextStep);
+    DrawString(kNextStep);
 
     SetPort(old_port);
 }
