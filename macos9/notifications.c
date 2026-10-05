@@ -1,4 +1,5 @@
 #include "notifications.h"
+#include "text_codec.h"
 
 #include <Quickdraw.h>
 #include <cJSON.h>
@@ -28,13 +29,12 @@ static void notification_copy(char *destination,
         value->valuestring == NULL)
         return;
 
-    length = (long)strlen(value->valuestring);
-    if (length >= capacity)
-        length = capacity - 1;
-
-    if (length > 0)
-        memcpy(destination, value->valuestring, (size_t)length);
-    destination[length] = '\\0';
+    length = platinum_text_utf8_to_macroman(value->valuestring,
+                                            destination,
+                                            capacity,
+                                            NULL);
+    if (length < 0)
+        destination[0] = '\\0';
 }
 
 static void notification_time(char *destination,
