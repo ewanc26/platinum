@@ -103,6 +103,10 @@ void platinum_ui_layout_compute(const Rect *content,
     layout->timeline.left = layout->navigation.right + 1;
     layout->timeline.bottom = content->bottom - detail_height - 1;
 
+    layout->timeline_scrollbar = layout->timeline;
+    layout->timeline_scrollbar.left = layout->timeline_scrollbar.right - 15;
+    layout->timeline.right = layout->timeline_scrollbar.left - 1;
+
     layout->detail = *content;
     layout->detail.top = content->bottom - detail_height;
 }
@@ -153,15 +157,16 @@ static void platinum_ui_draw_post(const platinum_ui_layout *layout,
 
 static void platinum_ui_draw_detail(GrafPtr port,
                                     const platinum_ui_layout *layout,
-                                    const platinum_ui_state *state)
+                                    const platinum_ui_state *state,
+                                    const platinum_timeline *timeline)
 {
     const platinum_post_preview *posts;
     unsigned short count;
     const platinum_post_preview *post;
     Rect button;
 
-    posts = platinum_timeline_posts();
-    count = platinum_timeline_post_count();
+    posts = platinum_timeline_posts(timeline);
+    count = platinum_timeline_post_count(timeline);
 
     if (count == 0 || state->selected_post >= (short)count) {
         MoveTo(layout->detail.left + 12, layout->detail.top + 22);
@@ -200,7 +205,8 @@ static void platinum_ui_draw_detail(GrafPtr port,
 void platinum_ui_draw(GrafPtr port,
                       const platinum_ui_layout *layout,
                       const platinum_ui_state *state,
-                      const platinum_session *session)
+                      const platinum_session *session,
+                      const platinum_timeline *timeline)
 {
     Rect button;
     Rect divider;
@@ -211,17 +217,18 @@ void platinum_ui_draw(GrafPtr port,
     short first;
     short visible;
     short index;
-    short row_top;
+    const char *status;
 
-    if (port == NULL || layout == NULL || state == NULL || session == NULL)
+    if (port == NULL || layout == NULL || state == NULL ||
+        session == NULL || timeline == NULL)
         return;
 
     GetPort(&old_port);
     SetPort(port);
 
     paired = platinum_session_is_paired(session);
-    posts = platinum_timeline_posts();
-    count = platinum_timeline_post_count();
+    posts = platinum_timeline_posts(timeline);
+    count = platinum_timeline_post_count(timeline);
 
     EraseRect(&port->portRect);
     FrameRect(&layout->toolbar);
@@ -260,9 +267,6 @@ void platinum_ui_draw(GrafPtr port,
     button.right = button.left + 62;
     platinum_ui_button(&button, kPost);
 
-    row_top = layout->navigation.top + 12;
-    (void)row_top;
-
     {
         Rect selection;
         selection = layout->navigation;
@@ -283,6 +287,13 @@ void platinum_ui_draw(GrafPtr port,
     MoveTo(layout->timeline.left + 12, layout->timeline.top + 18);
     DrawString(kTimeline);
 
+    status = platinum_timeline_status(timeline);
+    if (count == 0 || (status != NULL && status[0] != '\0')) {
+        MoveTo(layout->timeline.left + 12, layout->timeline.top + 40);
+        if (status != NULL)
+            platinum_ui_text(status);
+    }
+
     first = state->scroll_row;
     visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
     if (visible < 1)
@@ -297,7 +308,7 @@ void platinum_ui_draw(GrafPtr port,
     if (layout->detail.top < layout->detail.bottom) {
         MoveTo(layout->detail.left + 12, layout->detail.top + 16);
         if (paired)
-            platinum_ui_draw_detail(port, layout, state);
+            platinum_ui_draw_detail(port, layout, state, timeline);
         else {
             MoveTo(layout->detail.left + 12, layout->detail.top + 46);
             DrawString(kNotPaired);
@@ -309,13 +320,14 @@ void platinum_ui_draw(GrafPtr port,
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_timeline *timeline,
                              Point where)
 {
     short row;
     short content_top;
     unsigned short count;
 
-    if (layout == NULL || state == NULL)
+    if (layout == NULL || state == NULL || timeline == NULL)
         return PLATINUM_UI_ACTION_NONE;
 
     if (PtInRect(where, &layout->toolbar)) {
@@ -333,6 +345,10 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
             state->navigation = row;
             state->selected_post = 0;
             state->scroll_row = 0;
+            if (row == 1)
+                return PLATINUM_UI_ACTION_NOTIFICATIONS;
+            if (row == 2)
+                return PLATINUM_UI_ACTION_PROFILE;
             return PLATINUM_UI_ACTION_NONE;
         }
     }
@@ -341,7 +357,7 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
         content_top = layout->timeline.top + 6;
         row = state->scroll_row +
               (where.v - content_top) / 64;
-        count = platinum_timeline_post_count();
+        count = platinum_timeline_post_count(timeline);
         if (row >= 0 && row < (short)count) {
             state->selected_post = row;
             state->show_detail = 1;
@@ -353,20 +369,22 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_timeline *timeline,
                            EventRecord *event)
 {
     unsigned char key;
     unsigned short count;
     short visible;
 
-    if (layout == NULL || state == NULL || event == NULL)
+    if (layout == NULL || state == NULL || timeline == NULL ||
+        event == NULL)
         return PLATINUM_UI_ACTION_NONE;
 
     if (event->what != keyDown && event->what != autoKey)
         return PLATINUM_UI_ACTION_NONE;
 
     key = (unsigned char)(event->message & charCodeMask);
-    count = platinum_timeline_post_count();
+    count = platinum_timeline_post_count(timeline);
     visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
     if (visible < 1)
         visible = 1;

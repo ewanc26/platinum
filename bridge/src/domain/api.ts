@@ -12,13 +12,14 @@ import type {
 const MAX_HANDLE_LENGTH = 255
 const MAX_DISPLAY_NAME_LENGTH = 64
 const MAX_POST_TEXT_LENGTH = 300
+const MAX_PROFILE_DESCRIPTION_LENGTH = 511
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
 function clipped(value: unknown, maximum: number): string {
-  return stringValue(value).slice(0, maximum)
+  return Array.from(stringValue(value)).slice(0, maximum).join('')
 }
 
 function authorFrom(value: {
@@ -105,7 +106,9 @@ export class DomainApi {
       did: profile.did,
       handle: profile.handle,
       displayName: profile.displayName,
-      description: profile.description,
+      description: profile.description
+        ? clipped(profile.description, MAX_PROFILE_DESCRIPTION_LENGTH)
+        : undefined,
       avatar: profile.avatar,
       banner: profile.banner,
       followersCount: profile.followersCount,

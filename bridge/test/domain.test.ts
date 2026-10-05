@@ -97,3 +97,56 @@ test('notification responses are reduced to stable fields', async () => {
   assert.equal(result.notifications[0].isRead, true)
   assert.equal('extra' in result.notifications[0], false)
 })
+
+
+test('normalizer clips Unicode text by code point', async () => {
+  const agent = {
+    accountDid: 'did:plc:example',
+    getTimeline: async () => ({
+      data: {
+        cursor: undefined,
+        feed: [
+          {
+            post: {
+              uri: 'at://did:plc:author/app.bsky.feed.post/3',
+              cid: 'bafyexample3',
+              author: {
+                did: 'did:plc:author',
+                handle: 'author.example',
+              },
+              record: {
+                text: '😀'.repeat(301),
+                createdAt: '2026-10-05T00:00:00.000Z',
+              },
+            },
+          },
+        ],
+      },
+    }),
+  } as unknown as Agent
+
+  const result = await new DomainApi().timeline(agent, 20)
+  assert.equal(Array.from(result.posts[0].text).length, 300)
+  assert.equal(result.posts[0].text, '😀'.repeat(300))
+})
+
+test('profile description is clipped by Unicode code point', async () => {
+  const agent = {
+    accountDid: 'did:plc:example',
+    getProfile: async () => ({
+      data: {
+        did: 'did:plc:example',
+        handle: 'example.test',
+        displayName: 'Example',
+        description: 'é'.repeat(600),
+        followersCount: 0,
+        followsCount: 0,
+        postsCount: 0,
+      },
+    }),
+  } as unknown as Agent
+
+  const result = await new DomainApi().profile(agent)
+  assert.equal(Array.from(result.description ?? '').length, 511)
+  assert.equal(result.description, 'é'.repeat(511))
+})

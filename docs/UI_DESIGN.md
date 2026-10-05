@@ -180,12 +180,12 @@ Do not create a large settings dashboard. Apple explicitly recommends avoiding p
 
 The first-run experience should be a small sequence of classic dialogs rather than a custom welcome screen:
 
-1. Bridge pairing/configuration window.
-2. Browser-assisted pairing instructions.
-3. Pairing-code entry.
-4. Main Timeline window.
-
-The current native implementation combines the first three steps into one small modeless window. It stores the bridge URL locally, accepts the six-character pairing code, leaves OAuth entirely in the modern browser, and keeps the window open when pairing fails.
+1. Bridge configuration window.
+2. Connect… or Set Bridge… dialog.
+3. Browser-assisted pairing instructions.
+4. Pairing-code entry dialog.
+5. Completion alert.
+6. Main Timeline window.
 
 The Mac client never asks for a Bluesky password.
 
@@ -260,3 +260,14 @@ The first complete UI milestone should therefore be a convincing static shell po
 ## Non-goals
 
 Do not add a web view, HTML/CSS rendering, a mobile-style tab bar, a modern card-based UI, rounded-corner application chrome, giant icon-only navigation, a permanently visible OAuth/browser panel, or a custom widget toolkit when the Macintosh Toolbox can provide the behaviour.
+
+The native Notifications surface is a modeless document window backed by `GET /v1/notifications`. It supports bounded scrolling, Command-R refresh and standard window close/drag behaviour.
+
+
+The native Preferences surface is a modeless document window showing the paired bridge URL, account DID and installation ID. Its Sign Out action calls the bridge revocation endpoint before clearing the local session; a local sign-out is still completed if remote revocation cannot be confirmed.
+
+
+Pairing is a reusable modeless window rather than a first-run-only dialog. It opens automatically when no account is configured and can also be invoked from File > Pair Account or Account Preferences after sign-out. OAuth remains in the modern browser; the Classic Mac window only collects the bridge URL and six-character pairing code.
+
+
+The Timeline and Notifications lists use native Control Manager scroll bars. The scroll thumb is part of the Classic Mac window chrome rather than a custom-drawn web-style widget and shares state with keyboard/page scrolling.
