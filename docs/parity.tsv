@@ -41,4 +41,6 @@ muted-words|Muted words|no|yes|issue|#35
 engagement-lists|Who liked or reposted|yes|no|issue|#36
 diagnostics|Diagnostics window|yes|no|issue|#37
 drafts|Post drafts|no|yes|issue|#37
+auto-update-bridge|Auto-update (bridge, from GitHub releases)|no|no|implemented|bridge/src/update/install.ts::applyUpdate
+auto-update-client|Auto-update (client, bridge-served, user-confirmed)|no|no|issue|#48
 push|Push notifications|no|no|impossible|No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9.

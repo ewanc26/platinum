@@ -6,6 +6,8 @@ here.
 
 ## [Unreleased]
 
+- Bridge self-update from GitHub releases (`npm run update`), with SHA-256 verification and rollback.
+
 ## [0.3.1]
 
 The version `bridge/package.json` already carried when releases were first

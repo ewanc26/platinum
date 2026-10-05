@@ -93,6 +93,8 @@ platinum/
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── README.md
+├── scripts/
+│   └── release.sh
 ├── tools/
 │   ├── check-flow.sh
 │   └── check-parity.sh
@@ -632,6 +634,14 @@ unless marked otherwise:
   file and string that exist in the code; otherwise it names an open issue. When
   you ship or file a feature, edit the row in the same PR. CI fails on a stale
   `PARITY.md`, a missing evidence string, or a closed issue still cited.
+- Updates: the bridge self-updates from this repository's GitHub releases via
+  `bridge/src/update/` (`npm run update`). It is opt-in and confirmed, verifies
+  the SHA-256 in `update.json` before unpacking, keeps `previous` for rollback,
+  never restarts the bridge and never logs or sends a credential. Do not make it
+  silent, do not add a registry publish, and do not generate or commit a signing
+  key (owner task, #49). Manifest shape follows wolfram#106; the Node port is
+  tested against `bridge/test/update-vectors.json`. `scripts/release.sh` is the
+  only way to build the inputs and cut a release. See docs/AUTO_UPDATE.md.
 - Run `tools/check-flow.sh drift` and `tools/check-parity.sh` before pushing.
 
 Rationale: the same rules are applied across the stack and the script is the

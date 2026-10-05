@@ -67,3 +67,4 @@ Icon?
 .vscode/
 *.swp
 *~
+release/
