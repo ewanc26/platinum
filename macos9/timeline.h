@@ -8,12 +8,12 @@ extern "C" {
 #define PLATINUM_TIMELINE_POSTS 5
 
 typedef struct platinum_post_preview {
-    unsigned char author[48];
-    unsigned char handle[48];
-    unsigned char time[24];
-    unsigned char line1[112];
-    unsigned char line2[112];
-    unsigned char line3[112];
+    char author[48];
+    char handle[48];
+    char time[24];
+    char line1[112];
+    char line2[112];
+    char line3[112];
 } platinum_post_preview;
 
 const platinum_post_preview *platinum_timeline_posts(void);
