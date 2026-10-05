@@ -42,6 +42,8 @@ void platinum_profile_close(platinum_profile *profile);
 int platinum_profile_handle_event(platinum_profile *profile,
                                    EventRecord *event);
 void platinum_profile_draw(platinum_profile *profile);
+void platinum_profile_set_status(platinum_profile *profile,
+                                 const char *status);
 
 #ifdef __cplusplus
 }
