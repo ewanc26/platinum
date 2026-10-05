@@ -433,7 +433,8 @@ int platinum_notifications_handle_event(
 
         case activateEvt:
             if ((WindowPtr)(long)event->message == notifications->window)
-                HiliteWindow(notifications->window);
+                HiliteWindow(notifications->window,
+                             (event->modifiers & activeFlag) != 0);
             return PLATINUM_NOTIFICATIONS_NONE;
 
         case mouseDown:

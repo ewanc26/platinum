@@ -288,6 +288,11 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (part == inDrag) {
                 DragWindow(window, event->where, NULL);
                 InvalRect(&window->portRect);
+            } else if (part == inContent && window != NULL &&
+                       window != FrontWindow()) {
+                /* A click in a window that is not frontmost only brings it to
+                 * the front; the click is not delivered to its controls. */
+                SelectWindow(window);
             } else if (app->profile.window != NULL &&
                        window == app->profile.window) {
                 action = platinum_profile_handle_event(&app->profile, event);
@@ -426,7 +431,7 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
-                HiliteWindow(window);
+                HiliteWindow(window, (event->modifiers & activeFlag) != 0);
             }
             break;
 

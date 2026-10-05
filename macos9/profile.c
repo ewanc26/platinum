@@ -268,7 +268,8 @@ int platinum_profile_handle_event(platinum_profile *profile,
 
         case activateEvt:
             if ((WindowPtr)(long)event->message == profile->window)
-                HiliteWindow(profile->window);
+                HiliteWindow(profile->window,
+                             (event->modifiers & activeFlag) != 0);
             return PLATINUM_PROFILE_NONE;
 
         case mouseDown:
