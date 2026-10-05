@@ -21,12 +21,15 @@ cmd_title() {
 }
 
 cmd_commits() {
-  local s
+  local sha subj
+  # Merges are rebase-only, so a merge commit in a PR cannot land as written.
+  # To catch up with main, cut a fresh branch and cherry-pick; never merge main in.
+  for sha in $(git rev-list --merges "$1"); do
+    bad "commit ${sha:0:7} is a merge commit; rebase-merge needs a linear branch"
+  done
   while IFS=$'\t' read -r sha subj; do
-    # Merge commits made by GitHub are exempt; everything else must conform.
-    [[ "$subj" =~ ^([Mm]erge[: ]) ]] && continue
     [[ "$subj" =~ $CC_RE ]] || bad "commit $sha: '$subj' is not conventional"
-  done < <(git log --format='%h%x09%s' "$1")
+  done < <(git log --no-merges --format='%h%x09%s' "$1")
 }
 
 cmd_body() {

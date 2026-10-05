@@ -638,6 +638,11 @@ Do not combine unrelated cleanup with a feature change.
 Flow rules, all enforced by `tools/check-flow.sh` via the `Flow and drift` job
 unless marked otherwise:
 
+- Merge PRs by rebase only, never squash or merge commit. Each commit must be a
+  standalone conventional commit that builds and passes tests. Never merge
+  `main` into a PR branch (the check fails on any merge commit) and never
+  force-push; if a branch is behind or conflicted, cut a fresh branch from
+  `main`, cherry-pick, open a new PR linking the old one, close the old one.
 - Never commit to `main`. Branch, open a PR, merge only when `CI gate` is green
   (merge rule: by convention until the owner requires `CI gate` in branch
   protection; see CONTRIBUTING.md).
