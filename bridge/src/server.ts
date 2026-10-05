@@ -10,6 +10,8 @@ const host = process.env.PLATINUM_BRIDGE_HOST ?? '127.0.0.1'
 const baseUrl = process.env.PLATINUM_BRIDGE_URL ?? 'http://' + host + ':' + port
 const publicUrl = process.env.PLATINUM_BRIDGE_PUBLIC_URL ?? baseUrl
 const dataDir = resolve(process.env.PLATINUM_BRIDGE_DATA_DIR ?? '.platinum-bridge')
+const version = '0.2.0'
+const maxBodyBytes = 64 * 1024
 
 await mkdir(dataDir, { recursive: true })
 const store = new FileStore(dataDir)
@@ -75,7 +77,13 @@ function redirect(res: ServerResponse, location: string): void {
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(Buffer.from(chunk))
+  let length = 0
+  for await (const chunk of req) {
+    const part = Buffer.from(chunk)
+    length += part.length
+    if (length > maxBodyBytes) throw new Error('request body too large')
+    chunks.push(part)
+  }
   return Buffer.concat(chunks).toString('utf8')
 }
 
@@ -83,7 +91,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', baseUrl)
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    return json(res, 200, { ok: true, service: 'platinum-bridge', version: '0.1.0' })
+    return json(res, 200, { ok: true, service: 'platinum-bridge', version })
   }
 
   if (req.method === 'GET' && url.pathname === '/client-metadata.json') {
@@ -128,7 +136,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     } catch {
       return json(res, 400, { error: 'invalid_json' })
     }
-    if (!input.code) return json(res, 400, { error: 'missing_code' })
+    if (!input.code || !/^[A-Z2-9]{6}$/i.test(input.code)) return json(res, 400, { error: 'invalid_code' })
     const record = pairing.exchange(input.code)
     if (!record) return json(res, 401, { error: 'invalid_or_expired_code' })
 
@@ -173,6 +181,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 400, { error: 'invalid_json' })
     }
     if (!input.text?.trim()) return json(res, 400, { error: 'missing_text' })
+    if (input.text.length > 300) return json(res, 400, { error: 'text_too_long' })
     const result = await agent.post({ text: input.text })
     return json(res, 200, result)
   }
@@ -182,7 +191,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
 
 createServer((req, res) => {
   route(req, res).catch(error => {
-    console.error(error)
+    console.error('Platinum Bridge request failed')
     json(res, 500, { error: 'bridge_error' })
   })
 }).listen(port, host, () => {
