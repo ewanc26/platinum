@@ -1,0 +1,58 @@
+# Every source under bridge/src/ and macos9/ (not tests), with who owns the logic.
+# tools/check-flow.sh duplication fails on a source missing from this list, on a
+# listed file that no longer exists, and on an owner outside these four:
+#
+#   platform  Mac UI, input, storage or event loop; nothing to share.
+#   bridge    the bridge's own service code (HTTP, storage, the Platinum protocol).
+#   protocol  the Platinum bridge protocol; Platinum owns the contract, not Wolfram.
+#   port      a port of something Wolfram owns, kept only because the bridge is Node
+#             and cannot call C. Must name the Wolfram issue or file it follows, and
+#             is deleted when a binding exists.
+#
+# <path> <owner>  # reason
+bridge/src/config.ts               bridge    # environment and defaults
+bridge/src/server.ts               bridge    # HTTP routing
+bridge/src/atproto/client.ts       bridge    # picks the session kind per installation
+bridge/src/atproto/errors.ts       bridge    # upstream error mapping to bridge errors
+bridge/src/auth/app-password.ts    bridge    # @atproto/api login; app-password is not in Wolfram's pairing contract
+bridge/src/auth/pairing.ts         port      # pairing codes; follows wolfram#101 / oauth_pairing.h once Platinum adopts it
+bridge/src/auth/tokens.ts          bridge    # bridge tokens are Platinum's own credential
+bridge/src/domain/api.ts           port      # post and notification shaping; Wolfram post_display.h owns the model (#39)
+bridge/src/domain/types.ts         protocol  # wire types of docs/BRIDGE_PROTOCOL.md
+bridge/src/http/errors.ts          protocol  # stable error codes
+bridge/src/http/json.ts            bridge    # body limits and responses
+bridge/src/storage/file.ts         bridge    # file-backed state
+bridge/src/storage/interfaces.ts   bridge    # storage contract
+bridge/src/update/cli.ts           bridge    # operator CLI
+bridge/src/update/install.ts       bridge    # fetch, unpack, swap; platform-specific by nature
+bridge/src/update/manifest.ts      port      # update.json; follows wolfram#106 / update.h, tested against shared vectors
+bridge/src/update/version.ts       port      # semver precedence; follows wolfram#106 / update.h
+macos9/application.c               platform  # event loop and window routing
+macos9/application.h               platform
+macos9/bridge_client.c             protocol  # client for the bridge protocol over Wolfram's transport
+macos9/bridge_client.h             protocol
+macos9/compose.c                   platform
+macos9/compose.h                   platform
+macos9/config.c                    platform  # Preferences file
+macos9/config.h                    platform
+macos9/json_min.c                  protocol  # bounded C89 reader; Wolfram's JSON is cJSON (C99), unusable here (#39)
+macos9/json_min.h                  protocol
+macos9/main.c                      platform
+macos9/notifications.c             platform  # view model of a bridge response
+macos9/notifications.h             platform
+macos9/pairing.c                   platform
+macos9/pairing.h                   platform
+macos9/preferences.c               platform
+macos9/preferences.h               platform
+macos9/profile.c                   platform
+macos9/profile.h                   platform
+macos9/scrollbar.c                 platform
+macos9/scrollbar.h                 platform
+macos9/session.c                   platform  # stored token and revocation
+macos9/session.h                   platform
+macos9/text_codec.c                platform  # MacRoman; Wolfram has no text-encoding module (#39)
+macos9/text_codec.h                platform
+macos9/timeline.c                  platform
+macos9/timeline.h                  platform
+macos9/ui.c                        platform
+macos9/ui.h                        platform

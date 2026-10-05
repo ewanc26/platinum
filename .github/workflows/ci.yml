@@ -21,6 +21,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
+      - run: tools/check-flow.sh duplication
       - name: Logo and icon are generated from one shape
         run: tools/gen-art.py --check
       - name: Parity matrix matches the code

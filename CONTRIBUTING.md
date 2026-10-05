@@ -47,6 +47,7 @@ disagrees with either. It publishes nothing.
 | Conventional PR title and commits; no merge commits in a PR | `Flow and drift` job |
 | Rebase merging only | repository setting; see the `needs-owner` issue |
 | PR body has What / Why / Verification | `Flow and drift` job |
+| Every source has an owner in `tools/ownership.txt`; no AT Protocol strings on the Mac side | `Flow and drift` job |
 | Parity matrix matches the code, and cited issues are open | `Flow and drift` job |
 | Every Mac source is compiled in CI; docs match the pinned Wolfram | `Flow and drift` job |
 | Bridge type check, tests, build; Mac C89 compile and tests | `bridge`, `Mac OS 9 sources (C89)` |
