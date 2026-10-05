@@ -341,6 +341,8 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
             state->navigation = row;
             state->selected_post = 0;
             state->scroll_row = 0;
+            if (row == 1)
+                return PLATINUM_UI_ACTION_NOTIFICATIONS;
             if (row == 2)
                 return PLATINUM_UI_ACTION_PROFILE;
             return PLATINUM_UI_ACTION_NONE;
