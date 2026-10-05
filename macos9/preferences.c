@@ -4,7 +4,7 @@
 #include <string.h>
 
 static unsigned char kPreferencesTitle[] = {
-    12, 'P', 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e', 's', '.', '.'
+    13, 'P', 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e', 's', '.', '.'
 };
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
@@ -202,8 +202,14 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
             close_rect.left = sign_out_rect.right + 8;
             close_rect.right = close_rect.left + 62;
 
-            if (PtInRect(where, &sign_out_rect))
-                return PLATINUM_PREFERENCES_SIGN_OUT;
+            if (PtInRect(where, &sign_out_rect)) {
+                if (platinum_session_is_paired(preferences->session))
+                    return PLATINUM_PREFERENCES_SIGN_OUT;
+                platinum_preferences_set_status(
+                    preferences,
+                    "No account is paired.");
+                return PLATINUM_PREFERENCES_NONE;
+            }
 
             if (PtInRect(where, &close_rect))
                 return PLATINUM_PREFERENCES_CLOSE;
