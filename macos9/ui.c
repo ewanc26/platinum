@@ -37,7 +37,7 @@ static void platinum_ui_text(const char *text)
 {
     if (text == NULL)
         return;
-    DrawText(text, 0, (short)strlen(text));
+    DrawText((Ptr)text, 0, (short)strlen(text));
 }
 
 static void platinum_ui_button(const Rect *bounds, StringPtr title)
