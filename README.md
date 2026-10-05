@@ -247,8 +247,15 @@ npm test
 npm run build
 ```
 
-The `Mac OS 9 sources (C89)` job compiles every file under `macos9/` as strict
-C89 against the released Wolfram public headers and runs the Mac-side tests.
+The `Mac OS 9 sources (C89)` job compiles every source under `macos9/` that
+builds without the Classic Mac OS SDK headers — currently the bridge client,
+the JSON helper, the text codec and the two test drivers — as strict C89
+against the released Wolfram public headers, and runs the Mac-side tests. The
+UI, window and file sources pull in `Quickdraw.h`, `Windows.h`, `Files.h` and
+friends, so they are built by CodeWarrior/Retro68 rather than by a CI runner
+that has no SDK. The job also fails if any source reaches for a header the Mac
+target does not have, which covers the files it cannot compile.
+
 The same check runs locally against a Wolfram checkout:
 
 ```sh
@@ -264,6 +271,11 @@ clang -std=c89 -pedantic-errors -Wall -Wextra -Wno-unused-parameter -Werror \
 pairing path and the malformed-response paths without a network or a Mac.
 
 A successful modern-host build does not prove Classic Mac OS 9 compatibility. Native client changes must be validated with the intended CodeWarrior/Open Transport/macTLS environment when available.
+
+`macos9/application.c`, `notifications.c`, `profile.c` and `timeline.c` still
+use cJSON, which that target does not provide. CI records them as known debt so
+the dependency cannot spread, but the client is not buildable for real hardware
+until they move onto `json_min`.
 
 ## Licence
 

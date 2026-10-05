@@ -29,6 +29,7 @@ static char last_url[512];
 static char last_body[512];
 static char last_auth[256];
 static int auth_set;
+static size_t last_max_response_bytes;
 static int last_method; /* 0 = none, 1 = GET, 2 = POST */
 
 /* What the next transport call should do. */
@@ -112,6 +113,17 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt)
         strncpy(last_auth, access_jwt, sizeof(last_auth) - 1);
         last_auth[sizeof(last_auth) - 1] = '\0';
     }
+}
+
+/*
+ * The client caps every response at 256 KiB. The stub records the cap so a
+ * test can assert the client still bounds its own reads.
+ */
+void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
+                                           size_t max_bytes)
+{
+    (void)client;
+    last_max_response_bytes = max_bytes;
 }
 
 void wf_response_free(wf_response *res)
@@ -463,8 +475,24 @@ static void test_post_validates_body(void)
 
 static void test_client_lifecycle(void)
 {
+    platinum_bridge_client *client;
+
     check(platinum_bridge_client_new(NULL) == NULL, "null base URL refused");
     check(platinum_bridge_client_new("") == NULL, "empty base URL refused");
+
+    /*
+     * The cap has to be set on the transport, not merely intended: a bridge
+     * response is attacker-reachable, so an uncapped read is a denial of
+     * service on a machine with a few megabytes of memory.
+     */
+    last_max_response_bytes = 0;
+    client = platinum_bridge_client_new("https://bridge.example");
+    check(client != NULL, "client created for response cap");
+    if (client != NULL) {
+        check(last_max_response_bytes == 262144,
+              "client caps bridge responses at 256 KiB");
+        platinum_bridge_client_free(client);
+    }
 
     platinum_bridge_client_free(NULL);
     check(1, "freeing null client is safe");

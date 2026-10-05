@@ -58,12 +58,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang
 
+      # Every source that builds without the Classic Mac OS SDK headers, which
+      # is the whole portable subset under macos9/. Anything outside this list
+      # pulls in QuickDraw, Windows, Controls or Files and cannot be compiled by
+      # a runner that has no SDK; those are built by CodeWarrior/Retro68.
       - name: Assert the Mac sources still compile as strict C89
         run: |
           set -euo pipefail
           for f in \
             macos9/bridge_client.c \
             macos9/json_min.c \
+            macos9/text_codec.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c
           do
@@ -74,6 +79,37 @@ jobs:
               -I macos9 -I wolfram/include \
               -c "$f" -o /dev/null
           done
+
+      # The job above can only reach the portable subset, so it cannot see a
+      # source that reaches for a library the Mac target does not have. Those
+      # headers are absent from CodeWarrior/Retro68, so a file including one
+      # cannot be built for real hardware however green the dialect job is, and
+      # that is exactly how cJSON came back after being removed from
+      # bridge_client.c. The allowlist below is the known debt: it must shrink
+      # as these move onto json_min, and any new offender fails the build.
+      - name: Assert the sources avoid headers the Mac target does not have
+        run: |
+          set -euo pipefail
+          forbidden='cJSON\.h|curl/curl\.h|pthread\.h|openssl/[a-z]+\.h|stdint\.h|inttypes\.h|stdbool\.h|strings\.h'
+          hits=$(grep -rnE "#include <($forbidden)>" macos9 --include='*.c' --include='*.h' \
+            | awk -F: '{ rest=$3; sub(/^#include </,"",rest); sub(/>$/,"",rest); print $1 ":" rest }' \
+            | sort -u || true)
+          known=$(printf '%s\n' \
+            macos9/application.c:cJSON.h \
+            macos9/notifications.c:cJSON.h \
+            macos9/profile.c:cJSON.h \
+            macos9/timeline.c:cJSON.h | sort)
+          unexpected=$(comm -23 \
+            <(printf '%s\n' "$hits") \
+            <(printf '%s\n' "$known") | grep -v '^$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::a source includes a header the Mac target does not have"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "Known debt, tracked until these move onto json_min:"
+          comm -12 <(printf '%s\n' "$hits") <(printf '%s\n' "$known") \
+            | grep -v '^$' || echo "  none"
 
       - name: Run the Mac-side tests
         # The transport itself cannot run here: it is built on Open Transport
