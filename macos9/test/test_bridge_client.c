@@ -359,8 +359,39 @@ static void test_client_lifecycle(void)
     check(1, "freeing null client is safe");
 }
 
+static void test_mark_seen(void)
+{
+    platinum_bridge_client *client;
+    static char longer[80];
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    reset_fake(200, "{\"seenAt\":\"2026-10-05T00:01:00.000Z\"}", WF_OK);
+    check_status(platinum_bridge_mark_seen(client, "2026-10-05T00:01:00.000Z"),
+                 WF_OK, "mark seen succeeds");
+    check(last_method == 2, "mark seen is a POST");
+    check_str(last_url, "https://bridge.example/v1/notifications/seen",
+              "mark seen path");
+    check_str(last_body, "{\"seenAt\":\"2026-10-05T00:01:00.000Z\"}",
+              "mark seen body is the timestamp as sent");
+
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_mark_seen(client, ""), WF_ERR_INVALID_ARG,
+                 "empty seenAt refused");
+    memset(longer, '9', 70);
+    longer[70] = '\0';
+    check_status(platinum_bridge_mark_seen(client, longer), WF_ERR_INVALID_ARG,
+                 "over-long seenAt refused");
+    check(last_method == 0, "refused seenAt makes no request");
+
+    reset_fake(500, "{}", WF_ERR_HTTP);
+    check_status(platinum_bridge_mark_seen(client, "2026-10-05T00:01:00.000Z"),
+                 WF_ERR_HTTP, "bridge failure is reported");
+    platinum_bridge_client_free(client);
+}
+
 int main(void)
 {
+    test_mark_seen();
     test_pair_success();
     test_pair_escapes_code();
     test_pair_rejects_bad_input();

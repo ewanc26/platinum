@@ -35,6 +35,9 @@ typedef struct platinum_notifications {
     unsigned short count;
     short scroll_row;
     char cursor[256];
+    /* indexedAt of the newest item, exactly as sent, for marking seen. */
+    char newest_at[65];
+    int any_unread;
     char status[PLATINUM_NOTIFICATIONS_STATUS_MAX + 1];
     int loading;
 } platinum_notifications;
@@ -47,6 +50,16 @@ enum {
 
 void platinum_notifications_init(platinum_notifications *notifications);
 wf_status platinum_notifications_refresh(
+    platinum_notifications *notifications,
+    platinum_bridge_client *bridge);
+/*
+ * Mark everything up to the newest loaded notification as seen, if any loaded
+ * item was unread. Uses the newest item's own timestamp, not the Mac clock, so
+ * anything that arrived after the list was fetched stays unread. Rows keep the
+ * read state they were loaded with, so new ones stay marked until the next
+ * refresh.
+ */
+wf_status platinum_notifications_mark_seen(
     platinum_notifications *notifications,
     platinum_bridge_client *bridge);
 OSErr platinum_notifications_open(platinum_notifications *notifications);

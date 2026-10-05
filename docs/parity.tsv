@@ -13,7 +13,7 @@ timeline|Home timeline|yes|yes|implemented|macos9/timeline.c::platinum_timeline_
 timeline-paging|Timeline paging|yes|yes|implemented|macos9/timeline.c::platinum_timeline_load_older
 notifications|Notifications|yes|yes|implemented|macos9/notifications.c::platinum_notifications_refresh
 notifications-paging|Notifications paging|yes|yes|issue|#26
-notifications-seen|Mark notifications seen|yes|yes|issue|#30
+notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|issue|#27
 post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
 reply|Reply|yes|yes|issue|#27

@@ -42,6 +42,14 @@ wf_status platinum_bridge_post(platinum_bridge_client *client,
  * NUL-terminated result into `out` and returns its length, or -1 if it does
  * not fit (in which case `out` holds an empty string).
  */
+/*
+ * Tell the bridge the account has read notifications up to `seen_at`, an
+ * indexedAt exactly as the bridge sent it (POST /v1/notifications/seen). Refuses
+ * an empty or over-long value without making a request.
+ */
+wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
+                                    const char *seen_at);
+
 long platinum_bridge_query_escape(const char *value, char *out, long capacity);
 
 wf_status platinum_bridge_revoke(platinum_bridge_client *client,
