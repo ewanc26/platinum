@@ -403,6 +403,12 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
             break;
 
         case downArrow:
+            /* Down from the last row asks for the next page. It is an explicit
+             * keystroke, not a scroll side effect, so a fetch never starts
+             * from inside scroll tracking. */
+            if (state->selected_post + 1 >= (short)count &&
+                platinum_timeline_has_older(timeline))
+                return PLATINUM_UI_ACTION_LOAD_OLDER;
             if (state->selected_post + 1 < (short)count)
                 ++state->selected_post;
             if (state->selected_post >= state->scroll_row + visible)

@@ -198,8 +198,15 @@ void platinum_timeline_init(platinum_timeline *timeline)
     timeline_set_status(timeline, "Pair an account to load the timeline.");
 }
 
-wf_status platinum_timeline_refresh(platinum_timeline *timeline,
-                                    platinum_bridge_client *bridge)
+/*
+ * One request. With `append` clear it replaces the list; with it set it adds the
+ * next page to the end, dropping from the front to stay within the cap, and
+ * leaves the list untouched if anything fails.
+ */
+static wf_status timeline_fetch(platinum_timeline *timeline,
+                                platinum_bridge_client *bridge,
+                                int append,
+                                unsigned short *dropped)
 {
     wf_response response;
     platinum_json root;
@@ -207,43 +214,54 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
     platinum_json item;
     long index;
     long available;
-    int parsed;
+    long parsed;
+    long drop;
+    char path[64 + 3 * PLATINUM_TIMELINE_CURSOR_MAX];
+    char cursor[PLATINUM_TIMELINE_CURSOR_MAX + 1];
     wf_status status;
 
-    if (timeline == NULL || bridge == NULL)
-        return WF_ERR_INVALID_ARG;
+    if (dropped != NULL)
+        *dropped = 0;
+
+    strcpy(path, "/v1/timeline?limit=20");
+    if (append) {
+        strcat(path, "&cursor=");
+        if (platinum_bridge_query_escape(timeline->cursor,
+                                         path + strlen(path),
+                                         (long)(sizeof(path) - strlen(path)))
+            < 0)
+            return WF_ERR_INVALID_ARG;
+    } else {
+        timeline->count = 0;
+        timeline->cursor[0] = '\0';
+    }
 
     timeline->loading = 1;
-    timeline->count = 0;
-    timeline_set_status(timeline, "Loading timeline...");
+    timeline_set_status(timeline, append ? "Loading older posts..."
+                                         : "Loading timeline...");
     memset(&response, 0, sizeof(response));
 
-    status = platinum_bridge_get(bridge, "/v1/timeline?limit=20", &response);
+    status = platinum_bridge_get(bridge, path, &response);
     if (status != WF_OK) {
         timeline->loading = 0;
         if (status == WF_ERR_AUTH)
             timeline_set_status(timeline,
                                 "Session expired. Pair the account again.");
         else
-            timeline_set_status(timeline, "Timeline refresh failed.");
+            timeline_set_status(timeline, append
+                                    ? "Could not load older posts."
+                                    : "Timeline refresh failed.");
         wf_response_free(&response);
         return status;
-    }
-
-    status = platinum_json_open(&root,
-                               response.body != NULL ? response.body : "");
-    if (status != WF_OK) {
-        timeline->loading = 0;
-        timeline_set_status(timeline,
-                            "The bridge returned invalid timeline data.");
-        wf_response_free(&response);
-        return WF_ERR_PARSE;
     }
 
     /* posts has to be an array. A response that carries something else is not a
      * timeline, and silently treating an absent member as an empty feed would
      * show "the timeline is empty" for what is really a broken response. */
-    if (platinum_json_member(root, "posts", &posts) != WF_OK) {
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(root, "posts", &posts) != WF_OK ||
+        platinum_json_count(posts, &available) != WF_OK) {
         timeline->loading = 0;
         timeline_set_status(timeline,
                             "The bridge returned an invalid timeline.");
@@ -251,32 +269,38 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
         return WF_ERR_PARSE;
     }
 
-    timeline->count = 0;
-    if (platinum_json_count(posts, &available) != WF_OK) {
-        timeline->loading = 0;
-        timeline_set_status(timeline,
-                            "The bridge returned an invalid timeline.");
-        wf_response_free(&response);
-        return WF_ERR_PARSE;
+    parsed = (available > PLATINUM_TIMELINE_PAGE) ? PLATINUM_TIMELINE_PAGE
+                                                  : available;
+
+    /* The response is known good, so only now is it safe to drop rows. */
+    drop = (long)timeline->count + parsed - PLATINUM_TIMELINE_MAX_POSTS;
+    if (drop > (long)timeline->count)
+        drop = (long)timeline->count;
+    if (drop > 0) {
+        memmove(&timeline->posts[0], &timeline->posts[drop],
+                (size_t)((long)timeline->count - drop) *
+                    sizeof(timeline->posts[0]));
+        timeline->count = (unsigned short)((long)timeline->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
     }
 
-    parsed = (available > PLATINUM_TIMELINE_MAX_POSTS)
-        ? PLATINUM_TIMELINE_MAX_POSTS
-        : (int)available;
-
-    for (index = 0; index < parsed; ++index) {
+    for (index = 0; index < parsed &&
+                    timeline->count < PLATINUM_TIMELINE_MAX_POSTS; ++index) {
         if (platinum_json_element(posts, index, &item) != WF_OK)
             continue;
         if (timeline_parse_post(&timeline->posts[timeline->count], item))
             ++timeline->count;
     }
 
-    timeline->cursor[0] = '\0';
-    (void)timeline_copy_field(timeline->cursor, sizeof(timeline->cursor),
-                              root, "cursor", 1);
+    /* A cursor is an identifier: it is copied exactly or not at all. One that
+     * does not fit ends paging rather than asking for the wrong page. */
+    if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) == WF_OK)
+        strcpy(timeline->cursor, cursor);
+    else
+        timeline->cursor[0] = '\0';
 
-    /* The cursor and the posts both pointed into response.body, and everything
-     * has been copied out by now, so the response can go. */
+    /* Everything has been copied out of response.body by now. */
     wf_response_free(&response);
 
     timeline->loading = 0;
@@ -286,6 +310,31 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
         timeline_set_status(timeline, NULL);
 
     return WF_OK;
+}
+
+wf_status platinum_timeline_refresh(platinum_timeline *timeline,
+                                    platinum_bridge_client *bridge)
+{
+    if (timeline == NULL || bridge == NULL)
+        return WF_ERR_INVALID_ARG;
+    return timeline_fetch(timeline, bridge, 0, NULL);
+}
+
+wf_status platinum_timeline_load_older(platinum_timeline *timeline,
+                                       platinum_bridge_client *bridge,
+                                       unsigned short *dropped)
+{
+    if (dropped != NULL)
+        *dropped = 0;
+    if (timeline == NULL || bridge == NULL || !platinum_timeline_has_older(timeline))
+        return WF_ERR_INVALID_ARG;
+    return timeline_fetch(timeline, bridge, 1, dropped);
+}
+
+int platinum_timeline_has_older(const platinum_timeline *timeline)
+{
+    return timeline != NULL && timeline->cursor[0] != '\0' &&
+           timeline->count > 0;
 }
 
 const platinum_post_preview *platinum_timeline_posts(
