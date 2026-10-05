@@ -5,6 +5,7 @@
 #include <MacTypes.h>
 #include <Quickdraw.h>
 #include <Windows.h>
+#include <Events.h>
 
 typedef struct StubControl {
     Rect bounds;
@@ -49,5 +50,11 @@ short TrackControl(ControlHandle control, Point start,
                    ControlActionUPP actionProc);
 void Draw1Control(ControlHandle control, short part);
 void DrawControl(ControlHandle control);
+void InitControls(void);
+void InitDialogs(void *templatePtr);
+void FlushEvents(EventMask mask, unsigned long tick);
+void InitCursor(void);
+short Alert(short alertID, void *buttonString, ProcPtr defaultProc,
+            short defaultItem);
 
 #endif

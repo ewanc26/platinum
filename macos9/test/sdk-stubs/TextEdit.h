@@ -22,6 +22,7 @@ TEHandle TENew(const Rect *boundsRect, const Rect *viewRect, Boolean grow,
 void TEDispose(TEHandle te);
 
 void TEKey(KeyMap keyMap, TEHandle te);
+void TEInit(void);
 void TEActivate(TEHandle te);
 void TEDeactivate(TEHandle te);
 void TEClick(Point where, Boolean extendSelection,

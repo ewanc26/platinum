@@ -4,6 +4,12 @@
 
 #include <MacTypes.h>
 
+typedef struct StubMenuItem {
+    short width;
+    short height;
+    unsigned char enabled;
+} MenuItemRec;
+
 typedef struct StubMenu {
     short width;
     short height;
@@ -22,6 +28,19 @@ void HiliteMenu(long menuID);
 SInt16 MenuBarHitTest(short x, short y);
 
 MenuHandle GetMenu(short menuID);
+MenuHandle NewMenu(short menuID, Str255 title);
+void AppendMenu(MenuHandle menu, Str255 itemStr);
+void InsertMenuItem(MenuHandle menu, short itemID, Str255 itemStr, short after);
+void AddMenuLine(MenuHandle menu, Str255 itemStr);
+void SetItemCmdChar(MenuHandle menu, short itemID, char cmdChar);
+void GetItemCmdChar(MenuHandle menu, short itemID, char *cmdChar);
+void DisableItem(MenuHandle menu, short itemID);
+void EnableItem(MenuHandle menu, short itemID);
+void DeleteMenu(short menuID);
+void DisposeMenu(MenuHandle menu);
+short CountItems(MenuHandle menu);
+void GetItem(MenuHandle menu, short itemID, MenuItemRec *item);
+void SetItemMark(MenuHandle menu, short itemID, unsigned char mark);
 void InsertMenu(MenuHandle menu, short beforeID);
 void InsertMenuItem(MenuHandle menu, short itemID, Str255 itemStr, short after);
 void AppendMenuItem(MenuHandle menu, Str255 itemStr);

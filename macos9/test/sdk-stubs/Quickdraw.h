@@ -4,6 +4,18 @@
 
 #include <MacTypes.h>
 
+/*
+ * The one global QuickDraw owns. Modelled as a struct because the canonical
+ * QuickDraw-era init call is InitGraf(&qd.thePort): qd's own port pointer
+ * lives in a member called thePort.
+ */
+typedef struct StubGrafPort {
+    Rect portRect;
+    GrafPtr thePort;
+} GrafPort;
+
+extern GrafPort qd;
+
 
 void SetRect(Rect *r, short top, short left, short bottom, short right);
 void InsetRect(Rect *r, short dx, short dy);
@@ -20,6 +32,8 @@ void InvalRect(const Rect *r);
 void CopyBits(const BitMap *src, const BitMap *dst, Rect *srcRect,
               Rect *dstRect, GrafPtr mode, short copyMode);
 
+void InitGraf(GrafPtr *thePort);
+void InitFonts(void);
 void SetPort(GrafPtr port);
 void GetPort(GrafPtr *port);
 

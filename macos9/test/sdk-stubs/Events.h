@@ -34,6 +34,8 @@ typedef EventRecord *EventPtr;
 #define mouseDownMask 0x0004
 #define mouseUpMask 0x0008
 #define updateEvtMask 0x0080
+#define updateMask 0x0080
+#define activMask 0x0400
 #define noMouseDown 0x8000
 #define pageUp 0x72
 #define pageDown 0x74

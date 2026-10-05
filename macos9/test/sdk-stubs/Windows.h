@@ -37,6 +37,8 @@ void EnableWindow(WindowPtr window);
 void DisableWindow(WindowPtr window);
 void BringWindowToFront(WindowPtr window);
 WindowPtr FrontWindow(void);
+void InitWindows(void);
+short DragWindow(WindowPtr window, Point startPoint, const Rect *dragRect);
 void GetWindowRect(WindowPtr window, Rect *rect);
 void SetWindowTitle(WindowPtr window, Str255 title);
 void GetWindowTitle(WindowPtr window, Str255 title);
