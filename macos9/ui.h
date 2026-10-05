@@ -2,6 +2,7 @@
 #define PLATINUM_UI_H
 
 #include "session.h"
+#include "timeline.h"
 
 #include <Events.h>
 #include <Quickdraw.h>
