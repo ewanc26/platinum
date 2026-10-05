@@ -19,9 +19,12 @@
  *   - read a string or integer member out of a flat response object;
  *   - validate that a document is well-formed JSON before sending it.
  *
- * It deliberately does not build a tree, does not allocate, and does not
- * interpret nested structures: the client reads small flat objects and hands
- * larger response bodies back to the UI layer untouched.
+ * It deliberately does not build a tree and does not allocate. A cursor is
+ * two pointers into the caller's own buffer, so walking into a nested object
+ * or along an array costs nothing but a few words of stack. The timeline and
+ * notification screens need exactly that much: one array of objects, each with
+ * a nested author object, read straight out of a response body that is already
+ * in memory and is about to be freed.
  *
  * Every entry point is C89: declarations precede statements, no `//`
  * comments, no variadic macros, no compound literals, no VLAs.
@@ -97,6 +100,99 @@ wf_status platinum_json_get_string(const char *body,
  * as above.
  */
 wf_status platinum_json_get_int(const char *body, const char *name, long *out);
+
+/*
+ * A cursor into a JSON document.
+ *
+ * Two pointers, no allocation, no ownership: `text` is the whole
+ * NUL-terminated document and `at` is the first byte of the value this cursor
+ * points at. A cursor stays valid exactly as long as its document does, which
+ * for every caller here means as long as the `wf_response` holding the body.
+ *
+ * Never memset this and never build one by hand; open it with
+ * platinum_json_open.
+ */
+typedef struct {
+    const char *text;
+    const char *at;
+} platinum_json;
+
+/*
+ * Validate `body` in full and position `*out` at its root value.
+ *
+ * The whole document is validated here, once, rather than at each accessor.
+ * That is the same guarantee the flat accessors give -- a response that parses
+ * as far as the member being read but is truncated after it is a broken
+ * response -- and doing it once means navigation inside a validated document
+ * cannot hand back half a token.
+ *
+ * Returns WF_ERR_INVALID_ARG, WF_ERR_PARSE or WF_OK.
+ */
+wf_status platinum_json_open(platinum_json *out, const char *body);
+
+/*
+ * Descend into the member `name` of the object `object`, producing a cursor
+ * over that member's value.
+ *
+ * The member need not be an object or an array; this only positions a cursor.
+ * Use platinum_json_string, platinum_json_int or platinum_json_bool to read it
+ * with a type check, or platinum_json_member and platinum_json_element to go
+ * deeper.
+ *
+ * Returns WF_ERR_INVALID_ARG, WF_ERR_PARSE if `object` is not an object or the
+ * document does not match, or WF_ERR_NOT_FOUND if the member is absent.
+ */
+wf_status platinum_json_member(platinum_json object,
+                               const char *name,
+                               platinum_json *out);
+
+/*
+ * Descend into element `index` of the array `array`, counting elements from
+ * zero. Returns WF_ERR_NOT_FOUND when the array is shorter than that.
+ */
+wf_status platinum_json_element(platinum_json array,
+                                long index,
+                                platinum_json *out);
+
+/*
+ * Write the number of elements in the array `array` to `*out`. Returns
+ * WF_ERR_PARSE if `array` is not an array.
+ */
+wf_status platinum_json_count(platinum_json array, long *out);
+
+/*
+ * Read a string member of `object`.
+ *
+ * platinum_json_string fails with WF_ERR_ALLOC when the value does not fit,
+ * which is what a caller reading a token or a DID wants: a half-read token is
+ * worse than no token.
+ *
+ * platinum_json_string_truncating copies as much as fits, always
+ * NUL-terminates, and returns WF_OK for a value of any length. Use it only for
+ * text that is displayed, never for an identifier. A value that does not fit is
+ * still bounded by `cap`, so a hostile response cannot widen a buffer.
+ */
+wf_status platinum_json_string(platinum_json object,
+                              const char *name,
+                              char *dst,
+                              size_t cap);
+
+wf_status platinum_json_string_truncating(platinum_json object,
+                                          const char *name,
+                                          char *dst,
+                                          size_t cap);
+
+/*
+ * Read an integer member of `object`. A fractional or exponential value is
+ * rejected rather than truncated.
+ */
+wf_status platinum_json_int(platinum_json object, const char *name, long *out);
+
+/*
+ * Read a boolean member of `object`, writing 0 or 1 to `*out`. Only `true` and
+ * `false` are booleans; a string or a number is rejected rather than coerced.
+ */
+wf_status platinum_json_bool(platinum_json object, const char *name, int *out);
 
 /*
  * Check that `body` is a well-formed JSON document.

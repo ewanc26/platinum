@@ -247,21 +247,19 @@ npm test
 npm run build
 ```
 
-The `Mac OS 9 sources (C89)` job compiles every source under `macos9/` that
-builds without the Classic Mac OS SDK headers — currently the bridge client,
-the JSON helper, the text codec and the two test drivers — as strict C89
-against the released Wolfram public headers, and runs the Mac-side tests. The
-UI, window and file sources pull in `Quickdraw.h`, `Windows.h`, `Files.h` and
-friends, so they are built by CodeWarrior/Retro68 rather than by a CI runner
-that has no SDK. The job also fails if any source reaches for a header the Mac
-target does not have, which covers the files it cannot compile.
+The `Mac OS 9 sources (C89)` job compiles **every** source under `macos9/` as
+strict C89 against the released Wolfram public headers, and runs the Mac-side
+tests. A CI runner has no Classic Mac SDK, so the job compiles against the
+declaration-only SDK headers in [`macos9/test/sdk-stubs/`](macos9/test/sdk-stubs/);
+read that directory's README for exactly what a clean run does and does not
+prove.
 
 The same check runs locally against a Wolfram checkout:
 
 ```sh
 clang -std=c89 -pedantic-errors -Wall -Wextra -Wno-unused-parameter -Werror \
   -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
-  -I macos9 -I ../wolfram/include \
+  -I macos9 -I macos9/test/sdk-stubs -I ../wolfram/include \
   -o /tmp/test_bridge_client \
   macos9/bridge_client.c macos9/json_min.c macos9/test/test_bridge_client.c
 /tmp/test_bridge_client
@@ -272,10 +270,11 @@ pairing path and the malformed-response paths without a network or a Mac.
 
 A successful modern-host build does not prove Classic Mac OS 9 compatibility. Native client changes must be validated with the intended CodeWarrior/Open Transport/macTLS environment when available.
 
-`macos9/application.c`, `notifications.c`, `profile.c` and `timeline.c` still
-use cJSON, which that target does not provide. CI records them as known debt so
-the dependency cannot spread, but the client is not buildable for real hardware
-until they move onto `json_min`.
+The Mac client uses `macos9/json_min.c` for JSON rather than cJSON, which is
+C99 and not part of the CodeWarrior-era target. No Mac source reaches for cJSON,
+libcurl, OpenSSL, pthreads, `<stdint.h>`, `<stdbool.h>` or `<strings.h>`, and
+because CI compiles every source those are compile errors rather than
+conventions to remember.
 
 ## Licence
 

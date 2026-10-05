@@ -1,3 +1,4 @@
+#include <MacTypes.h>
 #include "text_codec.h"
 
 #include <string.h>
@@ -240,4 +241,20 @@ long platinum_text_utf8_to_macroman(const char *input,
     if (lossy != NULL)
         *lossy = ignored;
     return offset;
+}
+
+void platinum_text_key_map(KeyMap key_map,
+                           short key_code,
+                           unsigned long modifiers)
+{
+    unsigned long code;
+    unsigned long state;
+
+    code = (unsigned long)key_code & 0xFFUL;
+    state = (modifiers >> 8) & 0xFFUL;
+
+    key_map[0] = code;
+    key_map[1] = state;
+    key_map[2] = code;
+    key_map[3] = state;
 }

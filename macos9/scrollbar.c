@@ -20,7 +20,7 @@ OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
     scrollbar->control = NewControl(window,
                                     &scrollbar->bounds,
                                     kEmptyTitle,
-                                    true,
+                                    1,
                                     0,
                                     0,
                                     0,
@@ -132,5 +132,5 @@ void platinum_scrollbar_draw(platinum_scrollbar *scrollbar)
     if (scrollbar == NULL || scrollbar->control == NULL)
         return;
 
-    Draw1Control(scrollbar->control);
+    DrawControl(scrollbar->control);
 }

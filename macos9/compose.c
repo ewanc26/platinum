@@ -1,4 +1,5 @@
 #include "compose.h"
+#include "text_codec.h"
 
 #include <Memory.h>
 #include <Quickdraw.h>
@@ -14,8 +15,6 @@ static unsigned char kPost[] = {
     4, 'P', 'o', 's', 't'
 };
 static const char kPosting[] = "Posting...";
-static const char kLimit[] = "Maximum 300 characters.";
-
 static char *compose_copy_handle(TEHandle text, char *buffer, long capacity)
 {
     Handle handle;
@@ -81,8 +80,8 @@ OSErr platinum_compose_open(platinum_compose *compose)
     memset(compose, 0, sizeof(*compose));
 
     SetRect(&bounds, 126, 84, 594, 396);
-    compose->window = NewCWindow(NULL, bounds, kComposeTitle, true,
-                                 documentProc, (WindowPtr)-1L, true, 0L);
+    compose->window = NewCWindow(NULL, &bounds, kComposeTitle, 1,
+                                 documentProc, (WindowPtr)-1L, 1, 0L);
     if (compose->window == NULL)
         return memFullErr;
 
@@ -91,15 +90,23 @@ OSErr platinum_compose_open(platinum_compose *compose)
     text_rect.right = bounds.right - bounds.left - 14;
     text_rect.bottom = bounds.bottom - bounds.top - 58;
 
-    compose->text = TENew(&text_rect, &text_rect);
+    compose->text = TENew(&text_rect,
+                         &text_rect,
+                         0,
+                         PLATINUM_COMPOSE_MAX_TEXT,
+                         0,
+                         0,
+                         compose->window,
+                         NULL,
+                         NULL);
     if (compose->text == NULL) {
         DisposeWindow(compose->window);
         compose->window = NULL;
         return memFullErr;
     }
 
-    TEAutoView(true, compose->text);
-    TESetSelect(0, 0, compose->text);
+    TEAutoView(compose->text, 0);
+    TESetSelection(compose->text, 0, 0);
     compose->status[0] = '\0';
 
     SetPort((GrafPtr)compose->window);
@@ -188,19 +195,20 @@ int platinum_compose_handle_event(platinum_compose *compose,
     Point where;
     Rect cancel_rect;
     Rect post_rect;
+    KeyMap key_map;
 
     if (compose == NULL || event == NULL || compose->window == NULL)
         return PLATINUM_COMPOSE_NONE;
 
     switch (event->what) {
         case activateEvt:
-            if ((WindowPtr)event->message == compose->window &&
+            if ((WindowPtr)(long)event->message == compose->window &&
                 !compose->posting)
                 TEActivate(compose->text);
             return PLATINUM_COMPOSE_NONE;
 
         case updateEvt:
-            if ((WindowPtr)event->message == compose->window) {
+            if ((WindowPtr)(long)event->message == compose->window) {
                 BeginUpdate(compose->window);
                 platinum_compose_draw(compose);
                 EndUpdate(compose->window);
@@ -232,6 +240,8 @@ int platinum_compose_handle_event(platinum_compose *compose,
 
             if (compose_point_in_text(where, compose->text))
                 TEClick(where, (event->modifiers & shiftKey) != 0,
+                            0,
+                            0,
                         compose->text);
             return PLATINUM_COMPOSE_NONE;
 
@@ -245,8 +255,10 @@ int platinum_compose_handle_event(platinum_compose *compose,
                  (event->message & charCodeMask) == 'W'))
                 return PLATINUM_COMPOSE_CANCEL;
 
-            TEKey((short)(event->message & charCodeMask),
-                  compose->text);
+            platinum_text_key_map(key_map,
+                                  (short)(event->message & charCodeMask),
+                                  event->modifiers);
+            TEKey(key_map, compose->text);
             return PLATINUM_COMPOSE_NONE;
 
         default:

@@ -2,6 +2,8 @@
 #include "timeline.h"
 
 #include <Quickdraw.h>
+#include <TextEdit.h>
+#include <Windows.h>
 #include <string.h>
 
 static unsigned char kHome[] = { 4, 'H', 'o', 'm', 'e' };
@@ -14,10 +16,6 @@ static unsigned char kRefresh[] = { 7, 'R', 'e', 'f', 'r', 'e', 's', 'h' };
 static unsigned char kPost[] = { 7, 'P', 'o', 's', 't', '.', '.', '.' };
 static unsigned char kSelected[] = {
     13, 'S', 'e', 'l', 'e', 'c', 't', 'e', 'd', ' ', 'p', 'o', 's', 't'
-};
-static unsigned char kPaired[] = {
-    20, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'a', 'c', 'c', 'o', 'u', 'n', 't',
-    ' ', 'r', 'e', 'a', 'd', 'y'
 };
 static unsigned char kNotPaired[] = {
     35, 'C', 'o', 'n', 'n', 'e', 'c', 't', ' ', 't', 'o', ' ', 'P', 'l', 'a',
@@ -155,7 +153,7 @@ static void platinum_ui_draw_post(const platinum_ui_layout *layout,
     }
 }
 
-static void platinum_ui_draw_detail(GrafPtr port,
+static void platinum_ui_draw_detail(WindowPtr window,
                                     const platinum_ui_layout *layout,
                                     const platinum_ui_state *state,
                                     const platinum_timeline *timeline)
@@ -198,11 +196,9 @@ static void platinum_ui_draw_detail(GrafPtr port,
     button.top = layout->detail.top + 12;
     button.bottom = button.top + 20;
     platinum_ui_button(&button, kMore);
-
-    (void)port;
 }
 
-void platinum_ui_draw(GrafPtr port,
+void platinum_ui_draw(WindowPtr window,
                       const platinum_ui_layout *layout,
                       const platinum_ui_state *state,
                       const platinum_session *session,
@@ -219,18 +215,18 @@ void platinum_ui_draw(GrafPtr port,
     short index;
     const char *status;
 
-    if (port == NULL || layout == NULL || state == NULL ||
+    if (window == NULL || layout == NULL || state == NULL ||
         session == NULL || timeline == NULL)
         return;
 
     GetPort(&old_port);
-    SetPort(port);
+    SetPort((GrafPtr)window);
 
     paired = platinum_session_is_paired(session);
     posts = platinum_timeline_posts(timeline);
     count = platinum_timeline_post_count(timeline);
 
-    EraseRect(&port->portRect);
+    EraseRect(&window->portRect);
     FrameRect(&layout->toolbar);
     FrameRect(&layout->navigation);
     FrameRect(&layout->timeline);
@@ -308,7 +304,7 @@ void platinum_ui_draw(GrafPtr port,
     if (layout->detail.top < layout->detail.bottom) {
         MoveTo(layout->detail.left + 12, layout->detail.top + 16);
         if (paired)
-            platinum_ui_draw_detail(port, layout, state, timeline);
+            platinum_ui_draw_detail(window, layout, state, timeline);
         else {
             MoveTo(layout->detail.left + 12, layout->detail.top + 46);
             DrawString(kNotPaired);

@@ -3,7 +3,7 @@
 
 #include <Quickdraw.h>
 #include <stdio.h>
-#include <cJSON.h>
+#include "json_min.h"
 #include <string.h>
 
 static unsigned char kProfileTitle[] = {
@@ -15,37 +15,45 @@ static unsigned char kClose[] = {
 static const char kNoProfile[] = "No profile information is available.";
 static const char kLoading[] = "Loading profile...";
 
+/*
+ * Copy a string member of `root` into `destination`, converting it to
+ * MacRoman on the way in.
+ *
+ * A member that is absent, or that is present but not a string, leaves the
+ * destination empty. That is deliberate rather than lax: the bridge is trusted
+ * to send the documented shape, and a field of the wrong type is a response
+ * this client does not understand, so showing nothing is better than showing
+ * whatever the parser happened to find there.
+ */
 static void profile_copy(char *destination,
                          long capacity,
-                         const cJSON *value)
+                         platinum_json root,
+                         const char *name)
 {
+    char utf8[PLATINUM_TEXT_UTF8_CAPACITY];
     long length;
 
     if (destination == NULL || capacity <= 0)
         return;
 
     destination[0] = '\0';
-    if (value == NULL || !cJSON_IsString(value) ||
-        value->valuestring == NULL)
+    if (platinum_json_string_truncating(root, name, utf8, sizeof(utf8))
+        != WF_OK)
         return;
 
-    length = platinum_text_utf8_to_macroman(value->valuestring,
-                                            destination,
-                                            capacity,
-                                            NULL);
+    length = platinum_text_utf8_to_macroman(utf8, destination, capacity, NULL);
     if (length < 0)
         destination[0] = '\0';
 }
 
-static long profile_number(const cJSON *root, const char *name)
+static long profile_number(platinum_json root, const char *name)
 {
-    const cJSON *value;
+    long value = 0;
 
-    value = cJSON_GetObjectItemCaseSensitive(root, name);
-    if (value == NULL || !cJSON_IsNumber(value))
+    if (platinum_json_int(root, name, &value) != WF_OK)
         return 0;
 
-    return value->valueint;
+    return value;
 }
 
 void platinum_profile_set_status(platinum_profile *profile,
@@ -84,7 +92,7 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
                                    platinum_bridge_client *bridge)
 {
     wf_response response;
-    cJSON *root;
+    platinum_json root;
     wf_status status;
 
     if (profile == NULL || bridge == NULL)
@@ -106,27 +114,28 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
         return status;
     }
 
-    root = cJSON_Parse(response.body != NULL ? response.body : "");
-    if (root == NULL) {
+    status = platinum_json_open(&root,
+                               response.body != NULL ? response.body : "");
+    if (status != WF_OK) {
         profile->loading = 0;
         platinum_profile_set_status(profile, "The bridge returned invalid profile data.");
         wf_response_free(&response);
         return WF_ERR_PARSE;
     }
 
-    profile_copy(profile->did, sizeof(profile->did),
-                 cJSON_GetObjectItemCaseSensitive(root, "did"));
-    profile_copy(profile->handle, sizeof(profile->handle),
-                 cJSON_GetObjectItemCaseSensitive(root, "handle"));
-    profile_copy(profile->display_name, sizeof(profile->display_name),
-                 cJSON_GetObjectItemCaseSensitive(root, "displayName"));
-    profile_copy(profile->description, sizeof(profile->description),
-                 cJSON_GetObjectItemCaseSensitive(root, "description"));
+    profile_copy(profile->did, sizeof(profile->did), root, "did");
+    profile_copy(profile->handle, sizeof(profile->handle), root, "handle");
+    profile_copy(profile->display_name, sizeof(profile->display_name), root,
+                 "displayName");
+    profile_copy(profile->description, sizeof(profile->description), root,
+                 "description");
     profile->followers_count = profile_number(root, "followersCount");
     profile->follows_count = profile_number(root, "followsCount");
     profile->posts_count = profile_number(root, "postsCount");
 
-    cJSON_Delete(root);
+    /* Every member is read while the response is still alive, and the cursor
+     * only ever pointed into response.body, so nothing here can be left
+     * holding into a freed buffer. */
     wf_response_free(&response);
 
     profile->loading = 0;
@@ -174,8 +183,8 @@ OSErr platinum_profile_open(platinum_profile *profile)
     }
 
     SetRect(&bounds, 116, 70, 616, 390);
-    profile->window = NewCWindow(NULL, bounds, kProfileTitle, true,
-                                 documentProc, (WindowPtr)-1L, true, 0L);
+    profile->window = NewCWindow(NULL, &bounds, kProfileTitle, 1,
+                                 documentProc, (WindowPtr)-1L, 1, 0L);
     if (profile->window == NULL)
         return memFullErr;
 
@@ -250,7 +259,7 @@ int platinum_profile_handle_event(platinum_profile *profile,
 
     switch (event->what) {
         case updateEvt:
-            if ((WindowPtr)event->message == profile->window) {
+            if ((WindowPtr)(long)event->message == profile->window) {
                 BeginUpdate(profile->window);
                 platinum_profile_draw(profile);
                 EndUpdate(profile->window);
@@ -258,9 +267,8 @@ int platinum_profile_handle_event(platinum_profile *profile,
             return PLATINUM_PROFILE_NONE;
 
         case activateEvt:
-            if ((WindowPtr)event->message == profile->window)
-                HiliteWindow(profile->window,
-                             (event->modifiers & activeFlag) != 0);
+            if ((WindowPtr)(long)event->message == profile->window)
+                HiliteWindow(profile->window);
             return PLATINUM_PROFILE_NONE;
 
         case mouseDown:

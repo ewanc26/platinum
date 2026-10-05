@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mac9_tls.h"
 #include "ui.h"
 #include "timeline.h"
 #include "profile.h"
@@ -19,7 +18,8 @@
 #include "pairing.h"
 #include "text_codec.h"
 #include "scrollbar.h"
-#include <cJSON.h>
+#include "json_min.h"
+#include "wolfram/macos9_tls.h"
 
 #define kFileMenuID 128
 #define kEditMenuID 129
@@ -156,8 +156,8 @@ OSErr platinum_application_init(platinum_application *app)
 
     SetRect(&bounds, 48, 40, 688, 520);
 
-    app->window = NewCWindow(NULL, bounds, kWindowTitle, true,
-                             documentProc, (WindowPtr)-1L, true, 0L);
+    app->window = NewCWindow(NULL, &bounds, kWindowTitle, 1,
+                             documentProc, (WindowPtr)-1L, 1, 0L);
     if (app->window == NULL) {
         platinum_session_close(&app->session);
         platinum_application_dispose_menus(app);
@@ -384,7 +384,7 @@ static void platinum_application_handle_event(platinum_application *app,
             break;
 
         case updateEvt:
-            window = (WindowPtr)event->message;
+            window = (WindowPtr)(long)event->message;
             if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
@@ -409,7 +409,7 @@ static void platinum_application_handle_event(platinum_application *app,
             break;
 
         case activateEvt:
-            window = (WindowPtr)event->message;
+            window = (WindowPtr)(long)event->message;
             if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
@@ -426,7 +426,7 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
-                HiliteWindow(window, (event->modifiers & activeFlag) != 0);
+                HiliteWindow(window);
             }
             break;
 
@@ -521,7 +521,7 @@ static void platinum_application_draw(platinum_application *app)
     GetPort(&old_port);
     SetPort((GrafPtr)app->window);
 
-    platinum_ui_draw((GrafPtr)app->window,
+    platinum_ui_draw(app->window,
                      &app->layout,
                      &app->ui,
                      &app->session,
@@ -791,12 +791,57 @@ static void platinum_application_post_status(platinum_application *app,
                                     "The post could not be sent.");
 }
 
+/*
+ * Wrap a post body as {"text":"..."}.
+ *
+ * Written out by hand rather than built through a JSON library, because
+ * snprintf is not available on this target and the shape is a single member.
+ * The escape is the part that matters: the text is what the user typed, so it
+ * is the one thing in this request that can contain a quote or a backslash.
+ *
+ * Sizes the buffers from the escaped length rather than assuming one. Every
+ * byte of the encoded text could in principle need a six-byte \u00XX form, so
+ * the worst case is six out for each one in.
+ */
+static char *platinum_application_post_body(const char *utf8_text)
+{
+    static const char kPrefix[] = "{\"text\":\"";
+    static const char kSuffix[] = "\"}";
+    size_t escaped_cap;
+    size_t body_cap;
+    char *escaped;
+    char *body;
+
+    escaped_cap = strlen(utf8_text) * 6 + 1;
+    body_cap = escaped_cap + sizeof(kPrefix) + sizeof(kSuffix);
+    escaped = (char *)malloc(escaped_cap);
+    body = (char *)malloc(body_cap);
+    if (escaped == NULL || body == NULL) {
+        free(escaped);
+        free(body);
+        return NULL;
+    }
+
+    if (platinum_json_escape(escaped, escaped_cap, utf8_text) != WF_OK) {
+        free(escaped);
+        free(body);
+        return NULL;
+    }
+
+    body[0] = '\0';
+    strcpy(body, kPrefix);
+    strcat(body, escaped);
+    strcat(body, kSuffix);
+    free(escaped);
+
+    return body;
+}
+
 static void platinum_application_submit_post(platinum_application *app)
 {
     char text[PLATINUM_COMPOSE_MAX_TEXT + 1];
     char utf8_text[PLATINUM_TEXT_UTF8_CAPACITY];
     char *body;
-    cJSON *request;
     wf_response response;
     wf_status status;
     platinum_bridge_client *bridge;
@@ -818,26 +863,16 @@ static void platinum_application_submit_post(platinum_application *app)
         return;
     }
 
-    request = cJSON_CreateObject();
-    if (request == NULL) {
-        platinum_compose_set_status(&app->compose,
-                                    "Not enough memory to prepare the post.");
-        return;
-    }
-
     if (platinum_text_macroman_to_utf8(text,
                                        utf8_text,
                                        sizeof(utf8_text),
                                        NULL) < 0) {
-        cJSON_Delete(request);
         platinum_compose_set_status(&app->compose,
                                     "The post text could not be encoded.");
         return;
     }
 
-    cJSON_AddStringToObject(request, "text", utf8_text);
-    body = cJSON_PrintUnformatted(request);
-    cJSON_Delete(request);
+    body = platinum_application_post_body(utf8_text);
     if (body == NULL) {
         platinum_compose_set_status(&app->compose,
                                     "Not enough memory to prepare the post.");
@@ -976,6 +1011,33 @@ static void platinum_application_sign_out(
 
     platinum_preferences_close(&app->preferences);
     SelectWindow(app->window);
+    platinum_application_invalidate(app);
+}
+
+static void platinum_application_recover_auth(platinum_application *app,
+                                             wf_status status)
+{
+    if (app == NULL || status != WF_ERR_AUTH)
+        return;
+
+    /* Already unpaired: a stale window must not reopen the pairing dialog on
+     * every refresh once the session is gone. */
+    if (!platinum_session_is_paired(&app->session))
+        return;
+
+    /* The bridge token was refused, so it is gone or revoked. Drop the session
+     * so the UI shows the unpaired state, clear what it was showing, and give
+     * the user somewhere to go next instead of failing silently on every
+     * subsequent refresh. Revocation is not attempted: the token is already
+     * unusable, and there is nothing left to revoke server-side. */
+    (void)platinum_session_sign_out(&app->session);
+    platinum_profile_close(&app->profile);
+    platinum_notifications_close(&app->notifications);
+    platinum_timeline_init(&app->timeline);
+    app->ui.selected_post = 0;
+    app->ui.scroll_row = 0;
+
+    (void)platinum_application_open_pairing(app);
     platinum_application_invalidate(app);
 }
 
