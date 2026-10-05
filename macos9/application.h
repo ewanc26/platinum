@@ -2,6 +2,7 @@
 #define PLATINUM_APPLICATION_H
 
 #include "session.h"
+#include "ui.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +11,7 @@ extern "C" {
 typedef struct platinum_application {
     platinum_session session;
     WindowPtr window;
+    platinum_ui_layout layout;
     int running;
 } platinum_application;
 
