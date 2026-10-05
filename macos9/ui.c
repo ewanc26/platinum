@@ -103,6 +103,10 @@ void platinum_ui_layout_compute(const Rect *content,
     layout->timeline.left = layout->navigation.right + 1;
     layout->timeline.bottom = content->bottom - detail_height - 1;
 
+    layout->timeline_scrollbar = layout->timeline;
+    layout->timeline_scrollbar.left = layout->timeline_scrollbar.right - 15;
+    layout->timeline.right = layout->timeline_scrollbar.left - 1;
+
     layout->detail = *content;
     layout->detail.top = content->bottom - detail_height;
 }
