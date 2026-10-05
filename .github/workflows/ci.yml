@@ -114,7 +114,8 @@ jobs:
             macos9/timeline.c \
             macos9/ui.c \
             macos9/test/test_bridge_client.c \
-            macos9/test/test_json_min.c
+            macos9/test/test_json_min.c \
+            macos9/test/wolfram_stub.c
           do
             for cc in clang gcc; do
               echo "--- $cc $f"
@@ -144,9 +145,9 @@ jobs:
           clang "${CFLAGS[@]}" -o /tmp/test_json_min \
             macos9/json_min.c macos9/test/test_json_min.c
           /tmp/test_json_min
-          clang "${CFLAGS[@]}" -o /tmp/test_bridge_client \
+          clang "${CFLAGS[@]}" -I macos9/test -o /tmp/test_bridge_client \
             macos9/bridge_client.c macos9/json_min.c \
-            macos9/test/test_bridge_client.c
+            macos9/test/wolfram_stub.c macos9/test/test_bridge_client.c
           /tmp/test_bridge_client
 
   # The one check branch protection should require. Requiring the individual
