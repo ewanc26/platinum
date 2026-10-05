@@ -4,6 +4,7 @@
 #include "session.h"
 #include "compose.h"
 #include "ui.h"
+#include "timeline.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -16,6 +17,7 @@ typedef struct platinum_application {
     platinum_ui_layout layout;
     platinum_ui_state ui;
     platinum_compose compose;
+    platinum_timeline timeline;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;

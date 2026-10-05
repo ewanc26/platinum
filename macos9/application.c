@@ -12,6 +12,7 @@
 
 #include "mac9_tls.h"
 #include "ui.h"
+#include "timeline.h"
 
 #define kFileMenuID 128
 #define kEditMenuID 129
@@ -29,6 +30,7 @@ static void platinum_application_handle_menu(platinum_application *app,
                                              long choice);
 static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
+static void platinum_application_refresh_timeline(platinum_application *app);
 
 static unsigned char kWindowTitle[] = {
     15, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', '-', ' ',
@@ -92,6 +94,7 @@ OSErr platinum_application_init(platinum_application *app)
     memset(app, 0, sizeof(*app));
     platinum_session_init(&app->session);
     platinum_ui_state_init(&app->ui);
+    platinum_timeline_init(&app->timeline);
 
     InitGraf(&qd.thePort);
     InitFonts();
@@ -127,6 +130,10 @@ OSErr platinum_application_init(platinum_application *app)
     wf_macos9_set_yield_callback(platinum_application_yield, app);
     platinum_application_relayout(app);
     platinum_application_invalidate(app);
+
+    if (platinum_session_is_paired(&app->session))
+        platinum_application_refresh_timeline(app);
+
     return noErr;
 }
 
@@ -208,9 +215,12 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (window == app->window) {
                 action = platinum_ui_handle_mouse(&app->layout,
                                                   &app->ui,
+                                                  &app->timeline,
                                                   event->where);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
+                else if (action == PLATINUM_UI_ACTION_REFRESH)
+                    platinum_application_refresh_timeline(app);
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
                     if (platinum_compose_open(&app->compose) == noErr)
                         SelectWindow(app->compose.window);
@@ -252,9 +262,14 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 }
             } else {
-                action = platinum_ui_handle_key(&app->layout, &app->ui, event);
+                action = platinum_ui_handle_key(&app->layout,
+                                                &app->ui,
+                                                &app->timeline,
+                                                event);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
+                else if (action == PLATINUM_UI_ACTION_REFRESH)
+                    platinum_application_refresh_timeline(app);
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
                     if (platinum_compose_open(&app->compose) == noErr)
                         SelectWindow(app->compose.window);
@@ -281,9 +296,40 @@ static void platinum_application_draw(platinum_application *app)
     platinum_ui_draw((GrafPtr)app->window,
                      &app->layout,
                      &app->ui,
-                     &app->session);
+                     &app->session,
+                     &app->timeline);
 
     SetPort(old_port);
+}
+
+static void platinum_application_refresh_timeline(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+
+    if (app == NULL)
+        return;
+
+    if (!platinum_session_is_paired(&app->session)) {
+        platinum_timeline_init(&app->timeline);
+        platinum_application_invalidate(app);
+        return;
+    }
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL) {
+        platinum_timeline_init(&app->timeline);
+        return;
+    }
+
+    app->ui.scroll_row = 0;
+    app->ui.selected_post = 0;
+    platinum_timeline_refresh(&app->timeline, bridge);
+    if (app->timeline.count == 0) {
+        app->ui.scroll_row = 0;
+        app->ui.selected_post = 0;
+    }
+
+    platinum_application_invalidate(app);
 }
 
 static void platinum_application_relayout(platinum_application *app)
@@ -427,9 +473,7 @@ static void platinum_application_handle_menu(platinum_application *app,
         }
     } else if (menu_id == kViewMenuID) {
         if (item == 1) {
-            app->ui.scroll_row = 0;
-            app->ui.selected_post = 0;
-            platinum_application_invalidate(app);
+            platinum_application_refresh_timeline(app);
         } else if (item == 2) {
             app->ui.show_detail = !app->ui.show_detail;
             platinum_application_invalidate(app);
