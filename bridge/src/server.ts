@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi } from './domain/api.js'
+import { DomainApi, validPostRef } from './domain/api.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
@@ -241,6 +241,28 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'GET' && url.pathname === '/v1/notifications') {
     const cursor = url.searchParams.get('cursor') ?? undefined
     return json(res, 200, await domain.notifications(agent, limit(url.searchParams.get('limit')), cursor))
+  }
+
+  if (req.method === 'POST' && (url.pathname === '/v1/like' || url.pathname === '/v1/repost')) {
+    let input: { uri?: unknown; cid?: unknown; on?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const ref = validPostRef(input.uri, input.cid)
+    if (!ref || typeof input.on !== 'boolean') {
+      return json(res, 400, errorBody('invalid_post_ref', 'A post uri, cid and a boolean "on" are required.'))
+    }
+    const kind = url.pathname === '/v1/like' ? 'like' : 'repost'
+    const result = await domain.toggle(agent, kind, ref, input.on)
+    if (!result.on && input.on) {
+      return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
+    }
+    return json(res, 200, result)
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/post') {
