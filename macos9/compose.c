@@ -44,7 +44,7 @@ static char *compose_copy_handle(TEHandle text, char *buffer, long capacity)
         memcpy(buffer, *handle, (size_t)copy_length);
     HSetState(handle, state);
 
-    buffer[copy_length] = '\\0';
+    buffer[copy_length] = '\0';
     return buffer;
 }
 
@@ -100,7 +100,7 @@ OSErr platinum_compose_open(platinum_compose *compose)
 
     TEAutoView(true, compose->text);
     TESetSelect(0, 0, compose->text);
-    compose->status[0] = '\\0';
+    compose->status[0] = '\0';
 
     SetPort((GrafPtr)compose->window);
     platinum_compose_draw(compose);
@@ -126,7 +126,7 @@ void platinum_compose_close(platinum_compose *compose)
     }
 
     compose->posting = 0;
-    compose->status[0] = '\\0';
+    compose->status[0] = '\0';
 }
 
 void platinum_compose_draw(platinum_compose *compose)
@@ -148,7 +148,7 @@ void platinum_compose_draw(platinum_compose *compose)
     FrameRect(&text_frame);
     TEUpdate(&compose->window->portRect, compose->text);
 
-    if (compose->status[0] != '\\0')
+    if (compose->status[0] != '\0')
         platinum_compose_text(compose->status, 14,
                               compose->window->portRect.bottom - 48);
 
@@ -298,14 +298,14 @@ void platinum_compose_set_status(platinum_compose *compose,
     if (compose == NULL)
         return;
 
-    compose->status[0] = '\\0';
+    compose->status[0] = '\0';
     if (status != NULL) {
         length = (long)strlen(status);
         if (length > PLATINUM_COMPOSE_STATUS_MAX)
             length = PLATINUM_COMPOSE_STATUS_MAX;
 
         memcpy(compose->status, status, (size_t)length);
-        compose->status[length] = '\\0';
+        compose->status[length] = '\0';
     }
 
     if (compose->window != NULL)
