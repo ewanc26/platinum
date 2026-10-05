@@ -1082,6 +1082,11 @@ static void platinum_application_refresh_notifications(
         wf_status status;
         status = platinum_notifications_refresh(&app->notifications, bridge);
         platinum_application_recover_auth(app, status);
+        /* Opening or refreshing the window is reading it. A failure to mark
+         * seen is not worth an error: the next refresh tries again. */
+        if (status == WF_OK)
+            (void)platinum_notifications_mark_seen(&app->notifications,
+                                                   bridge);
     }
     if (app->notifications.window != NULL)
         InvalRect(&app->notifications.window->portRect);
