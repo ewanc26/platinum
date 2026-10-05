@@ -2,44 +2,44 @@
 
 static const platinum_post_preview kPosts[PLATINUM_TIMELINE_POSTS] = {
     {
-        { 11, 'E','w','a','n',' ','C','r','o','f','t' },
-        { 13, '@','e','w','a','n','c','r','o','f','t','.','u','k' },
-        { 8, 'j','u','s','t',' ','n','o','w' },
-        { 68, 'B','u','i','l','d','i','n','g',' ','a',' ','B','l','u','e','s','k','y',' ','c','l','i','e','n','t',' ','f','o','r',' ','a',' ','M','a','c','i','n','t','o','s','h',' ','t','h','a','t',' ','r','e','m','e','m','b','e','r','s',' ','w','h','a','t',' ','a',' ','M','a','c',' ','a','p','p',' ','i','s','.' },
-        { 0 },
-        { 0 }
+        "Ewan Croft",
+        "@ewancroft.uk",
+        "just now",
+        "Building a Bluesky client for a Macintosh that remembers what a Mac app is.",
+        "",
+        ""
     },
     {
-        { 12, 'A','l','i','c','e',' ','E','x','a','m','p','l','e' },
-        { 18, '@','a','l','i','c','e','.','e','x','a','m','p','l','e' },
-        { 10, '5',' ','m','i','n','u','t','e','s',' ','a','g','o' },
-        { 78, 'T','h','e',' ','n','e','w',' ','i','n','t','e','r','f','a','c','e',' ','f','e','e','l','s',' ','b','e','t','t','e','r',' ','w','h','e','n',' ','i','t',' ','u','s','e','s',' ','t','h','e',' ','s','y','s','t','e','m',' ','c','o','n','t','r','o','l','s',' ','i','n','s','t','e','a','d',' ','o','f',' ','r','e','d','r','a','w','i','n','g',' ','t','h','e','m','.' },
-        { 0 },
-        { 0 }
+        "Alice Example",
+        "@alice.example",
+        "5 minutes ago",
+        "The new interface feels better when it uses the system controls instead of redrawing them.",
+        "",
+        ""
     },
     {
-        { 14, 'R','o','b','i','n',' ','T','e','s','t','e','r' },
-        { 16, '@','r','o','b','i','n','.','e','x','a','m','p','l','e' },
-        { 12, '2','0',' ','m','i','n','u','t','e','s',' ','a','g','o' },
-        { 75, 'C','l','a','s','s','i','c',' ','M','a','c',' ','s','o','f','t','w','a','r','e',' ','w','o','r','k','s',' ','b','e','s','t',' ','w','h','e','n',' ','i','t',' ','t','r','e','a','t','s',' ','t','h','e',' ','e','n','v','i','r','o','n','m','e','n','t',' ','a','s',' ','a',' ','f','i','r','s','t','-','c','l','a','s','s',' ','p','l','a','t','f','o','r','m','.' },
-        { 0 },
-        { 0 }
+        "Robin Tester",
+        "@robin.example",
+        "20 minutes ago",
+        "Classic Mac software works best when it treats the environment as a first-class platform.",
+        "",
+        ""
     },
     {
-        { 10, 'M','o','r','g','a','n',' ','S','a','m','p','l','e' },
-        { 15, '@','m','o','r','g','a','n','.','e','x','a','m','p','l','e' },
-        { 11, '1',' ','h','o','u','r',' ','a','g','o' },
-        { 72, 'T','h','e',' ','b','e','s','t',' ','r','e','t','r','o',' ','a','p','p','s',' ','d','o','n','\'' , 't',' ','t','r','y',' ','t','o',' ','p','r','e','t','e','n','d',' ','t','h','e',' ','p','l','a','t','f','o','r','m',' ','i','s','n','\'' , 't',' ','r','e','l','e','v','a','n','t','.' },
-        { 0 },
-        { 0 }
+        "Morgan Sample",
+        "@morgan.example",
+        "1 hour ago",
+        "The best retro apps do not try to pretend the platform isn't relevant.",
+        "",
+        ""
     },
     {
-        { 10, 'D','e','v',' ','N','o','t','e' },
-        { 13, '@','d','e','v','.','e','x','a','m','p','l','e' },
-        { 16, '2',' ','h','o','u','r','s',' ','a','g','o' },
-        { 76, 'K','e','e','p','i','n','g',' ','t','h','e',' ','n','e','t','w','o','r','k',' ','l','a','y','e','r',' ','o','n',' ','t','h','e',' ','b','r','i','d','g','e',' ','m','e','a','n','s',' ','t','h','e',' ','M','a','c',' ','c','l','i','e','n','t',' ','c','a','n',' ','s','t','a','y',' ','s','m','a','l','l','.' },
-        { 0 },
-        { 0 }
+        "Dev Note",
+        "@dev.example",
+        "2 hours ago",
+        "Keeping the network layer on the bridge means the Mac client can stay small.",
+        "",
+        ""
     }
 };
 
