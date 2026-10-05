@@ -82,9 +82,9 @@ static void timeline_copy_wrapped_text(platinum_post_preview *post,
         if (chunk > PLATINUM_TIMELINE_LINE_MAX - 1)
             chunk = PLATINUM_TIMELINE_LINE_MAX - 1;
 
-        if (offset == 0)
+        if (offset < PLATINUM_TIMELINE_LINE_MAX - 1)
             destination = post->line1;
-        else if (offset < 224)
+        else if (offset < (PLATINUM_TIMELINE_LINE_MAX - 1) * 2)
             destination = post->line2;
         else
             destination = post->line3;
@@ -193,6 +193,7 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
         return WF_ERR_INVALID_ARG;
 
     timeline->loading = 1;
+    timeline->count = 0;
     timeline_set_status(timeline, "Loading timeline...");
     memset(&response, 0, sizeof(response));
 
