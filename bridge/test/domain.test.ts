@@ -14,26 +14,35 @@ test('timeline responses are reduced to the bridge feed contract', async () => {
           cursor: 'next-cursor',
           feed: [
             {
-              post: undefined,
+              post: {
+                uri: 'at://did:plc:author/app.bsky.feed.post/1',
+                cid: 'bafyexample',
+                author: {
+                  did: 'did:plc:author',
+                  handle: 'author.example',
+                  displayName: 'An Author',
+                },
+                record: {
+                  text: 'hello from Bluesky',
+                  createdAt: '2026-10-05T00:00:00.000Z',
+                  extra: 'not exposed',
+                },
+                likeCount: 4,
+                repostCount: 2,
+                replyCount: 1,
+                quoteCount: 3,
+                embed: { huge: true },
+              },
             },
             {
-              uri: 'at://did:plc:author/app.bsky.feed.post/1',
-              cid: 'bafyexample',
-              author: {
-                did: 'did:plc:author',
-                handle: 'author.example',
-                displayName: 'An Author',
+              post: {
+                uri: 'at://did:plc:author/app.bsky.feed.post/2',
+                cid: 'bafyexample2',
+                author: {
+                  did: 'did:plc:author',
+                },
+                record: {},
               },
-              record: {
-                text: 'hello from Bluesky',
-                createdAt: '2026-10-05T00:00:00.000Z',
-                extra: 'not exposed',
-              },
-              likeCount: 4,
-              repostCount: 2,
-              replyCount: 1,
-              quoteCount: 3,
-              embed: { huge: true },
             },
           ],
         },
@@ -46,12 +55,13 @@ test('timeline responses are reduced to the bridge feed contract', async () => {
   assert.deepEqual(calls, [{ limit: 20, cursor: 'old-cursor' }])
   assert.equal(result.cursor, 'next-cursor')
   assert.equal(result.posts.length, 2)
-  assert.equal(result.posts[0].text, '')
-  assert.equal(result.posts[1].author.handle, 'author.example')
-  assert.equal(result.posts[1].text, 'hello from Bluesky')
-  assert.equal(result.posts[1].likeCount, 4)
-  assert.equal(result.posts[1].quoteCount, 3)
-  assert.equal('embed' in result.posts[1], false)
+  assert.equal(result.posts[0].author.handle, 'author.example')
+  assert.equal(result.posts[0].text, 'hello from Bluesky')
+  assert.equal(result.posts[0].likeCount, 4)
+  assert.equal(result.posts[0].quoteCount, 3)
+  assert.equal(result.posts[1].text, '')
+  assert.equal(result.posts[1].likeCount, 0)
+  assert.equal('embed' in result.posts[0], false)
 })
 
 test('notification responses are reduced to stable fields', async () => {
