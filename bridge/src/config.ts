@@ -8,6 +8,8 @@ export interface BridgeConfig {
   dataDir: string
   version: string
   maxBodyBytes: number
+  /** Off unless the operator opts in: it makes the bridge handle account passwords. */
+  allowAppPassword: boolean
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
@@ -32,5 +34,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     dataDir,
     version: '0.2.0',
     maxBodyBytes: 64 * 1024,
+    allowAppPassword: env.PLATINUM_BRIDGE_ALLOW_APP_PASSWORD === '1',
   }
 }

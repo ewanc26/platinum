@@ -129,6 +129,8 @@ npm run dev
 
 The bridge defaults to `127.0.0.1:8787`.
 
+Signing in with an app password instead of the browser is off unless you set `PLATINUM_BRIDGE_ALLOW_APP_PASSWORD=1`. Read the warning in [docs/BRIDGE_PROTOCOL.md](docs/BRIDGE_PROTOCOL.md) first: over plain HTTP the password crosses your network in the clear. The Mac client has no window for it yet.
+
 For OAuth, set `PLATINUM_BRIDGE_PUBLIC_URL` to the externally reachable HTTPS URL of the bridge. The OAuth client metadata and callback URL are derived from that value.
 
 Do not expose the bridge directly to an untrusted network without an appropriate HTTPS and access-control boundary.

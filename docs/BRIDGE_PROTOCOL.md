@@ -27,12 +27,31 @@ resolution or the full AT Protocol stack.
 The pairing code is single-use and expires after ten minutes. OAuth refresh
 credentials remain on the bridge and are never sent to Mac OS 9.
 
+## App-password sign-in
+
+A separate path from OAuth, for accounts where browser pairing is not wanted.
+It is **off by default**: the operator sets `PLATINUM_BRIDGE_ALLOW_APP_PASSWORD=1`,
+because it means the bridge, and the Mac client on the way to it, handle an
+app password. Over plain HTTP that password is readable on the network between
+the Mac and the bridge; use it only over HTTPS or a network you trust.
+
+`POST /v1/login/app-password` with `{"identifier":"handle","password":"app password","service":"https://bsky.social"}`
+(`service` optional, public https hostnames only) returns exactly what
+`/v1/pair` returns: `{protocol, token, did, installationId}`. The password is
+held in memory for that one call and is never stored or logged; the PDS session
+is kept on the bridge in `app-password-sessions.json` (mode 0600), and revoking
+the token deletes it. Errors: `403 app_password_disabled`, `400 invalid_service`,
+`400 invalid_request`, `401 invalid_credentials` (fixed text, no upstream
+detail), `429 too_many_attempts` (five failures per client address per ten
+minutes).
+
 ## Endpoints
 
 GET /health
 GET /client-metadata.json
 GET /login?handle=...
 POST /v1/pair
+POST /v1/login/app-password
 POST /v1/revoke
 GET /v1/profile
 GET /v1/timeline?limit=20&cursor=...
