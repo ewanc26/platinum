@@ -288,7 +288,7 @@ void platinum_ui_draw(GrafPtr port,
     DrawString(kTimeline);
 
     status = platinum_timeline_status(timeline);
-    if (count == 0 || (status != NULL && status[0] != '\\0')) {
+    if (count == 0 || (status != NULL && status[0] != '\0')) {
         MoveTo(layout->timeline.left + 12, layout->timeline.top + 40);
         if (status != NULL)
             platinum_ui_text(status);
