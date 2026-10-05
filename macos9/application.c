@@ -18,6 +18,7 @@
 #include "preferences.h"
 #include "pairing.h"
 #include "text_codec.h"
+#include "scrollbar.h"
 #include <cJSON.h>
 
 #define kFileMenuID 128
@@ -49,6 +50,9 @@ static OSErr platinum_application_open_pairing(
     platinum_application *app);
 static void platinum_application_attempt_pair(
     platinum_application *app);
+static short platinum_application_timeline_visible_rows(
+    const platinum_application *app);
+
 static void platinum_application_show_pairing_error(
     platinum_application *app,
     const char *message);
@@ -157,6 +161,18 @@ OSErr platinum_application_init(platinum_application *app)
         return memFullErr;
     }
 
+    platinum_ui_layout_compute(&app->window->portRect, &app->layout);
+
+    if (platinum_scrollbar_open(&app->timeline_scrollbar,
+                                app->window,
+                                &app->layout.timeline_scrollbar) != noErr) {
+        DisposeWindow(app->window);
+        app->window = NULL;
+        platinum_session_close(&app->session);
+        platinum_application_dispose_menus(app);
+        return memFullErr;
+    }
+
     app->running = 1;
     wf_macos9_set_yield_callback(platinum_application_yield, app);
     platinum_application_relayout(app);
@@ -189,6 +205,8 @@ void platinum_application_dispose(platinum_application *app)
         return;
 
     wf_macos9_set_yield_callback(NULL, NULL);
+
+    platinum_scrollbar_close(&app->timeline_scrollbar);
 
     if (app->window != NULL) {
         DisposeWindow(app->window);
@@ -321,10 +339,31 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_submit_post(app);
                 }
             } else if (window == app->window) {
-                action = platinum_ui_handle_mouse(&app->layout,
-                                                  &app->ui,
-                                                  &app->timeline,
-                                                  event->where);
+                {
+                    short scrollbar_value;
+                    if (platinum_scrollbar_handle_mouse(
+                            &app->timeline_scrollbar,
+                            event,
+                            &scrollbar_value)) {
+                        app->ui.scroll_row = scrollbar_value;
+                        platinum_application_invalidate(app);
+                        break;
+                    }
+                }
+
+                {
+                    Point local_where;
+
+                    local_where = event->where;
+                    SetPort((GrafPtr)app->window);
+                    GlobalToLocal(&local_where);
+
+                    action = platinum_ui_handle_mouse(
+                        &app->layout,
+                        &app->ui,
+                        &app->timeline,
+                        local_where);
+                }
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
                 else if (action == PLATINUM_UI_ACTION_REFRESH)
@@ -485,6 +524,8 @@ static void platinum_application_draw(platinum_application *app)
                      &app->session,
                      &app->timeline);
 
+    platinum_scrollbar_draw(&app->timeline_scrollbar);
+
     SetPort(old_port);
 }
 
@@ -515,7 +556,29 @@ static void platinum_application_refresh_timeline(platinum_application *app)
         app->ui.selected_post = 0;
     }
 
+    platinum_application_relayout(app);
+    platinum_scrollbar_set_range(
+        &app->timeline_scrollbar,
+        (short)app->timeline.count,
+        platinum_application_timeline_visible_rows(app),
+        app->ui.scroll_row);
     platinum_application_invalidate(app);
+}
+
+static short platinum_application_timeline_visible_rows(
+    const platinum_application *app)
+{
+    short visible;
+
+    if (app == NULL)
+        return 1;
+
+    visible = (app->layout.timeline.bottom -
+               app->layout.timeline.top - 24) / 64;
+    if (visible < 1)
+        visible = 1;
+
+    return visible;
 }
 
 static void platinum_application_relayout(platinum_application *app)
@@ -527,9 +590,16 @@ static void platinum_application_relayout(platinum_application *app)
 
     if (!app->ui.show_detail) {
         app->layout.timeline.bottom = app->layout.detail.bottom;
+        app->layout.timeline_scrollbar.bottom = app->layout.detail.bottom;
         app->layout.navigation.bottom = app->layout.detail.bottom;
         app->layout.detail.top = app->layout.detail.bottom;
     }
+
+    platinum_scrollbar_set_range(
+        &app->timeline_scrollbar,
+        (short)app->timeline.count,
+        platinum_application_timeline_visible_rows(app),
+        app->ui.scroll_row);
 }
 
 static void platinum_application_invalidate(platinum_application *app)
