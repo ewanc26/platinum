@@ -20,9 +20,9 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Sign out with server-side revocation | yes | yes | implemented (`macos9/session.c`) |
 | Home timeline | yes | yes | implemented (`macos9/timeline.c`) |
 | Timeline paging | yes | yes | implemented (`macos9/timeline.c`) |
-| Notifications | yes | yes | implemented (`macos9/notifications.c`) |
+| Notifications | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Notifications paging | yes | yes | [#26](https://github.com/ewanc26/platinum/issues/26) |
-| Mark notifications seen | yes | yes | implemented (`macos9/notifications.c`) |
+| Mark notifications seen | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Thread view | yes | yes | [#27](https://github.com/ewanc26/platinum/issues/27) |
 | Post text | yes | yes | implemented (`macos9/application.c`) |
 | Reply | yes | yes | [#27](https://github.com/ewanc26/platinum/issues/27) |
