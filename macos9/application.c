@@ -18,7 +18,6 @@
 #include "pairing.h"
 #include "text_codec.h"
 #include "scrollbar.h"
-#include "window_kind.h"
 #include "json_min.h"
 #include "wolfram/macos9_tls.h"
 
@@ -157,19 +156,15 @@ OSErr platinum_application_init(platinum_application *app)
 
     SetRect(&bounds, 48, 40, 688, 520);
 
-    app->owner.kind = PLATINUM_WINDOW_MAIN;
-    app->owner.owner = app;
-
     app->window = NewCWindow(&bounds, 1, 0,
-                             platinum_window_proc,
+                             documentProc,
                              (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(app->window, kWindowTitle);
     if (app->window == NULL) {
         platinum_session_close(&app->session);
         platinum_application_dispose_menus(app);
         return memFullErr;
     }
-    SetWindowRefCon(app->window, (long)&app->owner);
-    SetWindowTitle(app->window, kWindowTitle);
 
     platinum_ui_layout_compute(&app->window->portRect, &app->layout);
 

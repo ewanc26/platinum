@@ -80,7 +80,6 @@ jobs:
             macos9/scrollbar.c \
             macos9/session.c \
             macos9/text_codec.c \
-            macos9/window_kind.c \
             macos9/timeline.c \
             macos9/ui.c \
             macos9/test/test_bridge_client.c \

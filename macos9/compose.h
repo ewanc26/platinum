@@ -4,7 +4,6 @@
 #include <Events.h>
 #include <TextEdit.h>
 #include <Windows.h>
-#include "window_kind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,7 +13,6 @@ extern "C" {
 #define PLATINUM_COMPOSE_STATUS_MAX 127
 
 typedef struct platinum_compose {
-    platinum_window_owner owner;
     WindowPtr window;
     TEHandle text;
     int posting;

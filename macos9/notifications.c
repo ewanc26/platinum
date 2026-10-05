@@ -291,16 +291,12 @@ OSErr platinum_notifications_open(platinum_notifications *notifications)
     }
 
     SetRect(&bounds, 86, 60, 666, 440);
-    notifications->owner.kind = PLATINUM_WINDOW_NOTIFICATIONS;
-    notifications->owner.owner = notifications;
-
     notifications->window = NewCWindow(&bounds, 1, 0,
-                                       platinum_window_proc,
+                                       documentProc,
                                        (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(notifications->window, kNotificationsTitle);
     if (notifications->window == NULL)
         return memFullErr;
-    SetWindowRefCon(notifications->window, (long)&notifications->owner);
-    SetWindowTitle(notifications->window, kNotificationsTitle);
 
     {
         Rect scrollbar_bounds;

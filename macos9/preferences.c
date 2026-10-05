@@ -63,19 +63,16 @@ OSErr platinum_preferences_open(platinum_preferences *preferences,
 
     preferences->session = session;
     preferences->status[0] = '\0';
-    preferences->owner.kind = PLATINUM_WINDOW_PREFERENCES;
-    preferences->owner.owner = preferences;
 
     SetRect(&bounds, 128, 92, 608, 386);
     preferences->window = NewCWindow(&bounds, 1, 0,
-                                     platinum_window_proc,
+                                     documentProc,
                                      (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(preferences->window, kPreferencesTitle);
     if (preferences->window == NULL) {
         preferences->session = NULL;
         return memFullErr;
     }
-    SetWindowRefCon(preferences->window, (long)&preferences->owner);
-    SetWindowTitle(preferences->window, kPreferencesTitle);
 
     SetPort((GrafPtr)preferences->window);
     platinum_preferences_draw(preferences);

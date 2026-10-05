@@ -10,7 +10,6 @@
 #include "preferences.h"
 #include "pairing.h"
 #include "scrollbar.h"
-#include "window_kind.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -18,7 +17,6 @@ extern "C" {
 #endif
 
 typedef struct platinum_application {
-    platinum_window_owner owner;
     platinum_session session;
     WindowPtr window;
     platinum_ui_layout layout;

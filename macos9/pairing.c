@@ -100,17 +100,14 @@ OSErr platinum_pairing_open(platinum_pairing *pairing,
         return noErr;
 
     memset(pairing, 0, sizeof(*pairing));
-    pairing->owner.kind = PLATINUM_WINDOW_PAIRING;
-    pairing->owner.owner = pairing;
 
     SetRect(&bounds, 96, 66, 640, 376);
     pairing->window = NewCWindow(&bounds, 1, 0,
-                                 platinum_window_proc,
+                                 documentProc,
                                  (WindowPtr)-1L, 1, 0L);
+    SetWindowTitle(pairing->window, kPairingTitle);
     if (pairing->window == NULL)
         return memFullErr;
-    SetWindowRefCon(pairing->window, (long)&pairing->owner);
-    SetWindowTitle(pairing->window, kPairingTitle);
 
     SetRect(&url_rect, 18, 50, bounds.right - bounds.left - 18, 72);
     pairing->bridge_url = TENew(&url_rect,
