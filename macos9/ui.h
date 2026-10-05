@@ -30,7 +30,8 @@ enum {
     PLATINUM_UI_ACTION_REFRESH = 1,
     PLATINUM_UI_ACTION_COMPOSE = 2,
     PLATINUM_UI_ACTION_QUIT = 3,
-    PLATINUM_UI_ACTION_PROFILE = 4
+    PLATINUM_UI_ACTION_PROFILE = 4,
+    PLATINUM_UI_ACTION_NOTIFICATIONS = 5
 };
 
 void platinum_ui_state_init(platinum_ui_state *state);
