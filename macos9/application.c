@@ -410,6 +410,9 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
                     platinum_application_sign_out(app);
+                } else if (action == PLATINUM_PREFERENCES_PAIR) {
+                    platinum_preferences_close(&app->preferences);
+                    platinum_application_open_pairing(app);
                 }
             } else if (app->notifications.window != NULL &&
                 FrontWindow() == app->notifications.window) {
