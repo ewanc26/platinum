@@ -10,21 +10,21 @@ static unsigned char kNotifications[] = {
 static unsigned char kProfile[] = { 7, 'P', 'r', 'o', 'f', 'i', 'l', 'e' };
 static unsigned char kTimeline[] = { 8, 'T', 'i', 'm', 'e', 'l', 'i', 'n', 'e' };
 static unsigned char kRefresh[] = { 7, 'R', 'e', 'f', 'r', 'e', 's', 'h' };
-static unsigned char kPost[] = { 6, 'P', 'o', 's', 't', 0x85, 0 };
+static unsigned char kPost[] = { 7, 'P', 'o', 's', 't', '.', '.', '.' };
 static unsigned char kSelected[] = {
-    14, 'S', 'e', 'l', 'e', 'c', 't', 'e', 'd', ' ', 'p', 'o', 's', 't'
+    13, 'S', 'e', 'l', 'e', 'c', 't', 'e', 'd', ' ', 'p', 'o', 's', 't'
 };
 static unsigned char kPaired[] = {
-    16, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'a', 'c', 'c', 'o', 'u', 'n', 't', ' ', 'r', 'e', 'a', 'd', 'y'
+    20, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'a', 'c', 'c', 'o', 'u', 'n', 't', ' ', 'r', 'e', 'a', 'd', 'y'
 };
 static unsigned char kNotPaired[] = {
-    34, 'C', 'o', 'n', 'n', 'e', 'c', 't', ' ', 't', 'o', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', 'B', 'r', 'i', 'd', 'g', 'e', ' ', 't', 'o', ' ', 'b', 'e', 'g', 'i', 'n'
+    35, 'C', 'o', 'n', 'n', 'e', 'c', 't', ' ', 't', 'o', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', 'B', 'r', 'i', 'd', 'g', 'e', ' ', 't', 'o', ' ', 'b', 'e', 'g', 'i', 'n'
 };
 static unsigned char kTimelinePlaceholder[] = {
-    27, 'T', 'i', 'm', 'e', 'l', 'i', 'n', 'e', ' ', 'd', 'a', 't', 'a', ' ', 'w', 'i', 'l', 'l', ' ', 'a', 'p', 'p', 'e', 'a', 'r', ' ', 'h', 'e', 'r', 'e', '.'
+    31, 'T', 'i', 'm', 'e', 'l', 'i', 'n', 'e', ' ', 'd', 'a', 't', 'a', ' ', 'w', 'i', 'l', 'l', ' ', 'a', 'p', 'p', 'e', 'a', 'r', ' ', 'h', 'e', 'r', 'e', '.'
 };
 static unsigned char kDetailPlaceholder[] = {
-    31, 'S', 'e', 'l', 'e', 'c', 't', ' ', 'a', ' ', 'p', 'o', 's', 't', ' ', 't', 'o', ' ', 'v', 'i', 'e', 'w', ' ', 'd', 'e', 't', 'a', 'i', 'l', 's', '.'
+    30, 'S', 'e', 'l', 'e', 'c', 't', ' ', 'a', ' ', 'p', 'o', 's', 't', ' ', 't', 'o', ' ', 'v', 'i', 'e', 'w', ' ', 'd', 'e', 't', 'a', 'i', 'l', 's', '.'
 };
 
 static void platinum_ui_button(const Rect *bounds, StringPtr title)
