@@ -24,7 +24,7 @@ static void notification_copy(char *destination,
     if (destination == NULL || capacity <= 0)
         return;
 
-    destination[0] = '\\0';
+    destination[0] = '\0';
     if (value == NULL || !cJSON_IsString(value) ||
         value->valuestring == NULL)
         return;
@@ -34,7 +34,7 @@ static void notification_copy(char *destination,
                                             capacity,
                                             NULL);
     if (length < 0)
-        destination[0] = '\\0';
+        destination[0] = '\0';
 }
 
 static void notification_time(char *destination,
@@ -44,14 +44,14 @@ static void notification_time(char *destination,
     if (destination == NULL || capacity <= 0)
         return;
 
-    destination[0] = '\\0';
+    destination[0] = '\0';
     if (value == NULL || !cJSON_IsString(value) ||
         value->valuestring == NULL)
         return;
 
     if (strlen(value->valuestring) >= 16 && capacity >= 6) {
         memcpy(destination, value->valuestring + 11, 5);
-        destination[5] = '\\0';
+        destination[5] = '\0';
     } else {
         notification_copy(destination, capacity, value);
     }
@@ -65,7 +65,7 @@ static void notifications_status(platinum_notifications *notifications,
     if (notifications == NULL)
         return;
 
-    notifications->status[0] = '\\0';
+    notifications->status[0] = '\0';
     if (status == NULL)
         return;
 
@@ -74,7 +74,7 @@ static void notifications_status(platinum_notifications *notifications,
         length = PLATINUM_NOTIFICATIONS_STATUS_MAX;
 
     memcpy(notifications->status, status, (size_t)length);
-    notifications->status[length] = '\\0';
+    notifications->status[length] = '\0';
 
     if (notifications->window != NULL)
         InvalRect(&notifications->window->portRect);
@@ -124,9 +124,9 @@ static int notifications_parse_item(platinum_notification *item,
     display_name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
 
     notification_copy(item->author, sizeof(item->author), display_name);
-    if (item->author[0] == '\\0')
+    if (item->author[0] == '\0')
         notification_copy(item->author, sizeof(item->author), handle);
-    if (item->author[0] == '\\0')
+    if (item->author[0] == '\0')
         notification_copy(item->author, sizeof(item->author), did);
 
     item->handle[0] = '@';
@@ -136,7 +136,7 @@ static int notifications_parse_item(platinum_notification *item,
                           sizeof(item->handle) - 1,
                           handle);
     } else {
-        item->handle[1] = '\\0';
+        item->handle[1] = '\0';
     }
 
     notification_copy(item->reason, sizeof(item->reason),
@@ -222,7 +222,7 @@ wf_status platinum_notifications_refresh(
     }
 
     cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
-    notifications->cursor[0] = '\\0';
+    notifications->cursor[0] = '\0';
     if (cursor != NULL && cJSON_IsString(cursor) &&
         cursor->valuestring != NULL) {
         notification_copy(notifications->cursor,
@@ -244,7 +244,7 @@ wf_status platinum_notifications_refresh(
 
 static void notification_text(const char *text, short x, short y)
 {
-    if (text == NULL || text[0] == '\\0')
+    if (text == NULL || text[0] == '\0')
         return;
 
     MoveTo(x, y);
@@ -349,7 +349,7 @@ void platinum_notifications_draw(platinum_notifications *notifications)
     notification_text("Reason", 230, 24);
     notification_text("Time", 450, 24);
 
-    if (notifications->status[0] != '\\0')
+    if (notifications->status[0] != '\0')
         notification_text(notifications->status, 12, 54);
 
     visible = (notifications->window->portRect.bottom - 78) / 46;
