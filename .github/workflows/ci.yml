@@ -4,12 +4,36 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, edited, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  # Repository flow: see CONTRIBUTING.md. The script is the single source of the
+  # rules so that a developer can run exactly what CI runs.
+  flow:
+    name: Flow and drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: tools/check-flow.sh drift
+      - name: Pull request title, body and commits
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/body.md"
+          tools/check-flow.sh title "$PR_TITLE"
+          tools/check-flow.sh body "$RUNNER_TEMP/body.md"
+          tools/check-flow.sh commits "$BASE_SHA..$HEAD_SHA"
+
   bridge:
     runs-on: ubuntu-latest
     defaults:
@@ -113,3 +137,22 @@ jobs:
             macos9/bridge_client.c macos9/json_min.c \
             macos9/test/test_bridge_client.c
           /tmp/test_bridge_client
+
+  # The one check branch protection should require. Requiring the individual
+  # jobs would let a renamed or added job silently drop out of the gate; this
+  # job fails unless every job it needs succeeded, and the drift check fails if
+  # a job is not listed here.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [flow, bridge, macos9]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = success ] || { echo "a required job did not succeed"; exit 1; }
+          done
