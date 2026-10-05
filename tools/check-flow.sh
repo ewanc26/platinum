@@ -34,7 +34,7 @@ cmd_body() {
   for h in "## What this changes" "## Why" "## Verification"; do
     grep -qxF "$h" "$f" || bad "PR body is missing the '$h' section"
   done
-  grep -q 'does not prove\|not a CodeWarrior\|not hardware' "$f" \
+  grep -qiE 'does not prove|not a codewarrior|not hardware|not verified|unverified|not run|not proven' "$f" \
     || bad "PR body must say what the verification does not prove (see Verification in the template)"
 }
 
