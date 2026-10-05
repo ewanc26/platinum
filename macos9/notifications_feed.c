@@ -165,9 +165,10 @@ void platinum_notifications_init(platinum_notifications *notifications)
     notifications_status(notifications, "No notifications loaded.");
 }
 
-wf_status platinum_notifications_refresh(
-    platinum_notifications *notifications,
-    platinum_bridge_client *bridge)
+static wf_status notifications_fetch(platinum_notifications *notifications,
+                                     platinum_bridge_client *bridge,
+                                     int append,
+                                     unsigned short *dropped)
 {
     wf_response response;
     platinum_json root;
@@ -175,20 +176,34 @@ wf_status platinum_notifications_refresh(
     platinum_json value;
     long index;
     long available;
+    long drop;
+    char path[64 + 3 * 255];
+    char cursor[sizeof(notifications->cursor)];
     wf_status status;
 
-    if (notifications == NULL || bridge == NULL)
-        return WF_ERR_INVALID_ARG;
+    if (dropped != NULL)
+        *dropped = 0;
+
+    strcpy(path, "/v1/notifications?limit=20");
+    if (append) {
+        strcat(path, "&cursor=");
+        if (platinum_bridge_query_escape(notifications->cursor,
+                                         path + strlen(path),
+                                         (long)(sizeof(path) - strlen(path)))
+            < 0)
+            return WF_ERR_INVALID_ARG;
+    } else {
+        notifications->count = 0;
+        notifications->scroll_row = 0;
+        notifications->cursor[0] = '\0';
+    }
 
     memset(&response, 0, sizeof(response));
     notifications->loading = 1;
-    notifications->count = 0;
-    notifications->scroll_row = 0;
-    notifications_status(notifications, kLoading);
+    notifications_status(notifications, append ? "Loading older notifications..."
+                                               : kLoading);
 
-    status = platinum_bridge_get(bridge,
-                                 "/v1/notifications?limit=20",
-                                 &response);
+    status = platinum_bridge_get(bridge, path, &response);
     if (status != WF_OK) {
         notifications->loading = 0;
         if (status == WF_ERR_AUTH)
@@ -196,25 +211,18 @@ wf_status platinum_notifications_refresh(
                 notifications, "Session expired. Pair the account again.");
         else
             notifications_status(notifications,
-                                  "Notification refresh failed.");
+                                 append ? "Could not load older notifications."
+                                        : "Notification refresh failed.");
         wf_response_free(&response);
         return status;
-    }
-
-    status = platinum_json_open(&root,
-                               response.body != NULL ? response.body : "");
-    if (status != WF_OK) {
-        notifications->loading = 0;
-        notifications_status(notifications,
-                             "The bridge returned invalid notifications.");
-        wf_response_free(&response);
-        return WF_ERR_PARSE;
     }
 
     /* notifications has to be an array. A response that omits it is reported as
      * invalid rather than shown as an empty list, because those are different
      * facts and conflating them hides a broken bridge. */
-    if (platinum_json_member(root, "notifications", &items) != WF_OK ||
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(root, "notifications", &items) != WF_OK ||
         platinum_json_count(items, &available) != WF_OK) {
         notifications->loading = 0;
         notifications_status(notifications,
@@ -223,34 +231,54 @@ wf_status platinum_notifications_refresh(
         return WF_ERR_PARSE;
     }
 
-    if (available > PLATINUM_NOTIFICATIONS_MAX)
-        available = PLATINUM_NOTIFICATIONS_MAX;
+    if (available > PLATINUM_NOTIFICATIONS_PAGE)
+        available = PLATINUM_NOTIFICATIONS_PAGE;
 
-    for (index = 0; index < available; ++index) {
+    /* Known good, so only now drop the newest rows to stay within the cap. */
+    drop = (long)notifications->count + available - PLATINUM_NOTIFICATIONS_MAX;
+    if (drop > (long)notifications->count)
+        drop = (long)notifications->count;
+    if (drop > 0) {
+        memmove(&notifications->items[0], &notifications->items[drop],
+                (size_t)((long)notifications->count - drop) *
+                    sizeof(notifications->items[0]));
+        notifications->count =
+            (unsigned short)((long)notifications->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
+    }
+
+    if (!append) {
+        /* The newest item comes first. Its timestamp is an identifier for the
+         * bridge, so it is copied exactly or not at all. */
+        notifications->newest_at[0] = '\0';
+        notifications->any_unread = 0;
+        if (available > 0 &&
+            platinum_json_element(items, 0, &value) == WF_OK &&
+            platinum_json_string(value, "indexedAt", notifications->newest_at,
+                                 sizeof(notifications->newest_at)) != WF_OK)
+            notifications->newest_at[0] = '\0';
+    }
+
+    for (index = 0; index < available &&
+                    notifications->count < PLATINUM_NOTIFICATIONS_MAX; ++index) {
         if (platinum_json_element(items, index, &value) != WF_OK)
             continue;
         if (notifications_parse_item(
-                &notifications->items[notifications->count],
-                value))
+                &notifications->items[notifications->count], value)) {
+            /* Older pages never move the seen mark: it is set from the newest
+             * item of a refresh only. */
+            if (!append && !notifications->items[notifications->count].is_read)
+                notifications->any_unread = 1;
             ++notifications->count;
+        }
     }
 
-    notifications->cursor[0] = '\0';
-    notification_copy(notifications->cursor, sizeof(notifications->cursor),
-                      root, "cursor");
-
-    /* The newest item comes first. Its timestamp is an identifier for the
-     * bridge, so it is copied exactly or not at all. */
-    notifications->newest_at[0] = '\0';
-    notifications->any_unread = 0;
-    for (index = 0; index < notifications->count; ++index)
-        if (!notifications->items[index].is_read)
-            notifications->any_unread = 1;
-    if (notifications->count > 0 &&
-        platinum_json_element(items, 0, &value) == WF_OK &&
-        platinum_json_string(value, "indexedAt", notifications->newest_at,
-                             sizeof(notifications->newest_at)) != WF_OK)
-        notifications->newest_at[0] = '\0';
+    /* A cursor is copied exactly or not at all. */
+    if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) == WF_OK)
+        strcpy(notifications->cursor, cursor);
+    else
+        notifications->cursor[0] = '\0';
 
     /* Everything has been copied out of response.body by now. */
     wf_response_free(&response);
@@ -262,6 +290,35 @@ wf_status platinum_notifications_refresh(
         notifications_status(notifications, kRefreshHint);
 
     return WF_OK;
+}
+
+wf_status platinum_notifications_refresh(
+    platinum_notifications *notifications,
+    platinum_bridge_client *bridge)
+{
+    if (notifications == NULL || bridge == NULL)
+        return WF_ERR_INVALID_ARG;
+    return notifications_fetch(notifications, bridge, 0, NULL);
+}
+
+int platinum_notifications_has_older(
+    const platinum_notifications *notifications)
+{
+    return notifications != NULL && notifications->cursor[0] != '\0' &&
+           notifications->count > 0;
+}
+
+wf_status platinum_notifications_load_older(
+    platinum_notifications *notifications,
+    platinum_bridge_client *bridge,
+    unsigned short *dropped)
+{
+    if (dropped != NULL)
+        *dropped = 0;
+    if (notifications == NULL || bridge == NULL ||
+        !platinum_notifications_has_older(notifications))
+        return WF_ERR_INVALID_ARG;
+    return notifications_fetch(notifications, bridge, 1, dropped);
 }
 
 wf_status platinum_notifications_mark_seen(

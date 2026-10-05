@@ -21,7 +21,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Home timeline | yes | yes | implemented (`macos9/timeline.c`) |
 | Timeline paging | yes | yes | implemented (`macos9/timeline.c`) |
 | Notifications | yes | yes | implemented (`macos9/notifications_feed.c`) |
-| Notifications paging | yes | yes | [#26](https://github.com/ewanc26/platinum/issues/26) |
+| Notifications paging | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Mark notifications seen | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Thread view | yes | yes | [#27](https://github.com/ewanc26/platinum/issues/27) |
 | Post text | yes | yes | implemented (`macos9/application.c`) |
@@ -55,4 +55,4 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-13 implemented, 27 tracked by an open issue, 1 not possible.
+14 implemented, 26 tracked by an open issue, 1 not possible.

@@ -18,7 +18,7 @@ Releases are paused until Platinum has run on Mac OS 9 (#62).
 
 ### Mac client
 
-- Timeline paging, keeping at most forty posts.
+- Timeline and notification paging, each keeping at most forty rows.
 - Like and repost the selected post from the Post menu.
 - Opening or refreshing Notifications marks them seen, up to the newest one shown.
 - Windows hilite and deactivate correctly, and a click on a background window brings it forward.

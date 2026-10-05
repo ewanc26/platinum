@@ -29,7 +29,7 @@ Early, and I'd rather say so plainly.
 
 - **The bridge works.** It does OAuth pairing, issues and revokes tokens, and serves a profile, a timeline, notifications and posting. App-password sign-in exists but is off unless you turn it on. The bridge has tests and they run in CI.
 - **The Mac client is written but unproven.** It has a window, menus, a timeline, Profile and Notifications windows, compose and preferences. CI compiles every source as strict C89 against declaration-only stand-ins for the Mac SDK, and runs the pairing and JSON tests. That checks dialect and types. It is not a CodeWarrior build, and nothing in this repository records it running on a real Mac or an emulator.
-- **Much is missing.** The timeline pages back now; notifications don't yet. You can like and repost. Threads, replies, images and search are still to come. [docs/PARITY.md](docs/PARITY.md) lists every gap against Cobalt and Indigo with an issue for each, and CI checks that table against the code so it can't claim more than exists.
+- **Much is missing.** The timeline and notifications page back now. You can like and repost. Threads, replies, images and search are still to come. [docs/PARITY.md](docs/PARITY.md) lists every gap against Cobalt and Indigo with an issue for each, and CI checks that table against the code so it can't claim more than exists.
 
 ## Install
 

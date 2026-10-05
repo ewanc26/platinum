@@ -46,6 +46,8 @@ static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
     platinum_application *app);
+static void platinum_application_older_notifications(
+    platinum_application *app);
 static void platinum_application_recover_auth(
     platinum_application *app,
     wf_status status);
@@ -327,6 +329,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
                     platinum_application_refresh_notifications(app);
+                } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
+                    platinum_application_older_notifications(app);
                 }
             } else if (app->pairing.window != NULL &&
                        window == app->pairing.window) {
@@ -493,6 +497,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
                     platinum_application_refresh_notifications(app);
+                } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
+                    platinum_application_older_notifications(app);
                 }
             } else if (app->profile.window != NULL &&
                        FrontWindow() == app->profile.window) {
@@ -1059,6 +1065,33 @@ static void platinum_application_open_notifications(platinum_application *app)
         return;
 
     platinum_application_refresh_notifications(app);
+}
+
+static void platinum_application_older_notifications(
+    platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    status = platinum_notifications_load_older(&app->notifications, bridge,
+                                               &dropped);
+    platinum_application_recover_auth(app, status);
+    if (status == WF_OK) {
+        /* Keep the same rows on screen, then step onto the first new one. */
+        app->notifications.scroll_row -= (short)dropped;
+        if (app->notifications.scroll_row < 0)
+            app->notifications.scroll_row = 0;
+        ++app->notifications.scroll_row;
+    }
+    if (app->notifications.window != NULL)
+        InvalRect(&app->notifications.window->portRect);
 }
 
 static void platinum_application_refresh_notifications(
