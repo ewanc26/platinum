@@ -115,6 +115,7 @@ jobs:
             macos9/ui.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c \
+            macos9/test/test_timeline.c \
             macos9/test/wolfram_stub.c
           do
             for cc in clang gcc; do
@@ -149,6 +150,12 @@ jobs:
             macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_bridge_client.c
           /tmp/test_bridge_client
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_timeline \
+            macos9/timeline.c macos9/text_codec.c macos9/bridge_client.c \
+            macos9/json_min.c macos9/test/wolfram_stub.c \
+            macos9/test/test_timeline.c
+          /tmp/test_timeline
 
   # The one check branch protection should require. Requiring the individual
   # jobs would let a renamed or added job silently drop out of the gate; this
