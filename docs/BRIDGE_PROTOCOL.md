@@ -80,7 +80,7 @@ Timeline responses contain only fields that the Classic Mac client needs:
 }
 ```
 
-The bridge deliberately does not expose raw feed-view embeds, reply views or AppView-specific extension fields. Clients should treat absent optional author fields as empty.
+The bridge deliberately does not expose raw feed-view embeds, reply views or AppView-specific extension fields. Clients should treat absent optional author fields as empty. Text fields are bounded by Unicode code point count so the bridge cannot split a UTF-16 surrogate pair when limiting native-client payloads.
 
 ### Notifications response
 
@@ -105,6 +105,8 @@ The bridge deliberately does not expose raw feed-view embeds, reply views or App
 ```
 
 ### Post response
+
+Post text is accepted as UTF-8. The native Classic Mac client converts its MacRoman TextEdit buffer to UTF-8 before submitting it and currently limits posts to 300 characters.
 
 ```json
 {
