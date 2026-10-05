@@ -604,6 +604,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - initial Classic Mac UI layout and visual specification;
 - interactive navigation and timeline selection;
 - native TextEdit compose window;
+- native bridge pairing/configuration window;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -611,7 +612,6 @@ The current branch contains the first working bridge architecture and Mac-side b
 
 ### In progress
 
-- pairing UI;
 - live bridge-backed timeline/profile/notification screens;
 - bridge-backed post submission;
 - post composition;
