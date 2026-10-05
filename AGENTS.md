@@ -486,7 +486,8 @@ Keep these documents aligned:
 
 - `README.md` — user-facing project overview and setup;
 - `AGENTS.md` — engineering and agent guidance;
-- `docs/BRIDGE_PROTOCOL.md` — wire protocol and security contract.
+- `docs/BRIDGE_PROTOCOL.md` — wire protocol and security contract;
+- `docs/UI_DESIGN.md` — native Classic Mac UI specification.
 
 When changing an endpoint, request/response shape, pairing, authentication, minimum Wolfram version, Mac OS 9 build requirement or persistent state, update the relevant documentation in the same change.
 
@@ -596,6 +597,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - persistent Classic Mac configuration;
 - account session lifecycle and revocation handling;
 - native event-driven application shell;
+- initial Classic Mac UI layout and visual specification;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -604,7 +606,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
-- native timeline/profile/notification screens;
+- interactive timeline/profile/notification screens;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
