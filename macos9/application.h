@@ -3,6 +3,7 @@
 
 #include "session.h"
 #include "ui.h"
+#include <Menus.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,6 +13,12 @@ typedef struct platinum_application {
     platinum_session session;
     WindowPtr window;
     platinum_ui_layout layout;
+    platinum_ui_state ui;
+    MenuHandle file_menu;
+    MenuHandle edit_menu;
+    MenuHandle view_menu;
+    MenuHandle window_menu;
+    MenuHandle help_menu;
     int running;
 } platinum_application;
 
