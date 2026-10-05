@@ -28,6 +28,7 @@ static void platinum_application_dispose_menus(platinum_application *app);
 static void platinum_application_handle_menu(platinum_application *app,
                                              long choice);
 static void platinum_application_invalidate(platinum_application *app);
+static void platinum_application_relayout(platinum_application *app);
 
 static unsigned char kWindowTitle[] = {
     15, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', '-', ' ',
@@ -124,7 +125,7 @@ OSErr platinum_application_init(platinum_application *app)
 
     app->running = 1;
     wf_macos9_set_yield_callback(platinum_application_yield, app);
-    platinum_ui_layout_compute(&app->window->portRect, &app->layout);
+    platinum_application_relayout(app);
     platinum_application_invalidate(app);
     return noErr;
 }
@@ -224,7 +225,7 @@ static void platinum_application_handle_event(platinum_application *app,
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
                 BeginUpdate(window);
-                platinum_ui_layout_compute(&window->portRect, &app->layout);
+                platinum_application_relayout(app);
                 platinum_application_draw(app);
                 EndUpdate(window);
             }
@@ -283,6 +284,20 @@ static void platinum_application_draw(platinum_application *app)
                      &app->session);
 
     SetPort(old_port);
+}
+
+static void platinum_application_relayout(platinum_application *app)
+{
+    if (app == NULL || app->window == NULL)
+        return;
+
+    platinum_ui_layout_compute(&app->window->portRect, &app->layout);
+
+    if (!app->ui.show_detail) {
+        app->layout.timeline.bottom = app->layout.detail.bottom;
+        app->layout.navigation.bottom = app->layout.detail.bottom;
+        app->layout.detail.top = app->layout.detail.bottom;
+    }
 }
 
 static void platinum_application_invalidate(platinum_application *app)
