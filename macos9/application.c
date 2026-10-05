@@ -19,7 +19,7 @@ static void platinum_application_handle_event(platinum_application *app,
 static void platinum_application_draw(platinum_application *app);
 
 static unsigned char kWindowTitle[] = {
-    16, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', '-', ' ',
+    15, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', '-', ' ',
     'H', 'o', 'm', 'e'
 };
 
