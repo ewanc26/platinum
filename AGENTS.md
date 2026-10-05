@@ -68,6 +68,14 @@ The bridge owns:
 
 ### Security boundary
 
+One deliberate exception: app-password sign-in (`POST /v1/login/app-password`,
+`bridge/src/auth/app-password.ts`) is an operator opt-in, off unless
+`PLATINUM_BRIDGE_ALLOW_APP_PASSWORD=1`. The password lives in memory for one
+call, never in a file, log, response or error text; the service URL is
+restricted to public https hostnames; failures are rate-limited; the stored
+PDS session is bridge-side and deleted on revoke. Do not weaken any of these.
+Everything below still holds for OAuth pairing.
+
 The Mac client must never need:
 
 - the user's normal Bluesky password;
