@@ -185,8 +185,12 @@ wf_status platinum_notifications_refresh(
                                  &response);
     if (status != WF_OK) {
         notifications->loading = 0;
-        notifications_status(notifications,
-                             "Notification refresh failed.");
+        if (status == WF_ERR_AUTH)
+            notifications_status(
+                notifications, "Session expired. Pair the account again.");
+        else
+            notifications_status(notifications,
+                                  "Notification refresh failed.");
         wf_response_free(&response);
         return status;
     }
