@@ -790,6 +790,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - interactive navigation and timeline selection;
 - bounded timeline paging (forty rows kept, `platinum_timeline_load_older`);
 - like and repost with undo (Post menu, `POST /v1/like` and `/v1/repost`);
+- notifications marked seen on view, by the newest item's own timestamp;
 - native TextEdit compose window and bridge-backed post submission;
 - live Profile and Notifications windows;
 - account Preferences and first-run/re-pairing UI;
