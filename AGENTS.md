@@ -613,7 +613,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 
 - pairing UI;
 - live bridge-backed profile/notification screens;
-- bridge-backed post submission;
+- full MacRoman-to-UTF-8 post submission;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
