@@ -42,10 +42,12 @@ void platinum_ui_draw(GrafPtr port,
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_timeline *timeline,
                              Point where);
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_timeline *timeline,
                            EventRecord *event);
 
 #ifdef __cplusplus
