@@ -157,6 +157,25 @@ jobs:
             macos9/test/test_timeline.c
           /tmp/test_timeline
 
+  # Builds the release inputs exactly as a real release would, publishes
+  # nothing, and checks them with the updater's own parser, so the first real
+  # release is one command. Releases themselves are paused (RELEASES_PAUSED).
+  release-dry-run:
+    name: Release dry run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bridge/package.json
+      - name: Build release inputs without tagging or publishing
+        run: |
+          version=$(node -p "require('./bridge/package.json').version")
+          scripts/release.sh --dry-run "$version"
+          (cd bridge && node --import tsx ../scripts/verify-release.mts "$version")
+
   # The one check branch protection should require. Requiring the individual
   # jobs would let a renamed or added job silently drop out of the gate; this
   # job fails unless every job it needs succeeded, and the drift check fails if
@@ -164,7 +183,7 @@ jobs:
   gate:
     name: CI gate
     if: always()
-    needs: [flow, bridge, macos9]
+    needs: [flow, bridge, macos9, release-dry-run]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

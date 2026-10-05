@@ -1,0 +1,5 @@
+Releases are paused until the owner has run Platinum on Mac OS 9: see
+https://github.com/ewanc26/platinum/issues/62
+
+scripts/release.sh refuses to tag or publish while this file exists.
+--dry-run still works. Deleting this file is the owner's decision.
