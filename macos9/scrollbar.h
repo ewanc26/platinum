@@ -13,6 +13,7 @@ typedef struct platinum_scrollbar {
     ControlHandle control;
     WindowPtr window;
     Rect bounds;
+    short maximum;
 } platinum_scrollbar;
 
 OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
