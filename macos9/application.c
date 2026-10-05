@@ -215,6 +215,7 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (window == app->window) {
                 action = platinum_ui_handle_mouse(&app->layout,
                                                   &app->ui,
+                                                  &app->timeline,
                                                   event->where);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
@@ -261,7 +262,10 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 }
             } else {
-                action = platinum_ui_handle_key(&app->layout, &app->ui, event);
+                action = platinum_ui_handle_key(&app->layout,
+                                                &app->ui,
+                                                &app->timeline,
+                                                event);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
                 else if (action == PLATINUM_UI_ACTION_REFRESH)
