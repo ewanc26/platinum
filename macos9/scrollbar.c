@@ -31,7 +31,6 @@ OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
         return memFullErr;
     }
 
-    SetCtlAction(scrollbar->control, (ProcPtr)-1L);
     return noErr;
 }
 
@@ -120,7 +119,7 @@ int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
 
     result = TrackControl(scrollbar->control,
                           where,
-                          (ProcPtr)-1L);
+                          (ControlActionUPP)-1L);
     if (result != 0)
         *value = GetCtlValue(scrollbar->control);
 
