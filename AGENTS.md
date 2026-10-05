@@ -107,7 +107,9 @@ platinum/
 │   ├── config.h
 │   ├── main.c
 │   ├── session.c
-│   └── session.h
+│   ├── session.h
+│   ├── ui.c
+│   └── ui.h
 └── .github/
     └── workflows/
         └── ci.yml
