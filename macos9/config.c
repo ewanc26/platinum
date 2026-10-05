@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Portable OSType: a multi-character constant is implementation-defined. */
+#define PLATINUM_OSTYPE(a, b, c, d) \
+    ((((long)(a)) << 24) | (((long)(b)) << 16) | (((long)(c)) << 8) | ((long)(d)))
+
 #define PLATINUM_CONFIG_VERSION "1"
 #define PLATINUM_CONFIG_MAX_FILE 8192
 
@@ -175,7 +179,8 @@ OSErr platinum_config_save(const platinum_config *config)
 
     err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
     if (err == fnfErr) {
-        err = FSpCreate(&spec, 'PTLM', 'PREF', smSystemScript);
+        err = FSpCreate(&spec, PLATINUM_OSTYPE('P', 'T', 'L', 'M'),
+                       PLATINUM_OSTYPE('P', 'R', 'E', 'F'), smSystemScript);
         if (err == noErr)
             err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
     }

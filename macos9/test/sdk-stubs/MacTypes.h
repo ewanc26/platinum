@@ -16,7 +16,7 @@ typedef signed short SInt16;
 typedef unsigned short UInt16;
 typedef signed long SInt32;
 typedef unsigned long UInt32;
-typedef unsigned long Size;
+typedef long Size;
 typedef unsigned short OSType;
 typedef UInt32 KeyMap[4];
 
