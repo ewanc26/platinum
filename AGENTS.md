@@ -103,6 +103,8 @@ platinum/
 │   ├── application.h
 │   ├── bridge_client.c
 │   ├── bridge_client.h
+│   ├── compose.c
+│   ├── compose.h
 │   ├── config.c
 │   ├── config.h
 │   ├── main.c
@@ -601,6 +603,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - native event-driven application shell;
 - initial Classic Mac UI layout and visual specification;
 - interactive navigation and timeline selection;
+- native TextEdit compose window;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -610,6 +613,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 
 - pairing UI;
 - live bridge-backed timeline/profile/notification screens;
+- bridge-backed post submission;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
