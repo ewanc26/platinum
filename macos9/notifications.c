@@ -231,6 +231,12 @@ int platinum_notifications_handle_event(
                         --notifications->scroll_row;
                     break;
                 case downArrow:
+                    /* Down at the bottom of the list asks for the next page,
+                     * by keystroke rather than as a side effect of scrolling. */
+                    if (notifications->scroll_row + visible >=
+                            (short)notifications->count &&
+                        platinum_notifications_has_older(notifications))
+                        return PLATINUM_NOTIFICATIONS_LOAD_OLDER;
                     if (notifications->scroll_row + visible <
                         (short)notifications->count)
                         ++notifications->scroll_row;

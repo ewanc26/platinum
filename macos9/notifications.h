@@ -11,7 +11,9 @@
 extern "C" {
 #endif
 
-#define PLATINUM_NOTIFICATIONS_MAX 20
+/* Rows kept, and rows per request; past the cap the newest are dropped. */
+#define PLATINUM_NOTIFICATIONS_MAX 40
+#define PLATINUM_NOTIFICATIONS_PAGE 20
 #define PLATINUM_NOTIFICATION_AUTHOR_MAX 64
 #define PLATINUM_NOTIFICATION_HANDLE_MAX 64
 #define PLATINUM_NOTIFICATION_REASON_MAX 32
@@ -45,13 +47,23 @@ typedef struct platinum_notifications {
 enum {
     PLATINUM_NOTIFICATIONS_NONE = 0,
     PLATINUM_NOTIFICATIONS_CLOSE = 1,
-    PLATINUM_NOTIFICATIONS_REFRESH = 2
+    PLATINUM_NOTIFICATIONS_REFRESH = 2,
+    PLATINUM_NOTIFICATIONS_LOAD_OLDER = 3
 };
 
 void platinum_notifications_init(platinum_notifications *notifications);
 wf_status platinum_notifications_refresh(
     platinum_notifications *notifications,
     platinum_bridge_client *bridge);
+/* Append the next page; on success `dropped` rows left the front. A failed
+ * page keeps what was loaded. WF_ERR_INVALID_ARG when nothing is older. */
+wf_status platinum_notifications_load_older(
+    platinum_notifications *notifications,
+    platinum_bridge_client *bridge,
+    unsigned short *dropped);
+int platinum_notifications_has_older(
+    const platinum_notifications *notifications);
+
 /*
  * Mark everything up to the newest loaded notification as seen, if any loaded
  * item was unread. Uses the newest item's own timestamp, not the Mac clock, so
