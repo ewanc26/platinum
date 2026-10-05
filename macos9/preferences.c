@@ -195,7 +195,8 @@ int platinum_preferences_handle_event(platinum_preferences *preferences,
 
         case activateEvt:
             if ((WindowPtr)(long)event->message == preferences->window)
-                HiliteWindow(preferences->window);
+                HiliteWindow(preferences->window,
+                             (event->modifiers & activeFlag) != 0);
             return PLATINUM_PREFERENCES_NONE;
 
         case mouseDown:

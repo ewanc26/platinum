@@ -203,8 +203,12 @@ int platinum_compose_handle_event(platinum_compose *compose,
     switch (event->what) {
         case activateEvt:
             if ((WindowPtr)(long)event->message == compose->window &&
-                !compose->posting)
-                TEActivate(compose->text);
+                !compose->posting) {
+                if (event->modifiers & activeFlag)
+                    TEActivate(compose->text);
+                else
+                    TEDeactivate(compose->text);
+            }
             return PLATINUM_COMPOSE_NONE;
 
         case updateEvt:

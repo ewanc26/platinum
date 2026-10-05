@@ -27,6 +27,8 @@ typedef EventRecord *EventPtr;
 #define keyUp 5
 #define autoKey 6
 #define activateEvt 7
+/* EventRecord.modifiers bit set on an activateEvt that activates (clear: deactivates). */
+#define activeFlag 0x0001
 #define updateEvt 8
 
 #define charEventMask 0x0001
