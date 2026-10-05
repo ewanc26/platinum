@@ -2,6 +2,7 @@
 
 #include <Files.h>
 #include <Folders.h>
+#include <Script.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -174,7 +175,7 @@ OSErr platinum_config_save(const platinum_config *config)
 
     err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
     if (err == fnfErr) {
-        err = FSpCreate(&spec, 'PTLM', 'PREF');
+        err = FSpCreate(&spec, 'PTLM', 'PREF', smSystemScript);
         if (err == noErr)
             err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
     }
