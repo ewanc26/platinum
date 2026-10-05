@@ -5,7 +5,8 @@
 #           issue       -> #number of the tracking issue (must be open; see tools/check-parity.sh)
 #           impossible  -> reason, with the primary source
 signin-oauth|OAuth sign-in (browser, paired)|no|yes|implemented|macos9/bridge_client.c::platinum_bridge_pair
-signin-app-password|App-password sign-in|yes|yes|issue|#38
+signin-app-password|App-password sign-in (bridge endpoint)|yes|yes|implemented|bridge/src/auth/app-password.ts::class AppPasswordService
+signin-app-password-client|App-password sign-in (Mac window)|yes|yes|issue|#51
 session-persist|Session survives restart|yes|yes|implemented|macos9/session.c::platinum_session_load
 sign-out|Sign out with server-side revocation|yes|yes|implemented|macos9/session.c::platinum_bridge_revoke
 timeline|Home timeline|yes|yes|implemented|macos9/timeline.c::platinum_timeline_refresh

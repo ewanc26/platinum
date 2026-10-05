@@ -9,6 +9,7 @@ export interface IssuedToken {
 export interface InstallationOptions {
   clientVersion?: string
   installationLabel?: string
+  authKind?: 'oauth' | 'app-password'
 }
 
 export class TokenService {
@@ -22,6 +23,7 @@ export class TokenService {
       createdAt: new Date().toISOString(),
       clientVersion: options.clientVersion,
       installationLabel: options.installationLabel,
+      authKind: options.authKind,
     }
     await this.store.create(record)
     return { token, record }
@@ -37,9 +39,14 @@ export class TokenService {
   }
 
   async revoke(token: string): Promise<boolean> {
+    return (await this.revokeRecord(token)) !== undefined
+  }
+
+  /** Revoke and return the record that was revoked, or undefined if the token was not valid. */
+  async revokeRecord(token: string): Promise<InstallationRecord | undefined> {
     const record = await this.store.getByTokenHash(hashToken(token))
-    if (!record || record.revokedAt) return false
-    return this.store.revoke(record.id)
+    if (!record || record.revokedAt) return undefined
+    return (await this.store.revoke(record.id)) ? record : undefined
   }
 
   async rotate(token: string, options: InstallationOptions = {}): Promise<IssuedToken | undefined> {

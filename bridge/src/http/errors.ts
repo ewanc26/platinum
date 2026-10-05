@@ -8,6 +8,11 @@ export type BridgeErrorCode =
   | 'text_too_long'
   | 'upstream_error'
   | 'bridge_error'
+  | 'app_password_disabled'
+  | 'too_many_attempts'
+  | 'invalid_request'
+  | 'invalid_service'
+  | 'invalid_credentials'
 
 export class BridgeError extends Error {
   constructor(

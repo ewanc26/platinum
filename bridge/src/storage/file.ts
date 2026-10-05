@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { NodeSavedSession, NodeSavedSessionStore, NodeSavedState, NodeSavedStateStore } from '@atproto/oauth-client-node'
+import type { StoredAppSession } from '../auth/app-password.js'
 import type { BridgeStorage, InstallationRecord, InstallationStore } from './interfaces.js'
 
 export class FileStorage implements BridgeStorage {
@@ -10,6 +11,7 @@ export class FileStorage implements BridgeStorage {
   sessionStore(): NodeSavedSessionStore { return this.keyValueStore<NodeSavedSession>('sessions.json') }
   stateStore(): NodeSavedStateStore { return this.keyValueStore<NodeSavedState>('states.json') }
   installations(): InstallationStore { return this.installationStore }
+  appPasswordSessions() { return this.keyValueStore<StoredAppSession>('app-password-sessions.json') }
   private keyValueStore<T>(name: string): { set: (key: string, value: T) => Promise<void>; get: (key: string) => Promise<T | undefined>; del: (key: string) => Promise<void> } {
     return {
       set: async (key, value) => { const data = await this.load<T>(name); data[key] = value; await this.save(name, data) },

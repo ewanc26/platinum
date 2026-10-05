@@ -5,6 +5,7 @@ import { Agent } from '@atproto/api'
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { loadConfig } from './config.js'
 import { AtprotoClient } from './atproto/client.js'
+import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
 import { DomainApi } from './domain/api.js'
@@ -36,7 +37,9 @@ const oauth = new NodeOAuthClient({
 
 const pairing = new PairingService()
 const tokens = new TokenService(storage.installations())
-const atproto = new AtprotoClient(oauth)
+const appPassword = new AppPasswordService(storage.appPasswordSessions())
+const loginFailures = new FailureLimiter()
+const atproto = new AtprotoClient(oauth, appPassword)
 const domain = new DomainApi()
 
 await migrateLegacyTokens()
@@ -147,13 +150,63 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     })
   }
 
+  if (req.method === 'POST' && url.pathname === '/v1/login/app-password') {
+    if (!config.allowAppPassword) {
+      return json(res, 403, errorBody('app_password_disabled', 'App-password sign-in is not enabled on this bridge.'))
+    }
+    const peer = req.socket.remoteAddress ?? 'unknown'
+    if (loginFailures.blocked(peer)) {
+      return json(res, 429, errorBody('too_many_attempts', 'Too many failed sign-in attempts. Try again later.'))
+    }
+
+    let input: { identifier?: unknown; password?: unknown; service?: unknown; clientVersion?: string; installationLabel?: string }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    if (typeof input.identifier !== 'string' || typeof input.password !== 'string' ||
+        !input.identifier || !input.password || input.identifier.length > 256 || input.password.length > 256) {
+      return json(res, 400, errorBody('invalid_request', 'A handle and an app password are required.'))
+    }
+    let service: string
+    try {
+      service = validateService(typeof input.service === 'string' ? input.service : undefined)
+    } catch (error) {
+      if (error instanceof InvalidServiceError) return json(res, 400, errorBody('invalid_service', error.message))
+      throw error
+    }
+
+    let signedIn
+    try {
+      signedIn = await appPassword.login(input.identifier, input.password, service)
+    } catch (error) {
+      if (error instanceof InvalidCredentialsError) {
+        loginFailures.fail(peer)
+        return json(res, 401, errorBody('invalid_credentials', 'The handle or app password is not valid.'))
+      }
+      throw error
+    }
+    const issued = await tokens.issue(signedIn.did, undefined, {
+      clientVersion: typeof input.clientVersion === 'string' ? input.clientVersion : undefined,
+      installationLabel: typeof input.installationLabel === 'string' ? input.installationLabel : undefined,
+      authKind: 'app-password',
+    })
+    await appPassword.save(issued.record.id, signedIn.service, signedIn.session)
+    return json(res, 200, { protocol: 1, token: issued.token, did: issued.record.did, installationId: issued.record.id })
+  }
+
   if (req.method === 'POST' && url.pathname === '/v1/revoke') {
     const token = bearerToken(req)
     if (!token) {
       return json(res, 401, errorBody('missing_bearer_token', 'A Platinum installation token is required.'))
     }
 
-    const revoked = await tokens.revoke(token)
+    const revoked = await tokens.revokeRecord(token)
+    if (revoked?.authKind === 'app-password') await appPassword.forget(revoked.id)
     if (!revoked) {
       return json(res, 404, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
     }
