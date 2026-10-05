@@ -174,17 +174,17 @@ static void platinum_ui_draw_detail(GrafPtr port,
     post = &posts[state->selected_post];
 
     MoveTo(layout->detail.left + 12, layout->detail.top + 20);
-    DrawString((StringPtr)post->author);
+    platinum_ui_text(post->author);
 
     MoveTo(layout->detail.left + 12, layout->detail.top + 36);
-    DrawString((StringPtr)post->handle);
+    platinum_ui_text(post->handle);
 
     MoveTo(layout->detail.left + 12, layout->detail.top + 56);
-    DrawString((StringPtr)post->line1);
+    platinum_ui_text(post->line1);
 
     if (post->line2[0] != 0) {
         MoveTo(layout->detail.left + 12, layout->detail.top + 70);
-        DrawString((StringPtr)post->line2);
+        platinum_ui_text(post->line2);
     }
 
     button = layout->detail;
