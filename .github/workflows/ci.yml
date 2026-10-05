@@ -80,7 +80,7 @@ jobs:
       - name: Install clang
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang
+          sudo apt-get install -y --no-install-recommends clang gcc
 
       # Sources are compiled against the declaration-only SDK stubs in
       # macos9/test/sdk-stubs/, so this list is every source under macos9/ and
@@ -109,12 +109,16 @@ jobs:
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c
           do
-            echo "--- $f"
-            clang -std=c89 -pedantic-errors -Wall -Wextra \
-              -Wno-unused-parameter -Werror \
-              -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
-              -I macos9 -I macos9/test/sdk-stubs -I wolfram/include \
-              -c "$f" -o /dev/null
+            for cc in clang gcc; do
+              echo "--- $cc $f"
+              # -Wno-multichar: 'PTLM' and 'PREF' are OSType literals, which
+              # are multi-character constants by design on the Mac target.
+              "$cc" -std=c89 -pedantic-errors -Wall -Wextra \
+                -Wno-unused-parameter -Wno-multichar -Werror \
+                -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
+                -I macos9 -I macos9/test/sdk-stubs -I wolfram/include \
+                -c "$f" -o /dev/null
+            done
           done
 
       - name: Run the Mac-side tests
