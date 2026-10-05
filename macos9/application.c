@@ -15,6 +15,7 @@
 #include "timeline.h"
 #include "profile.h"
 #include "notifications.h"
+#include "text_codec.h"
 #include <cJSON.h>
 
 #define kFileMenuID 128
@@ -604,6 +605,7 @@ static void platinum_application_post_status(platinum_application *app,
 static void platinum_application_submit_post(platinum_application *app)
 {
     char text[PLATINUM_COMPOSE_MAX_TEXT + 1];
+    char utf8_text[PLATINUM_TEXT_UTF8_CAPACITY];
     char *body;
     cJSON *request;
     wf_response response;
@@ -634,7 +636,17 @@ static void platinum_application_submit_post(platinum_application *app)
         return;
     }
 
-    cJSON_AddStringToObject(request, "text", text);
+    if (platinum_text_macroman_to_utf8(text,
+                                       utf8_text,
+                                       sizeof(utf8_text),
+                                       NULL) < 0) {
+        cJSON_Delete(request);
+        platinum_compose_set_status(&app->compose,
+                                    "The post text could not be encoded.");
+        return;
+    }
+
+    cJSON_AddStringToObject(request, "text", utf8_text);
     body = cJSON_PrintUnformatted(request);
     cJSON_Delete(request);
     if (body == NULL) {

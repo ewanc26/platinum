@@ -106,10 +106,18 @@ platinum/
 │   ├── compose.c
 │   ├── compose.h
 │   ├── config.c
+│   ├── notifications.c
+│   ├── notifications.h
+│   ├── profile.c
+│   ├── profile.h
 │   ├── config.h
 │   ├── main.c
 │   ├── session.c
 │   ├── session.h
+│   ├── text_codec.c
+│   ├── text_codec.h
+│   ├── timeline.c
+│   ├── timeline.h
 │   ├── ui.c
 │   └── ui.h
 └── .github/
@@ -612,7 +620,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
-- full MacRoman-to-UTF-8 post submission;
+- richer Unicode/emoji editing beyond the MacRoman character repertoire;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
