@@ -162,11 +162,11 @@ platinum_bridge_client *platinum_bridge_client_new(const char *base_url)
         return NULL;
 
     client->xrpc = wf_xrpc_client_new(base_url);
-    wf_xrpc_client_set_max_response_bytes(client->xrpc, 262144);
     if (client->xrpc == NULL) {
         free(client);
         return NULL;
     }
+    wf_xrpc_client_set_max_response_bytes(client->xrpc, 262144);
 
     client->base_url = bridge_strdup(base_url);
     if (client->base_url == NULL) {
