@@ -1,4 +1,5 @@
 #include "timeline.h"
+#include "text_codec.h"
 
 #include <cJSON.h>
 #include <string.h>
@@ -14,14 +15,11 @@ static int timeline_copy_json_string(char *destination,
     if (!cJSON_IsString(value) || value->valuestring == NULL)
         return 0;
 
-    length = (long)strlen(value->valuestring);
-    if (length >= capacity)
-        length = capacity - 1;
-
-    if (length > 0)
-        memcpy(destination, value->valuestring, (size_t)length);
-    destination[length] = '\\0';
-    return 1;
+    length = platinum_text_utf8_to_macroman(value->valuestring,
+                                            destination,
+                                            capacity,
+                                            NULL);
+    return length >= 0;
 }
 
 static long timeline_json_number(const cJSON *object, const char *name)
@@ -169,8 +167,15 @@ static int timeline_parse_post(platinum_post_preview *post,
 
     record = cJSON_GetObjectItemCaseSensitive(item, "text");
     if (record != NULL && cJSON_IsString(record) &&
-        record->valuestring != NULL)
-        timeline_copy_wrapped_text(post, record->valuestring);
+        record->valuestring != NULL) {
+        char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
+
+        if (platinum_text_utf8_to_macroman(record->valuestring,
+                                           text_macroman,
+                                           sizeof(text_macroman),
+                                           NULL) >= 0)
+            timeline_copy_wrapped_text(post, text_macroman);
+    }
 
     post->like_count = timeline_json_number(item, "likeCount");
     post->repost_count = timeline_json_number(item, "repostCount");
