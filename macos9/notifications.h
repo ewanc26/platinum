@@ -6,6 +6,7 @@
 
 #include <Events.h>
 #include <Windows.h>
+#include "window_kind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,6 +30,7 @@ typedef struct platinum_notification {
 } platinum_notification;
 
 typedef struct platinum_notifications {
+    platinum_window_owner owner;
     WindowPtr window;
     platinum_scrollbar scrollbar;
     platinum_notification items[PLATINUM_NOTIFICATIONS_MAX];

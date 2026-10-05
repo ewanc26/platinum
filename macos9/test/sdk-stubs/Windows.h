@@ -32,6 +32,8 @@ void SelectWindow(WindowPtr window);
 WindowPtr FrontWindow(void);
 void InitWindows(void);
 void HiliteWindow(WindowPtr window);
+void SetWindowRefCon(WindowPtr window, long refCon);
+long GetWindowRefCon(WindowPtr window);
 short DragWindow(WindowPtr window, Point startPoint, const Rect *dragRect);
 void SetWindowTitle(WindowPtr window, Str255 title);
 

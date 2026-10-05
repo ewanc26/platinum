@@ -78,14 +78,17 @@ OSErr platinum_compose_open(platinum_compose *compose)
         return paramErr;
 
     memset(compose, 0, sizeof(*compose));
+    compose->owner.kind = PLATINUM_WINDOW_COMPOSE;
+    compose->owner.owner = compose;
 
     SetRect(&bounds, 126, 84, 594, 396);
     compose->window = NewCWindow(&bounds, 1, 0,
-                                 documentProc,
+                                 platinum_window_proc,
                                  (WindowPtr)-1L, 1, 0L);
-    SetWindowTitle(compose->window, kComposeTitle);
     if (compose->window == NULL)
         return memFullErr;
+    SetWindowRefCon(compose->window, (long)&compose->owner);
+    SetWindowTitle(compose->window, kComposeTitle);
 
     text_rect.left = 14;
     text_rect.top = 14;

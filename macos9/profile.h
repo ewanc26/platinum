@@ -5,6 +5,7 @@
 
 #include <Events.h>
 #include <Windows.h>
+#include "window_kind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,7 @@ extern "C" {
 #define PLATINUM_PROFILE_STATUS_MAX 127
 
 typedef struct platinum_profile {
+    platinum_window_owner owner;
     WindowPtr window;
     char did[PLATINUM_PROFILE_DID_MAX + 1];
     char handle[PLATINUM_PROFILE_HANDLE_MAX + 1];

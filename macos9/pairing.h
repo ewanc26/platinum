@@ -4,6 +4,7 @@
 #include <Events.h>
 #include <TextEdit.h>
 #include <Windows.h>
+#include "window_kind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +15,7 @@ extern "C" {
 #define PLATINUM_PAIRING_STATUS_MAX 159
 
 typedef struct platinum_pairing {
+    platinum_window_owner owner;
     WindowPtr window;
     TEHandle bridge_url;
     TEHandle code;

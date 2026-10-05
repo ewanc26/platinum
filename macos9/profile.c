@@ -182,13 +182,17 @@ OSErr platinum_profile_open(platinum_profile *profile)
         return noErr;
     }
 
+    profile->owner.kind = PLATINUM_WINDOW_PROFILE;
+    profile->owner.owner = profile;
+
     SetRect(&bounds, 116, 70, 616, 390);
     profile->window = NewCWindow(&bounds, 1, 0,
-                                 documentProc,
+                                 platinum_window_proc,
                                  (WindowPtr)-1L, 1, 0L);
-    SetWindowTitle(profile->window, kProfileTitle);
     if (profile->window == NULL)
         return memFullErr;
+    SetWindowRefCon(profile->window, (long)&profile->owner);
+    SetWindowTitle(profile->window, kProfileTitle);
 
     SetPort((GrafPtr)profile->window);
     platinum_profile_draw(profile);

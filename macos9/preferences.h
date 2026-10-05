@@ -5,6 +5,7 @@
 
 #include <Events.h>
 #include <Windows.h>
+#include "window_kind.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +14,7 @@ extern "C" {
 #define PLATINUM_PREFERENCES_STATUS_MAX 127
 
 typedef struct platinum_preferences {
+    platinum_window_owner owner;
     WindowPtr window;
     const platinum_session *session;
     char status[PLATINUM_PREFERENCES_STATUS_MAX + 1];
