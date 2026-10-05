@@ -106,6 +106,7 @@ platinum/
 ├── tools/
 │   ├── gen-art.py
 │   ├── check-flow.sh
+│   ├── ownership.txt
 │   └── check-parity.sh
 ├── docs/
 │   └── BRIDGE_PROTOCOL.md
@@ -676,7 +677,15 @@ unless marked otherwise:
   `.r` holds raw `data` resources only and must never include Apple headers or
   art. It is not wired into a build (blocked on #41) and has not been seen on
   Mac OS 9.
-- Run `tools/check-flow.sh drift` and `tools/check-parity.sh` before pushing.
+- Shared logic belongs in Wolfram. `tools/check-flow.sh duplication` enforces it:
+  no AT Protocol method string (NSID) anywhere under `macos9/` (the Mac speaks
+  only the bridge protocol); a raw NSID under `bridge/src/` only in a file owned
+  `port`; and every source listed in `tools/ownership.txt` with an owner
+  (`platform`, `bridge`, `protocol`, or `port` naming its Wolfram issue or
+  header) and a reason. Adding a source means adding its row. Before writing a
+  `port`, check Wolfram for the capability and file an issue there if it is
+  missing.
+- Run `tools/check-flow.sh drift`, `tools/check-flow.sh duplication` and `tools/check-parity.sh` before pushing.
 
 Rationale: the same rules are applied across the stack and the script is the
 single copy, so local and CI behaviour cannot differ. Wolfram does not yet host
