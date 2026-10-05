@@ -215,7 +215,7 @@ The native UI specification lives in [docs/UI_DESIGN.md](docs/UI_DESIGN.md). It 
 
 The native shell now also has live Profile and Notifications navigation with separate modeless document windows. Refresh loads up to 20 posts from `GET /v1/timeline`, parses only the bridge-owned response contract, and updates the existing Classic Mac selection and detail UI. The native compose window can also submit posts through `POST /v1/post`; the current release accepts up to 300 MacRoman characters and converts them to UTF-8 for the bridge.
 
-The native shell is implemented under `macos9/ui.c` and `macos9/ui.h`; Profile and Notifications are separate native modules alongside the Timeline and compose surfaces. The shell now has navigation selection, live timeline selection, keyboard scrolling, Classic Mac menu/input handling, a native TextEdit compose window, bridge-backed post submission, a collapsible detail pane, live Profile and Notifications windows, and a bounded MacRoman/UTF-8 text codec.
+The native shell is implemented under `macos9/ui.c` and `macos9/ui.h`; Profile and Notifications are separate native modules alongside the Timeline and compose surfaces. The shell now has navigation selection, live timeline selection, keyboard scrolling, Classic Mac menu/input handling, a native TextEdit compose window, bridge-backed post submission, a collapsible detail pane, live Profile and Notifications windows, account Preferences with bridge-token revocation/sign-out, and a bounded MacRoman/UTF-8 text codec.
 
 ## Development
 

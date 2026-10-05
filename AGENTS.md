@@ -108,6 +108,8 @@ platinum/
 │   ├── config.c
 │   ├── notifications.c
 │   ├── notifications.h
+│   ├── preferences.c
+│   ├── preferences.h
 │   ├── profile.c
 │   ├── profile.h
 │   ├── config.h
@@ -620,6 +622,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
+- re-pairing flow from account Preferences after sign-out;
 - richer Unicode/emoji editing beyond the MacRoman character repertoire;
 - post composition;
 - user-facing error handling;
