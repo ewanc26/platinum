@@ -10,6 +10,7 @@
 #include "preferences.h"
 #include "pairing.h"
 #include "scrollbar.h"
+#include "help.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -28,6 +29,7 @@ typedef struct platinum_application {
     platinum_preferences preferences;
     platinum_pairing pairing;
     platinum_scrollbar timeline_scrollbar;
+    platinum_help help;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
