@@ -21,6 +21,10 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
+      - name: Parity matrix matches the code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tools/check-parity.sh
       - name: Pull request title, body and commits
         if: github.event_name == 'pull_request'
         env:

@@ -8,7 +8,9 @@ file is the flow.
 
 ## The flow
 
-1. Open or find an issue.
+1. Open or find an issue. A gap against Cobalt or Indigo is a row in
+   [docs/PARITY.md](docs/PARITY.md) (edit `docs/parity.tsv`, then run
+   `tools/check-parity.sh --write`).
 2. Branch from `main`. Never commit to `main`.
 3. Write small commits with conventional subjects: `feat(macos9): ...`,
    `fix(bridge): ...`, `docs: ...`, `ci: ...`.
@@ -39,6 +41,7 @@ disagrees with either. It publishes nothing.
 | --- | --- |
 | Conventional PR title and commits | `Flow and drift` job |
 | PR body has What / Why / Verification | `Flow and drift` job |
+| Parity matrix matches the code, and cited issues are open | `Flow and drift` job |
 | Every Mac source is compiled in CI; docs match the pinned Wolfram | `Flow and drift` job |
 | Bridge type check, tests, build; Mac C89 compile and tests | `bridge`, `Mac OS 9 sources (C89)` |
 | Tag matches version and changelog | `release-check` workflow |
