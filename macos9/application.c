@@ -41,10 +41,10 @@ static unsigned char kWindowMenu[] = { 6, 'W', 'i', 'n', 'd', 'o', 'w' };
 static unsigned char kHelpMenu[] = { 4, 'H', 'e', 'l', 'p' };
 
 static unsigned char kNewPost[] = {
-    9, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
+    11, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
 };
 static unsigned char kCloseWindow[] = {
-    14, 'C', 'l', 'o', 's', 'e', ' ', 'W', 'i', 'n', 'd', 'o', 'w'
+    12, 'C', 'l', 'o', 's', 'e', ' ', 'W', 'i', 'n', 'd', 'o', 'w'
 };
 static unsigned char kQuit[] = { 4, 'Q', 'u', 'i', 't' };
 static unsigned char kUndo[] = { 4, 'U', 'n', 'd', 'o' };
@@ -55,7 +55,7 @@ static unsigned char kSelectAll[] = {
     10, 'S', 'e', 'l', 'e', 'c', 't', ' ', 'A', 'l', 'l'
 };
 static unsigned char kPreferences[] = {
-    13, 'P', 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e', 's', '.', '.', '.'
+    14, 'P', 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e', 's', '.', '.', '.'
 };
 static unsigned char kRefreshMenu[] = { 7, 'R', 'e', 'f', 'r', 'e', 's', 'h' };
 static unsigned char kShowDetail[] = {
@@ -74,7 +74,7 @@ static unsigned char kBringAllToFront[] = {
     18, 'B', 'r', 'i', 'n', 'g', ' ', 'A', 'l', 'l', ' ', 't', 'o', ' ', 'F', 'r', 'o', 'n', 't'
 };
 static unsigned char kAbout[] = {
-    15, 'A', 'b', 'o', 'u', 't', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm'
+    14, 'A', 'b', 'o', 'u', 't', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm'
 };
 static unsigned char kHelpItem[] = {
     13, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', 'H', 'e', 'l', 'p'
