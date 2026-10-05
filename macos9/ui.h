@@ -15,6 +15,7 @@ typedef struct platinum_ui_layout {
     Rect toolbar;
     Rect navigation;
     Rect timeline;
+    Rect timeline_scrollbar;
     Rect detail;
 } platinum_ui_layout;
 
@@ -40,7 +41,8 @@ void platinum_ui_layout_compute(const Rect *content,
 void platinum_ui_draw(GrafPtr port,
                       const platinum_ui_layout *layout,
                       const platinum_ui_state *state,
-                      const platinum_session *session);
+                      const platinum_session *session,
+                      const platinum_timeline *timeline);
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
