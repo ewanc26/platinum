@@ -100,7 +100,8 @@ The current transport boundary is built around:
 - [Wolfram](https://github.com/ewanc26/wolfram) 0.26.0 or newer;
 - Wolfram's Classic Mac OS 9/Open Transport transport;
 - [macTLS](https://github.com/mplsllc/macTLS) for TLS;
-- cJSON for the small amount of JSON parsing required by the bridge protocol.
+- a small bounded JSON helper in `macos9/json_min.c` rather than a JSON library,
+  because the bridge protocol only needs a few fields read out of a response.
 
 Do not add modern POSIX, libcurl, OpenSSL, pthreads, or other desktop-only networking dependencies to the Mac client.
 
@@ -199,9 +200,14 @@ platinum/
 │   ├── pairing.h
 │   ├── config.c
 │   ├── config.h
+│   ├── json_min.c
+│   ├── json_min.h
 │   ├── main.c
 │   ├── session.c
 │   ├── session.h
+│   ├── test/
+│   │   ├── test_bridge_client.c
+│   │   └── test_json_min.c
 │   ├── ui.c
 │   └── ui.h
 └── .github/
@@ -227,21 +233,33 @@ Use focused commits and update documentation when the protocol, build requiremen
 
 ## Testing
 
-The bridge's current CI checks TypeScript compilation and produces the production build:
+CI runs two jobs.
+
+The bridge job checks TypeScript, runs the bridge tests and produces the
+production build:
 
 ```sh
 cd bridge
 npm run check
+npm test
 npm run build
 ```
 
-The bridge also has a test command:
+The `Mac OS 9 sources (C89)` job compiles every file under `macos9/` as strict
+C89 against the released Wolfram public headers and runs the Mac-side tests.
+The same check runs locally against a Wolfram checkout:
 
 ```sh
-npm test
+clang -std=c89 -pedantic-errors -Wall -Wextra -Wno-unused-parameter -Werror \
+  -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
+  -I macos9 -I ../wolfram/include \
+  -o /tmp/test_bridge_client \
+  macos9/bridge_client.c macos9/json_min.c macos9/test/test_bridge_client.c
+/tmp/test_bridge_client
 ```
 
-Run it when bridge tests are present in the working tree.
+`test_bridge_client` stubs the Wolfram transport entry points, so it covers the
+pairing path and the malformed-response paths without a network or a Mac.
 
 A successful modern-host build does not prove Classic Mac OS 9 compatibility. Native client changes must be validated with the intended CodeWarrior/Open Transport/macTLS environment when available.
 

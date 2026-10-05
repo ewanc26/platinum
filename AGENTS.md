@@ -107,9 +107,14 @@ platinum/
 │   ├── compose.h
 │   ├── config.c
 │   ├── config.h
+│   ├── json_min.c
+│   ├── json_min.h
 │   ├── main.c
 │   ├── session.c
 │   ├── session.h
+│   ├── test/
+│   │   ├── test_bridge_client.c
+│   │   └── test_json_min.c
 │   ├── ui.c
 │   └── ui.h
 └── .github/
@@ -444,7 +449,8 @@ npm run build
 npm test
 ```
 
-The current CI runs type checking and the production build on Node 22.
+The current CI runs type checking, the bridge tests and the production build on
+Node 22.
 
 Do not claim tests passed if they were not actually run.
 
@@ -459,9 +465,49 @@ cmake -S . -B build-macos9-transport \
 cmake --build build-macos9-transport --target wolfram-macos9-transport
 ```
 
+The Mac-side sources can be checked on a modern host, because the transport is
+not part of that check. Compile them as strict C89 against a Wolfram checkout's
+public headers and run the tests under `macos9/test/`:
+
+```sh
+clang -std=c89 -pedantic-errors -Wall -Wextra -Wno-unused-parameter -Werror \
+  -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
+  -I macos9 -I ../wolfram/include \
+  -o /tmp/test_bridge_client \
+  macos9/bridge_client.c macos9/json_min.c macos9/test/test_bridge_client.c
+/tmp/test_bridge_client
+```
+
+CI enforces this on every change. Keep the flags in step with Wolfram's own Mac
+OS 9 CI job, because the two targets have to accept the same dialect.
+
+`test_bridge_client` stubs the Wolfram transport entry points, so the pairing
+path and the malformed-response paths can be exercised without a network or a
+Mac. Keep it stubbing rather than linking the real transport, which needs Open
+Transport and macTLS. A stub must populate every `wf_response` field, because
+`wf_response_free` is only documented as safe on a zeroed struct.
+
 The native Platinum application will require its intended CodeWarrior-era build environment as its application shell develops.
 
 A successful host build is not proof of Classic Mac OS 9 compatibility.
+
+### JSON on the Mac side
+
+The bridge protocol needs only a handful of fields read out of a small response,
+so `macos9/json_min.c` does that with bounded buffers and no allocation tree.
+
+Do not add cJSON or another JSON library to the Mac client. cJSON is C99 and not
+part of the CodeWarrior-era target, and the Wolfram Mac OS 9 transport does not
+build it, so depending on it makes the Mac client impossible to build for its
+actual platform.
+
+When the protocol needs more parsing, extend `json_min` and keep the bounds
+explicit. Every entry point is bounded by a caller-supplied buffer and reports
+overflow rather than truncating silently.
+
+Read every member of a response before storing any of it. Assigning fields as
+they are parsed, then inspecting those fields after the pairing struct has been
+freed and zeroed, reports every malformed response as an allocation failure.
 
 ### Hardware validation
 
