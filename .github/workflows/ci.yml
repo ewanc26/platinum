@@ -58,10 +58,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang
 
-      # Every source that builds without the Classic Mac OS SDK headers, which
-      # is the whole portable subset under macos9/. Anything outside this list
-      # pulls in QuickDraw, Windows, Controls or Files and cannot be compiled by
-      # a runner that has no SDK; those are built by CodeWarrior/Retro68.
+      # Sources are compiled against the declaration-only SDK stubs in
+      # macos9/test/sdk-stubs/, so this list is every source under macos9/ and
+      # it grows as the UI half of the client is fixed. A file is listed only
+      # once it actually compiles; see that directory's README for what a clean
+      # run does and does not prove.
       - name: Assert the Mac sources still compile as strict C89
         run: |
           set -euo pipefail
@@ -76,7 +77,7 @@ jobs:
             clang -std=c89 -pedantic-errors -Wall -Wextra \
               -Wno-unused-parameter -Werror \
               -Wdeclaration-after-statement -Wstrict-prototypes -Wvla \
-              -I macos9 -I wolfram/include \
+              -I macos9 -I macos9/test/sdk-stubs -I wolfram/include \
               -c "$f" -o /dev/null
           done
 
