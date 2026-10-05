@@ -15,7 +15,6 @@ static unsigned char kPost[] = {
 };
 static const char kPosting[] = "Posting...";
 static const char kLimit[] = "Maximum 300 characters.";
-static const char kAsciiOnly[] = "ASCII text only for this release.";
 
 static char *compose_copy_handle(TEHandle text, char *buffer, long capacity)
 {
@@ -262,7 +261,6 @@ OSErr platinum_compose_get_text(const platinum_compose *compose,
                                 long capacity)
 {
     long length;
-    long i;
 
     if (compose == NULL || compose->text == NULL ||
         buffer == NULL || capacity <= 0)
@@ -277,11 +275,6 @@ OSErr platinum_compose_get_text(const platinum_compose *compose,
 
     if (length > PLATINUM_COMPOSE_MAX_TEXT)
         return overrunErr;
-
-    for (i = 0; i < length; ++i) {
-        if ((unsigned char)buffer[i] >= 128)
-            return paramErr;
-    }
 
     return noErr;
 }
