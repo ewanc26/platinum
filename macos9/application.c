@@ -26,7 +26,7 @@ static unsigned char kTitle[] = {
 };
 
 static unsigned char kBridgeReady[] = {
-    13, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'r', 'e', 'a', 'd', 'y'
+    12, 'B', 'r', 'i', 'd', 'g', 'e', ' ', 'r', 'e', 'a', 'd', 'y'
 };
 
 static unsigned char kNotPaired[] = {
