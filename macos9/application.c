@@ -658,7 +658,11 @@ static void platinum_application_handle_menu(platinum_application *app,
             if (platinum_application_open_pairing(app) == noErr)
                 SelectWindow(app->pairing.window);
         } else if (item == 3) {
-            if (app->compose.window != NULL)
+            if (app->pairing.window != NULL)
+                platinum_pairing_close(&app->pairing);
+            else if (app->preferences.window != NULL)
+                platinum_preferences_close(&app->preferences);
+            else if (app->compose.window != NULL)
                 platinum_compose_close(&app->compose);
             else
                 app->running = 0;
