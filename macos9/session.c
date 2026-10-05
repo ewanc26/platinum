@@ -75,9 +75,12 @@ OSErr platinum_session_set_bridge_url(platinum_session *session,
         return paramErr;
     }
 
-    if (platinum_config_save(&updated) != noErr) {
-        platinum_bridge_client_free(bridge);
-        return ioErr;
+    {
+        OSErr save_status = platinum_config_save(&updated);
+        if (save_status != noErr) {
+            platinum_bridge_client_free(bridge);
+            return save_status;
+        }
     }
 
     platinum_bridge_client_free(session->bridge);
@@ -110,9 +113,12 @@ wf_status platinum_session_pair(platinum_session *session,
         return WF_ERR_VALIDATION;
     }
 
-    if (platinum_config_save(&updated) != noErr) {
-        platinum_bridge_pairing_free(&pairing);
-        return WF_ERR_NETWORK;
+    {
+        OSErr save_status = platinum_config_save(&updated);
+        if (save_status != noErr) {
+            platinum_bridge_pairing_free(&pairing);
+            return WF_ERR_STATE;
+        }
     }
 
     status = platinum_bridge_client_set_token(session->bridge, pairing.token);
@@ -144,7 +150,7 @@ wf_status platinum_session_sign_out(platinum_session *session)
     platinum_config_init(&session->config);
 
     if (clear_status != noErr)
-        return WF_ERR_NETWORK;
+        return WF_ERR_STATE;
 
     return revoke_status;
 }
