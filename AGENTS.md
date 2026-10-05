@@ -600,6 +600,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - account session lifecycle and revocation handling;
 - native event-driven application shell;
 - initial Classic Mac UI layout and visual specification;
+- interactive navigation and timeline selection;
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
@@ -608,7 +609,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 ### In progress
 
 - pairing UI;
-- interactive timeline/profile/notification screens;
+- live bridge-backed timeline/profile/notification screens;
 - post composition;
 - user-facing error handling;
 - real hardware validation.
