@@ -116,6 +116,9 @@ Standard Undo, Cut, Copy, Paste and Select All commands as applicable, followed 
 
 - Refresh
 - Show Detail
+- Load Older Posts
+
+Load Older Posts fetches the next page of the timeline. Pressing Down Arrow on the last row does the same; the fetch is never started by scrolling, so it cannot begin in the middle of scroll-bar tracking. The list keeps at most forty posts: loading past that drops the newest ones from the top, and the selection stays on the post it was on.
 
 ### Window
 

@@ -373,3 +373,39 @@ wf_status platinum_bridge_revoke(platinum_bridge_client *client,
 {
     return platinum_bridge_post(client, "/v1/revoke", NULL, out);
 }
+
+long platinum_bridge_query_escape(const char *value, char *out, long capacity)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    long length = 0;
+    unsigned char c;
+
+    if (out == NULL || capacity <= 0)
+        return -1;
+    out[0] = '\0';
+    if (value == NULL)
+        return 0;
+
+    for (; *value != '\0'; ++value) {
+        c = (unsigned char)*value;
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' ||
+            c == '~') {
+            if (length + 1 >= capacity) {
+                out[0] = '\0';
+                return -1;
+            }
+            out[length++] = (char)c;
+        } else {
+            if (length + 3 >= capacity) {
+                out[0] = '\0';
+                return -1;
+            }
+            out[length++] = '%';
+            out[length++] = hex[c >> 4];
+            out[length++] = hex[c & 0x0F];
+        }
+    }
+    out[length] = '\0';
+    return length;
+}

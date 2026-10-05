@@ -783,6 +783,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - native event-driven application shell;
 - initial Classic Mac UI layout and visual specification;
 - interactive navigation and timeline selection;
+- bounded timeline paging (forty rows kept, `platinum_timeline_load_older`);
 - native TextEdit compose window and bridge-backed post submission;
 - live Profile and Notifications windows;
 - account Preferences and first-run/re-pairing UI;

@@ -38,6 +38,7 @@ static void platinum_application_handle_menu(platinum_application *app,
 static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
 static void platinum_application_refresh_timeline(platinum_application *app);
+static void platinum_application_load_older(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
@@ -95,6 +96,10 @@ static unsigned char kPreferences[] = {
     14, 'P', 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e', 's', '.', '.', '.'
 };
 static unsigned char kRefreshMenu[] = { 7, 'R', 'e', 'f', 'r', 'e', 's', 'h' };
+static unsigned char kLoadOlder[] = {
+    16, 'L', 'o', 'a', 'd', ' ', 'O', 'l', 'd', 'e', 'r', ' ', 'P', 'o', 's',
+    't', 's'
+};
 static unsigned char kShowDetail[] = {
     11, 'S', 'h', 'o', 'w', ' ', 'D', 'e', 't', 'a', 'i', 'l'
 };
@@ -383,6 +388,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_open_profile(app);
                 } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
                     platinum_application_open_notifications(app);
+                } else if (action == PLATINUM_UI_ACTION_LOAD_OLDER) {
+                    platinum_application_load_older(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -577,6 +584,47 @@ static void platinum_application_refresh_timeline(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+static void platinum_application_load_older(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    short old_count;
+    wf_status status;
+
+    if (app == NULL || !platinum_timeline_has_older(&app->timeline) ||
+        !platinum_session_is_paired(&app->session))
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    old_count = (short)app->timeline.count;
+    status = platinum_timeline_load_older(&app->timeline, bridge, &dropped);
+    platinum_application_recover_auth(app, status);
+
+    if (status == WF_OK) {
+        /* Rows dropped from the front shift everything up; keep the reader on
+         * the same post, then move to the first new one. */
+        app->ui.scroll_row -= (short)dropped;
+        app->ui.selected_post -= (short)dropped;
+        if (app->ui.scroll_row < 0)
+            app->ui.scroll_row = 0;
+        if (app->ui.selected_post < 0)
+            app->ui.selected_post = 0;
+        if ((short)app->timeline.count > old_count - (short)dropped)
+            app->ui.selected_post = old_count - (short)dropped;
+        {
+            short visible = platinum_application_timeline_visible_rows(app);
+            if (app->ui.selected_post >= app->ui.scroll_row + visible)
+                app->ui.scroll_row = app->ui.selected_post - visible + 1;
+        }
+    }
+
+    platinum_application_relayout(app);
+    platinum_application_invalidate(app);
+}
+
 static short platinum_application_timeline_visible_rows(
     const platinum_application *app)
 {
@@ -669,6 +717,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
 
     AppendMenu(app->view_menu, kRefreshMenu);
     AppendMenu(app->view_menu, kShowDetail);
+    AppendMenu(app->view_menu, kLoadOlder);
     SetItemCmdChar(app->view_menu, 1, 'r');
 
     AppendMenu(app->window_menu, kTimelineWindow);
@@ -763,6 +812,8 @@ static void platinum_application_handle_menu(platinum_application *app,
         } else if (item == 2) {
             app->ui.show_detail = !app->ui.show_detail;
             platinum_application_invalidate(app);
+        } else if (item == 3) {
+            platinum_application_load_older(app);
         }
     } else if (menu_id == kWindowMenuID) {
         if (item == 2)
