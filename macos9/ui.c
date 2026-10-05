@@ -227,17 +227,20 @@ void platinum_ui_draw(GrafPtr port,
     FrameRect(&layout->toolbar);
     FrameRect(&layout->navigation);
     FrameRect(&layout->timeline);
-    FrameRect(&layout->detail);
+    if (layout->detail.top < layout->detail.bottom)
+        FrameRect(&layout->detail);
 
     divider = layout->navigation;
     divider.left = divider.right;
     MoveTo(divider.left, divider.top);
     LineTo(divider.left, divider.bottom);
 
-    divider = layout->detail;
-    divider.top = layout->detail.top;
-    MoveTo(divider.left, divider.top);
-    LineTo(divider.right, divider.top);
+    if (layout->detail.top < layout->detail.bottom) {
+        divider = layout->detail;
+        divider.top = layout->detail.top;
+        MoveTo(divider.left, divider.top);
+        LineTo(divider.right, divider.top);
+    }
 
     TextFont(systemFont);
     TextSize(12);
@@ -291,12 +294,14 @@ void platinum_ui_draw(GrafPtr port,
         platinum_ui_draw_post(layout, state, &posts[index], index);
     }
 
-    MoveTo(layout->detail.left + 12, layout->detail.top + 16);
-    if (paired)
-        platinum_ui_draw_detail(port, layout, state);
-    else {
-        MoveTo(layout->detail.left + 12, layout->detail.top + 46);
-        DrawString(kNotPaired);
+    if (layout->detail.top < layout->detail.bottom) {
+        MoveTo(layout->detail.left + 12, layout->detail.top + 16);
+        if (paired)
+            platinum_ui_draw_detail(port, layout, state);
+        else {
+            MoveTo(layout->detail.left + 12, layout->detail.top + 46);
+            DrawString(kNotPaired);
+        }
     }
 
     SetPort(old_port);
