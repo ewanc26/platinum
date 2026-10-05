@@ -39,6 +39,80 @@ GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 POST /v1/post
 
+### Profile response
+
+```json
+{
+  "did": "did:plc:...",
+  "handle": "example.test",
+  "displayName": "Example",
+  "description": "A short biography.",
+  "followersCount": 12,
+  "followsCount": 34,
+  "postsCount": 56
+}
+```
+
+### Timeline response
+
+Timeline responses contain only fields that the Classic Mac client needs:
+
+```json
+{
+  "posts": [
+    {
+      "uri": "at://did:plc:.../app.bsky.feed.post/...",
+      "cid": "bafy...",
+      "author": {
+        "did": "did:plc:...",
+        "handle": "example.test",
+        "displayName": "Example"
+      },
+      "text": "Hello from Platinum.",
+      "createdAt": "2026-10-05T00:00:00.000Z",
+      "likeCount": 4,
+      "repostCount": 2,
+      "replyCount": 1,
+      "quoteCount": 0
+    }
+  ],
+  "cursor": "optional-next-cursor"
+}
+```
+
+The bridge deliberately does not expose raw feed-view embeds, reply views or AppView-specific extension fields. Clients should treat absent optional author fields as empty.
+
+### Notifications response
+
+```json
+{
+  "notifications": [
+    {
+      "uri": "at://did:plc:.../app.bsky.feed.post/...",
+      "cid": "bafy...",
+      "author": {
+        "did": "did:plc:...",
+        "handle": "example.test",
+        "displayName": "Example"
+      },
+      "reason": "like",
+      "indexedAt": "2026-10-05T00:01:00.000Z",
+      "isRead": true
+    }
+  ],
+  "cursor": "optional-next-cursor"
+}
+```
+
+### Post response
+
+```json
+{
+  "uri": "at://did:plc:.../app.bsky.feed.post/...",
+  "cid": "bafy..."
+}
+```
+
 Authenticated endpoints use:
 
     Authorization: Bearer <bridge-token>
