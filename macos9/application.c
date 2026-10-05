@@ -220,6 +220,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->notifications.window != NULL &&
+                           window == app->notifications.window) {
+                    platinum_notifications_close(&app->notifications);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->compose.window != NULL &&
                            window == app->compose.window) {
                     platinum_compose_close(&app->compose);
@@ -357,6 +362,8 @@ static void platinum_application_handle_event(platinum_application *app,
                         SelectWindow(app->compose.window);
                 } else if (action == PLATINUM_UI_ACTION_PROFILE) {
                     platinum_application_open_profile(app);
+                } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
+                    platinum_application_open_notifications(app);
                 }
                 platinum_application_invalidate(app);
             }
