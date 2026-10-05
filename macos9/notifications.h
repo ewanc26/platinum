@@ -2,6 +2,7 @@
 #define PLATINUM_NOTIFICATIONS_H
 
 #include "bridge_client.h"
+#include "scrollbar.h"
 
 #include <Events.h>
 #include <Windows.h>
@@ -29,6 +30,7 @@ typedef struct platinum_notification {
 
 typedef struct platinum_notifications {
     WindowPtr window;
+    platinum_scrollbar scrollbar;
     platinum_notification items[PLATINUM_NOTIFICATIONS_MAX];
     unsigned short count;
     short scroll_row;
