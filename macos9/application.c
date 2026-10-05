@@ -161,9 +161,11 @@ OSErr platinum_application_init(platinum_application *app)
         return memFullErr;
     }
 
+    platinum_ui_layout_compute(&app->window->portRect, &app->layout);
+
     if (platinum_scrollbar_open(&app->timeline_scrollbar,
                                 app->window,
-                                &app->window->portRect) != noErr) {
+                                &app->layout.timeline_scrollbar) != noErr) {
         DisposeWindow(app->window);
         app->window = NULL;
         platinum_session_close(&app->session);
@@ -203,6 +205,8 @@ void platinum_application_dispose(platinum_application *app)
         return;
 
     wf_macos9_set_yield_callback(NULL, NULL);
+
+    platinum_scrollbar_close(&app->timeline_scrollbar);
 
     if (app->window != NULL) {
         DisposeWindow(app->window);
