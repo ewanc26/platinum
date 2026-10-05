@@ -204,6 +204,12 @@ platinum/
 
 The layout will grow as the native application shell, UI, persistent settings and account surfaces are implemented.
 
+## UI design
+
+The native UI specification lives in [docs/UI_DESIGN.md](docs/UI_DESIGN.md). It defines the Classic Mac window model, menu structure, layout, typography, keyboard behaviour and interaction priorities for the client.
+
+The first UI shell is implemented under `macos9/ui.c` and `macos9/ui.h`. It is intentionally a static presentation layer at this stage; network-backed timeline rendering and interactive controls are separate milestones.
+
 ## Development
 
 Read [AGENTS.md](AGENTS.md) before making changes. It contains the deeper architecture, platform constraints, security boundaries, testing expectations and workflow rules for this repository.
