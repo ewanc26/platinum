@@ -385,7 +385,7 @@ static void platinum_application_handle_event(platinum_application *app,
             break;
 
         case updateEvt:
-            window = (WindowPtr)event->message;
+            window = (WindowPtr)(long)event->message;
             if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
@@ -410,7 +410,7 @@ static void platinum_application_handle_event(platinum_application *app,
             break;
 
         case activateEvt:
-            window = (WindowPtr)event->message;
+            window = (WindowPtr)(long)event->message;
             if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
@@ -427,7 +427,7 @@ static void platinum_application_handle_event(platinum_application *app,
             } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
             } else if (window == app->window) {
-                HiliteWindow(window, (event->modifiers & activeFlag) != 0);
+                HiliteWindow(window);
             }
             break;
 

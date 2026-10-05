@@ -74,6 +74,7 @@ jobs:
             macos9/main.c \
             macos9/pairing.c \
             macos9/preferences.c \
+            macos9/profile.c \
             macos9/scrollbar.c \
             macos9/session.c \
             macos9/text_codec.c \
@@ -106,7 +107,6 @@ jobs:
           known=$(printf '%s\n' \
             macos9/application.c:cJSON.h \
             macos9/notifications.c:cJSON.h \
-            macos9/profile.c:cJSON.h \
             macos9/timeline.c:cJSON.h | sort)
           unexpected=$(comm -23 \
             <(printf '%s\n' "$hits") \
