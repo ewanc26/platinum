@@ -2,6 +2,7 @@
 #define PLATINUM_APPLICATION_H
 
 #include "session.h"
+#include "compose.h"
 #include "ui.h"
 #include <Menus.h>
 
@@ -14,6 +15,7 @@ typedef struct platinum_application {
     WindowPtr window;
     platinum_ui_layout layout;
     platinum_ui_state ui;
+    platinum_compose compose;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
