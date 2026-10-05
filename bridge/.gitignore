@@ -1,0 +1,4 @@
+.platinum-bridge/
+dist/
+node_modules/
+.env
