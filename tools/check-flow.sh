@@ -70,7 +70,7 @@ cmd_drift() {
     grep -qF "$ref" "$f" || bad "$f does not mention the pinned Wolfram version $ref"
   done
   # 5. Every workflow job that gates merge is reachable from the gate job.
-  for v in bridge macos9 flow; do
+  for v in bridge macos9 flow release-dry-run; do
     grep -qE "needs:.*\b$v\b" .github/workflows/ci.yml || bad "ci.yml gate job does not wait for job '$v'"
   done
 }
