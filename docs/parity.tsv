@@ -1,0 +1,44 @@
+# id|feature|cobalt|indigo|status|evidence
+# cobalt/indigo: yes|no, from their READMEs and source trees as of 2026-10-05 (read only, not CI-checked).
+# status: implemented | issue | impossible
+# evidence: implemented -> path::fixed string that must appear in that file
+#           issue       -> #number of the tracking issue (must be open; see tools/check-parity.sh)
+#           impossible  -> reason, with the primary source
+signin-oauth|OAuth sign-in (browser, paired)|no|yes|implemented|macos9/bridge_client.c::platinum_bridge_pair
+signin-app-password|App-password sign-in|yes|yes|issue|#38
+session-persist|Session survives restart|yes|yes|implemented|macos9/session.c::platinum_session_load
+sign-out|Sign out with server-side revocation|yes|yes|implemented|macos9/session.c::platinum_bridge_revoke
+timeline|Home timeline|yes|yes|implemented|macos9/timeline.c::platinum_timeline_refresh
+timeline-paging|Timeline paging|yes|yes|issue|#26
+notifications|Notifications|yes|yes|implemented|macos9/notifications.c::platinum_notifications_refresh
+notifications-paging|Notifications paging|yes|yes|issue|#26
+notifications-seen|Mark notifications seen|yes|yes|issue|#30
+thread|Thread view|yes|yes|issue|#27
+post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
+reply|Reply|yes|yes|issue|#27
+quote|Quote post|yes|yes|issue|#29
+reply-gate|Reply gates|yes|no|issue|#29
+like|Like and unlike|yes|yes|issue|#28
+repost|Repost and undo|yes|yes|issue|#28
+profile-self|Own profile|yes|yes|implemented|macos9/profile.c::platinum_profile_refresh
+profile-other|Other people's profiles|yes|yes|issue|#31
+follow|Follow and unfollow|yes|yes|issue|#31
+followers-following|Followers and following lists|yes|yes|issue|#31
+profile-tabs|Profile posts tab|yes|yes|issue|#31
+pinned|Pinned post|yes|yes|issue|#31
+avatars|Avatars|yes|yes|issue|#32
+post-images|Post images|yes|yes|issue|#32
+alt-text|Image alt text|yes|yes|issue|#32
+image-viewer|Full-size image viewer|yes|yes|issue|#32
+link-cards|Link-card previews|yes|yes|issue|#32
+compose-images|Attach images to a post|yes|yes|issue|#33
+search-actors|Actor search|yes|yes|issue|#34
+search-posts|Post search|yes|yes|issue|#34
+feeds|Custom feeds|yes|yes|issue|#34
+lists|Lists|yes|yes|issue|#34
+mute-block|Mute and block|yes|yes|issue|#35
+muted-words|Muted words|no|yes|issue|#35
+engagement-lists|Who liked or reposted|yes|no|issue|#36
+diagnostics|Diagnostics window|yes|no|issue|#37
+drafts|Post drafts|no|yes|issue|#37
+push|Push notifications|no|no|impossible|No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9.
