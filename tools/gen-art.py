@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Generate Platinum's mark: docs/logo.svg and the Mac application icon family.
+
+    tools/gen-art.py            write both files
+    tools/gen-art.py --check    fail if the committed files differ (run in CI)
+
+One shape function describes a compact Macintosh with a smiling screen, the
+"happy Mac" of the platform Platinum runs on. The SVG and the icons are both
+sampled from it, so they cannot drift apart. No Apple headers or art are used.
+"""
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+W, H = 294, 270  # logo viewBox; cells are 3 wide by 5 tall, as in Wolfram's mark
+
+
+def rrect(x, y, x0, y0, x1, y1, r):
+    if not (x0 <= x < x1 and y0 <= y < y1):
+        return False
+    cx = min(max(x, x0 + r), x1 - r)
+    cy = min(max(y, y0 + r), y1 - r)
+    return (x - cx) ** 2 + (y - cy) ** 2 <= r * r
+
+
+def classify(x, y):
+    """What is at (x, y) in the 294x270 logo space: out, body, screen, face, slot."""
+    in_body = rrect(x, y, 45, 0, 249, 240, 24) or (216 <= y < 270 and 24 <= x < 270 and rrect(x, y, 24, 216, 270, 270, 12))
+    if not in_body:
+        return "out"
+    # the face, drawn inside the screen
+    if 105 <= x < 123 and 62 <= y < 98 or 171 <= x < 189 and 62 <= y < 98:
+        return "face"  # eyes
+    if 141 <= x < 153 and 80 <= y < 120:
+        return "face"  # nose
+    if 93 <= x < 105 and 128 <= y < 140 or 189 <= x < 201 and 128 <= y < 140:
+        return "face"  # mouth corners
+    if 105 <= x < 189 and 140 <= y < 152:
+        return "face"  # mouth
+    if rrect(x, y, 75, 30, 219, 170, 14):
+        return "screen"
+    if 87 <= x < 207 and 192 <= y < 202:
+        return "slot"
+    return "body"
+
+
+def logo_svg():
+    rects = []
+    for row in range(H // 5):
+        y = row * 5
+        x = 0
+        while x < W:
+            cell = classify(x + 1, y + 2)
+            filled = cell in ("body", "face")
+            if filled:
+                start = x
+                while x < W and classify(x + 1, y + 2) in ("body", "face"):
+                    x += 3
+                rects.append(f'<rect x="{start}" y="{y}" width="{x - start}" height="5"/>')
+            else:
+                x += 3
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img" aria-label="Platinum logo">'
+        '<style>@media (prefers-color-scheme: dark) { .logo { fill: #4ade80; } } '
+        '@media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) { .logo { fill: #15803d; } }</style>'
+        '<g class="logo" shape-rendering="crispEdges">' + "".join(rects) + "</g></svg>\n"
+    )
+
+
+# ---- Classic Mac icon family -------------------------------------------------
+
+def system_palette():
+    """The Mac OS 8-bit system palette (clut 8): a 6x6x6 cube, ramps, then black."""
+    cube = [0xFF, 0xCC, 0x99, 0x66, 0x33, 0x00]
+    pal = [(r, g, b) for r in cube for g in cube for b in cube][:-1]  # 215 entries, black excluded
+    ramp = [0xEE, 0xDD, 0xBB, 0xAA, 0x88, 0x77, 0x55, 0x44, 0x22, 0x11]
+    pal += [(v, 0, 0) for v in ramp] + [(0, v, 0) for v in ramp] + [(0, 0, v) for v in ramp] + [(v, v, v) for v in ramp]
+    pal.append((0, 0, 0))
+    assert len(pal) == 256 and pal[0] == (255, 255, 255) and pal[255] == (0, 0, 0)
+    return pal
+
+
+PAL = system_palette()
+COLOURS = {"body": (0xCC, 0xCC, 0xCC), "screen": (0x66, 0x99, 0x66), "face": (0, 0, 0),
+           "slot": (0x33, 0x33, 0x33), "line": (0, 0, 0)}
+
+
+def index_of(rgb):
+    return PAL.index(rgb)
+
+
+def icon_cells(size):
+    """Sample the shape into a size x size grid of classes (letterboxed, 1px outline)."""
+    scale = W / size  # fit the 294-wide mark; the mark is nearly square so height fits too
+    grid = []
+    for j in range(size):
+        row = []
+        for i in range(size):
+            x = (i + 0.5) * scale
+            y = (j + 0.5) * scale * (H / W) * (W / H)  # same scale on both axes
+            row.append(classify(x, y) if y < H else "out")
+        grid.append(row)
+    # outline: any body pixel that touches "out" becomes line
+    out = [r[:] for r in grid]
+    for j in range(size):
+        for i in range(size):
+            if grid[j][i] == "out":
+                continue
+            for dj, di in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nj, ni = j + dj, i + di
+                if not (0 <= nj < size and 0 <= ni < size) or grid[nj][ni] == "out":
+                    out[j][i] = "line"
+    return out
+
+
+def hexlines(data, per=16):
+    lines = []
+    for k in range(0, len(data), per):
+        lines.append('    $"' + " ".join(f"{b:02X}" for b in data[k:k + per]) + '"')
+    return "\n".join(lines)
+
+
+def bits(grid, pred):
+    out = bytearray()
+    for row in grid:
+        v = 0
+        for i, c in enumerate(row):
+            v = (v << 1) | (1 if pred(c) else 0)
+        out += v.to_bytes(len(row) // 8, "big")
+    return bytes(out)
+
+
+def icon_r():
+    parts = [
+        "// Generated by tools/gen-art.py from the same shape as docs/logo.svg. Do not edit.\n"
+        "// Raw data resources only, so no Apple headers are needed. Colours: the Mac OS 8-bit system palette.\n"
+        "// Not yet part of a real application build (see issue 41).\n"
+    ]
+    for size, tag_mask, tag8, tag4 in ((32, "ICN#", "icl8", "icl4"), (16, "ics#", "ics8", "ics4")):
+        rid = 128
+        g = icon_cells(size)
+        solid = lambda c: c != "out"
+        image = bits(g, lambda c: c in ("line", "face", "slot"))  # 1-bit: ink where dark
+        mask = bits(g, solid)
+        parts.append(f"data '{tag_mask}' ({rid}, \"Platinum\") {{\n{hexlines(image + mask)}\n}};\n")
+        pix = bytearray()
+        for row in g:
+            for c in row:
+                pix.append(255 if c == "out" else index_of(COLOURS[c if c in COLOURS else "body"]))
+        parts.append(f"data '{tag8}' ({rid}, \"Platinum\") {{\n{hexlines(bytes(pix))}\n}};\n")
+        # 4-bit: map each 8-bit colour to the nearest of the 16 colours in the Mac 4-bit palette
+        parts.append(f"data '{tag4}' ({rid}, \"Platinum\") {{\n{hexlines(pack4(pix))}\n}};\n")
+    # Application plumbing: signature, file reference, bundle (all raw bytes).
+    parts.append("data 'PTLM' (0, \"Platinum 0.3.1\") {\n    $\"0E506C6174696E756D20302E332E31\"\n};\n")
+    parts.append("data 'FREF' (128) {\n    $\"4150504C 0000 00\"\n};\n")
+    parts.append("data 'BNDL' (128) {\n    $\"50544C4D 0000 0001\"\n    $\"49434E23 0000 0000 0080\"\n    $\"46524546 0000 0000 0080\"\n};\n")
+    return "\n".join(parts)
+
+
+# Mac OS 4-bit (clut 4) palette: white, yellow, orange, red, magenta, purple, blue, cyan, green,
+# dark green, brown, tan, light grey, medium grey, dark grey, black.
+PAL4 = [(255, 255, 255), (0xFF, 0xFF, 0), (0xFF, 0x66, 0), (0xDD, 0, 0), (0xFF, 0, 0x99), (0x33, 0, 0x99),
+        (0, 0, 0xCC), (0, 0x99, 0xFF), (0, 0xAA, 0), (0, 0x66, 0), (0x66, 0x33, 0), (0x99, 0x66, 0x33),
+        (0xBB, 0xBB, 0xBB), (0x88, 0x88, 0x88), (0x44, 0x44, 0x44), (0, 0, 0)]
+
+
+def pack4(pix8):
+    def near(i):
+        r, g, b = PAL[i]
+        return min(range(16), key=lambda k: (PAL4[k][0] - r) ** 2 + (PAL4[k][1] - g) ** 2 + (PAL4[k][2] - b) ** 2)
+    nib = [near(i) for i in pix8]
+    return bytes((nib[k] << 4) | nib[k + 1] for k in range(0, len(nib), 2))
+
+
+def main():
+    outputs = {ROOT / "docs/logo.svg": logo_svg(), ROOT / "macos9/resources/icon.r": icon_r()}
+    if "--check" in sys.argv:
+        bad = [str(p.relative_to(ROOT)) for p, text in outputs.items() if not p.exists() or p.read_text() != text]
+        if bad:
+            print("FAIL: stale generated art, run tools/gen-art.py: " + ", ".join(bad))
+            return 1
+        print("ok: art")
+        return 0
+    for p, text in outputs.items():
+        p.write_text(text)
+        print("wrote", p.relative_to(ROOT))
+    return 0
+
+
+sys.exit(main())
