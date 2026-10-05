@@ -215,7 +215,11 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
     status = platinum_bridge_get(bridge, "/v1/timeline?limit=20", &response);
     if (status != WF_OK) {
         timeline->loading = 0;
-        timeline_set_status(timeline, "Timeline refresh failed.");
+        if (status == WF_ERR_AUTH)
+            timeline_set_status(timeline,
+                                "Session expired. Pair the account again.");
+        else
+            timeline_set_status(timeline, "Timeline refresh failed.");
         wf_response_free(&response);
         return status;
     }
