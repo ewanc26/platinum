@@ -31,6 +31,7 @@ OSErr platinum_scrollbar_open(platinum_scrollbar *scrollbar,
         return memFullErr;
     }
 
+    SetCtlAction(scrollbar->control, (ProcPtr)-1L);
     return noErr;
 }
 
