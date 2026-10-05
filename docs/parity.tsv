@@ -19,8 +19,8 @@ post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
 reply|Reply|yes|yes|issue|#27
 quote|Quote post|yes|yes|issue|#29
 reply-gate|Reply gates|yes|no|issue|#29
-like|Like and unlike|yes|yes|issue|#28
-repost|Repost and undo|yes|yes|issue|#28
+like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement
+repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggle(
 profile-self|Own profile|yes|yes|implemented|macos9/profile.c::platinum_profile_refresh
 profile-other|Other people's profiles|yes|yes|issue|#31
 follow|Follow and unfollow|yes|yes|issue|#31
