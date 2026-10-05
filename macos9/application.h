@@ -7,6 +7,7 @@
 #include "timeline.h"
 #include "profile.h"
 #include "notifications.h"
+#include "preferences.h"
 #include <Menus.h>
 
 #ifdef __cplusplus
@@ -22,6 +23,7 @@ typedef struct platinum_application {
     platinum_timeline timeline;
     platinum_profile profile;
     platinum_notifications notifications;
+    platinum_preferences preferences;
     MenuHandle file_menu;
     MenuHandle edit_menu;
     MenuHandle view_menu;
