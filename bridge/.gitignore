@@ -2,3 +2,9 @@
 dist/
 node_modules/
 .env
+
+# npm writes this on install. It is deliberately not tracked: CI installs with
+# `npm install` rather than `npm ci` and caches on package.json, so a committed
+# lockfile would pin dependency versions without anything consuming them.
+# Revisit this if CI ever moves to `npm ci`.
+package-lock.json
