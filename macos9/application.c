@@ -14,6 +14,7 @@
 #include "ui.h"
 #include "timeline.h"
 #include "profile.h"
+#include "notifications.h"
 #include <cJSON.h>
 
 #define kFileMenuID 128
@@ -34,6 +35,9 @@ static void platinum_application_invalidate(platinum_application *app);
 static void platinum_application_relayout(platinum_application *app);
 static void platinum_application_refresh_timeline(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
+static void platinum_application_open_notifications(platinum_application *app);
+static void platinum_application_refresh_notifications(
+    platinum_application *app);
 static void platinum_application_submit_post(platinum_application *app);
 static void platinum_application_post_status(platinum_application *app,
                                              wf_status status);
@@ -102,6 +106,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_ui_state_init(&app->ui);
     platinum_timeline_init(&app->timeline);
     platinum_profile_init(&app->profile);
+    platinum_notifications_init(&app->notifications);
 
     InitGraf(&qd.thePort);
     InitFonts();
@@ -169,6 +174,7 @@ void platinum_application_dispose(platinum_application *app)
         app->window = NULL;
     }
 
+    platinum_notifications_close(&app->notifications);
     platinum_profile_close(&app->profile);
     platinum_compose_close(&app->compose);
     platinum_session_close(&app->session);
@@ -214,6 +220,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->notifications.window != NULL &&
+                           window == app->notifications.window) {
+                    platinum_notifications_close(&app->notifications);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->compose.window != NULL &&
                            window == app->compose.window) {
                     platinum_compose_close(&app->compose);
@@ -230,6 +241,17 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                }
+            } else if (app->notifications.window != NULL &&
+                       window == app->notifications.window) {
+                action = platinum_notifications_handle_event(
+                    &app->notifications, event);
+                if (action == PLATINUM_NOTIFICATIONS_CLOSE) {
+                    platinum_notifications_close(&app->notifications);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
+                    platinum_application_refresh_notifications(app);
                 }
             } else if (app->compose.window != NULL &&
                        window == app->compose.window) {
@@ -255,6 +277,8 @@ static void platinum_application_handle_event(platinum_application *app,
                         SelectWindow(app->compose.window);
                 } else if (action == PLATINUM_UI_ACTION_PROFILE) {
                     platinum_application_open_profile(app);
+                } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
+                    platinum_application_open_notifications(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -262,7 +286,11 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case updateEvt:
             window = (WindowPtr)event->message;
-            if (app->profile.window != NULL && window == app->profile.window) {
+            if (app->notifications.window != NULL &&
+                window == app->notifications.window) {
+                platinum_notifications_handle_event(&app->notifications,
+                                                    event);
+            } else if (app->profile.window != NULL && window == app->profile.window) {
                 platinum_profile_handle_event(&app->profile, event);
             } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
@@ -276,7 +304,11 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)event->message;
-            if (app->profile.window != NULL && window == app->profile.window) {
+            if (app->notifications.window != NULL &&
+                window == app->notifications.window) {
+                platinum_notifications_handle_event(&app->notifications,
+                                                    event);
+            } else if (app->profile.window != NULL && window == app->profile.window) {
                 platinum_profile_handle_event(&app->profile, event);
             } else if (app->compose.window != NULL && window == app->compose.window) {
                 platinum_compose_handle_event(&app->compose, event);
@@ -287,8 +319,19 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case keyDown:
         case autoKey:
-            if (app->profile.window != NULL &&
-                FrontWindow() == app->profile.window) {
+            if (app->notifications.window != NULL &&
+                FrontWindow() == app->notifications.window) {
+                action = platinum_notifications_handle_event(
+                    &app->notifications, event);
+                if (action == PLATINUM_NOTIFICATIONS_CLOSE) {
+                    platinum_notifications_close(&app->notifications);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
+                    platinum_application_refresh_notifications(app);
+                }
+            } else if (app->profile.window != NULL &&
+                       FrontWindow() == app->profile.window) {
                 action = platinum_profile_handle_event(&app->profile, event);
                 if (action == PLATINUM_PROFILE_CLOSE) {
                     platinum_profile_close(&app->profile);
@@ -319,6 +362,8 @@ static void platinum_application_handle_event(platinum_application *app,
                         SelectWindow(app->compose.window);
                 } else if (action == PLATINUM_UI_ACTION_PROFILE) {
                     platinum_application_open_profile(app);
+                } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
+                    platinum_application_open_notifications(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -525,7 +570,9 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_invalidate(app);
         }
     } else if (menu_id == kWindowMenuID) {
-        if (item == 3)
+        if (item == 2)
+            platinum_application_open_notifications(app);
+        else if (item == 3)
             platinum_application_open_profile(app);
         else
             platinum_application_invalidate(app);
@@ -644,4 +691,43 @@ static void platinum_application_open_profile(platinum_application *app)
     bridge = platinum_session_bridge(&app->session);
     if (bridge != NULL)
         platinum_profile_refresh(&app->profile, bridge);
+}
+
+static void platinum_application_open_notifications(platinum_application *app)
+{
+    if (app == NULL)
+        return;
+
+    if (!platinum_session_is_paired(&app->session)) {
+        platinum_notifications_init(&app->notifications);
+        platinum_application_invalidate(app);
+        return;
+    }
+
+    if (platinum_notifications_open(&app->notifications) != noErr)
+        return;
+
+    platinum_application_refresh_notifications(app);
+}
+
+static void platinum_application_refresh_notifications(
+    platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+
+    if (app == NULL)
+        return;
+
+    if (!platinum_session_is_paired(&app->session)) {
+        platinum_notifications_init(&app->notifications);
+        return;
+    }
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    platinum_notifications_refresh(&app->notifications, bridge);
+    if (app->notifications.window != NULL)
+        InvalRect(&app->notifications.window->portRect);
 }

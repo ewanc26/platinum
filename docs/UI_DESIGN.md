@@ -260,3 +260,5 @@ The first complete UI milestone should therefore be a convincing static shell po
 ## Non-goals
 
 Do not add a web view, HTML/CSS rendering, a mobile-style tab bar, a modern card-based UI, rounded-corner application chrome, giant icon-only navigation, a permanently visible OAuth/browser panel, or a custom widget toolkit when the Macintosh Toolbox can provide the behaviour.
+
+The native Notifications surface is a modeless document window backed by `GET /v1/notifications`. It supports bounded scrolling, Command-R refresh and standard window close/drag behaviour.
