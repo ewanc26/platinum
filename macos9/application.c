@@ -351,10 +351,19 @@ static void platinum_application_handle_event(platinum_application *app,
                     }
                 }
 
-                action = platinum_ui_handle_mouse(&app->layout,
-                                                  &app->ui,
-                                                  &app->timeline,
-                                                  event->where);
+                {
+                    Point local_where;
+
+                    local_where = event->where;
+                    SetPort((GrafPtr)app->window);
+                    GlobalToLocal(&local_where);
+
+                    action = platinum_ui_handle_mouse(
+                        &app->layout,
+                        &app->ui,
+                        &app->timeline,
+                        local_where);
+                }
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     app->running = 0;
                 else if (action == PLATINUM_UI_ACTION_REFRESH)
