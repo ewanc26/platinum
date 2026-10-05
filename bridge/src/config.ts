@@ -1,4 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Read from package.json so /health cannot drift from the release version.
+const packageVersion = (JSON.parse(
+  readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
+) as { version: string }).version
 
 export interface BridgeConfig {
   host: string
@@ -30,7 +37,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     baseUrl,
     publicUrl,
     dataDir,
-    version: '0.2.0',
+    version: packageVersion,
     maxBodyBytes: 64 * 1024,
   }
 }

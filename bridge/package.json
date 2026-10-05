@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "check": "tsc --noEmit -p tsconfig.json",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "node --import tsx --test test/*.test.ts",
+    "update": "node dist/update/cli.js"
   },
   "engines": {
     "node": ">=22"
