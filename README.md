@@ -194,6 +194,8 @@ platinum/
 │   ├── bridge_client.h
 │   ├── compose.c
 │   ├── compose.h
+│   ├── pairing.c
+│   ├── pairing.h
 │   ├── config.c
 │   ├── config.h
 │   ├── main.c
@@ -212,7 +214,7 @@ The layout will grow as the native application shell, UI, persistent settings an
 
 The native UI specification lives in [docs/UI_DESIGN.md](docs/UI_DESIGN.md). It defines the Classic Mac window model, menu structure, layout, typography, keyboard behaviour and interaction priorities for the client.
 
-The first UI shell is implemented under `macos9/ui.c` and `macos9/ui.h`. The shell now has navigation selection, timeline selection, keyboard scrolling, Classic Mac menu/input handling, a native TextEdit compose window and a collapsible detail pane. The timeline data is still representative and the compose Post action is not bridge-backed yet.
+The first UI shell is implemented under `macos9/ui.c` and `macos9/ui.h`. The shell now has navigation selection, timeline selection, keyboard scrolling, Classic Mac menu/input handling, a native TextEdit compose window, a collapsible detail pane and a native bridge-pairing window. The timeline data is still representative and the compose Post action is not bridge-backed yet.
 
 ## Development
 

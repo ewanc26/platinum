@@ -180,12 +180,12 @@ Do not create a large settings dashboard. Apple explicitly recommends avoiding p
 
 The first-run experience should be a small sequence of classic dialogs rather than a custom welcome screen:
 
-1. Bridge configuration window.
-2. Connect… or Set Bridge… dialog.
-3. Browser-assisted pairing instructions.
-4. Pairing-code entry dialog.
-5. Completion alert.
-6. Main Timeline window.
+1. Bridge pairing/configuration window.
+2. Browser-assisted pairing instructions.
+3. Pairing-code entry.
+4. Main Timeline window.
+
+The current native implementation combines the first three steps into one small modeless window. It stores the bridge URL locally, accepts the six-character pairing code, leaves OAuth entirely in the modern browser, and keeps the window open when pairing fails.
 
 The Mac client never asks for a Bluesky password.
 
