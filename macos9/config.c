@@ -72,7 +72,7 @@ OSErr platinum_config_set_bridge_url(platinum_config *config,
 
     return platinum_copy_string(config->bridge_url,
                                 PLATINUM_CONFIG_BRIDGE_URL_MAX + 1,
-                                value) ? noErr : errFSNameTooLong;
+                                value) ? noErr : paramErr;
 }
 
 OSErr platinum_config_set_token(platinum_config *config,
@@ -83,7 +83,7 @@ OSErr platinum_config_set_token(platinum_config *config,
 
     return platinum_copy_string(config->bridge_token,
                                 PLATINUM_CONFIG_TOKEN_MAX + 1,
-                                value) ? noErr : errFSNameTooLong;
+                                value) ? noErr : paramErr;
 }
 
 OSErr platinum_config_set_did(platinum_config *config,
@@ -94,7 +94,7 @@ OSErr platinum_config_set_did(platinum_config *config,
 
     return platinum_copy_string(config->did,
                                 PLATINUM_CONFIG_DID_MAX + 1,
-                                value) ? noErr : errFSNameTooLong;
+                                value) ? noErr : paramErr;
 }
 
 OSErr platinum_config_set_installation_id(platinum_config *config,
@@ -105,7 +105,7 @@ OSErr platinum_config_set_installation_id(platinum_config *config,
 
     return platinum_copy_string(config->installation_id,
                                 PLATINUM_CONFIG_INSTALLATION_ID_MAX + 1,
-                                value) ? noErr : errFSNameTooLong;
+                                value) ? noErr : paramErr;
 }
 
 static int platinum_append(char *buffer, long capacity, long *length,
@@ -169,7 +169,7 @@ OSErr platinum_config_save(const platinum_config *config)
         !platinum_append_line(buffer, PLATINUM_CONFIG_MAX_FILE, &length,
                               "installation_id", config->installation_id)) {
         free(buffer);
-        return errFSDataTooBig;
+        return paramErr;
     }
 
     err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
@@ -241,28 +241,28 @@ static OSErr platinum_config_parse_line(platinum_config *config,
                                   PLATINUM_CONFIG_BRIDGE_URL_MAX + 1,
                                   copy)) {
             free(copy);
-            return errFSNameTooLong;
+            return paramErr;
         }
     } else if (platinum_key_equals(line, key_len, "bridge_token")) {
         if (!platinum_copy_string(config->bridge_token,
                                   PLATINUM_CONFIG_TOKEN_MAX + 1,
                                   copy)) {
             free(copy);
-            return errFSNameTooLong;
+            return paramErr;
         }
     } else if (platinum_key_equals(line, key_len, "did")) {
         if (!platinum_copy_string(config->did,
                                   PLATINUM_CONFIG_DID_MAX + 1,
                                   copy)) {
             free(copy);
-            return errFSNameTooLong;
+            return paramErr;
         }
     } else if (platinum_key_equals(line, key_len, "installation_id")) {
         if (!platinum_copy_string(config->installation_id,
                                   PLATINUM_CONFIG_INSTALLATION_ID_MAX + 1,
                                   copy)) {
             free(copy);
-            return errFSNameTooLong;
+            return paramErr;
         }
     }
 
@@ -308,7 +308,7 @@ OSErr platinum_config_load(platinum_config *config)
 
     if (file_size < 0 || file_size >= PLATINUM_CONFIG_MAX_FILE) {
         FSClose(refNum);
-        return errFSDataTooBig;
+        return paramErr;
     }
 
     buffer = (char *)malloc((size_t)file_size + 1);
