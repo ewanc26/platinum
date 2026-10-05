@@ -1,0 +1,15 @@
+name: Feature or parity gap
+description: Something the stack has elsewhere (Cobalt, Indigo) or should have
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What is wanted
+    validations: {required: true}
+  - type: textarea
+    id: mac
+    attributes:
+      label: How it fits Mac OS 9
+      description: Memory, cooperative event loop and 640x480 constraints. A port of another client's design is not an answer.
+    validations: {required: true}

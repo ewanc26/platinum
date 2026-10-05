@@ -1,0 +1,18 @@
+name: release-check
+
+# A v* tag must match bridge/package.json and have a CHANGELOG section, so a tag
+# cannot be cut from a tree that reports a different version. Nothing here
+# publishes anything: Platinum has no registry release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: tools/check-flow.sh release "$GITHUB_REF_NAME"
