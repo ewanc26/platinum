@@ -16,6 +16,7 @@
 #include "profile.h"
 #include "notifications.h"
 #include "preferences.h"
+#include "pairing.h"
 #include "text_codec.h"
 #include <cJSON.h>
 
@@ -44,6 +45,13 @@ static void platinum_application_open_preferences(
     platinum_application *app);
 static void platinum_application_sign_out(
     platinum_application *app);
+static OSErr platinum_application_open_pairing(
+    platinum_application *app);
+static void platinum_application_attempt_pair(
+    platinum_application *app);
+static void platinum_application_show_pairing_error(
+    platinum_application *app,
+    const char *message);
 static void platinum_application_submit_post(platinum_application *app);
 static void platinum_application_post_status(platinum_application *app,
                                              wf_status status);
@@ -59,6 +67,9 @@ static unsigned char kViewMenu[] = { 4, 'V', 'i', 'e', 'w' };
 static unsigned char kWindowMenu[] = { 6, 'W', 'i', 'n', 'd', 'o', 'w' };
 static unsigned char kHelpMenu[] = { 4, 'H', 'e', 'l', 'p' };
 
+static unsigned char kPairAccount[] = {
+    15, 'P', 'a', 'i', 'r', ' ', 'A', 'c', 'c', 'o', 'u', 'n', 't', '.', '.', '.'
+};
 static unsigned char kNewPost[] = {
     11, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
 };
@@ -114,6 +125,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_profile_init(&app->profile);
     platinum_notifications_init(&app->notifications);
     platinum_preferences_init(&app->preferences);
+    memset(&app->pairing, 0, sizeof(app->pairing));
 
     InitGraf(&qd.thePort);
     InitFonts();
@@ -152,6 +164,8 @@ OSErr platinum_application_init(platinum_application *app)
 
     if (platinum_session_is_paired(&app->session))
         platinum_application_refresh_timeline(app);
+    else
+        platinum_application_open_pairing(app);
 
     return noErr;
 }
@@ -181,6 +195,7 @@ void platinum_application_dispose(platinum_application *app)
         app->window = NULL;
     }
 
+    platinum_pairing_close(&app->pairing);
     platinum_preferences_close(&app->preferences);
     platinum_notifications_close(&app->notifications);
     platinum_profile_close(&app->profile);
@@ -233,6 +248,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_notifications_close(&app->notifications);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->pairing.window != NULL &&
+                           window == app->pairing.window) {
+                    platinum_pairing_close(&app->pairing);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->preferences.window != NULL &&
                            window == app->preferences.window) {
                     platinum_preferences_close(&app->preferences);
@@ -266,6 +286,16 @@ static void platinum_application_handle_event(platinum_application *app,
                 } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
                     platinum_application_refresh_notifications(app);
                 }
+            } else if (app->pairing.window != NULL &&
+                       window == app->pairing.window) {
+                action = platinum_pairing_handle_event(&app->pairing, event);
+                if (action == PLATINUM_PAIRING_CANCEL) {
+                    platinum_pairing_close(&app->pairing);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PAIRING_PAIR) {
+                    platinum_application_attempt_pair(app);
+                }
             } else if (app->preferences.window != NULL &&
                        window == app->preferences.window) {
                 action = platinum_preferences_handle_event(
@@ -276,6 +306,9 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
                     platinum_application_sign_out(app);
+                } else if (action == PLATINUM_PREFERENCES_PAIR) {
+                    platinum_preferences_close(&app->preferences);
+                    platinum_application_open_pairing(app);
                 }
             } else if (app->compose.window != NULL &&
                        window == app->compose.window) {
@@ -310,7 +343,10 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case updateEvt:
             window = (WindowPtr)event->message;
-            if (app->preferences.window != NULL &&
+            if (app->pairing.window != NULL &&
+                window == app->pairing.window) {
+                platinum_pairing_handle_event(&app->pairing, event);
+            } else if (app->preferences.window != NULL &&
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
@@ -332,7 +368,10 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)event->message;
-            if (app->preferences.window != NULL &&
+            if (app->pairing.window != NULL &&
+                window == app->pairing.window) {
+                platinum_pairing_handle_event(&app->pairing, event);
+            } else if (app->preferences.window != NULL &&
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
@@ -351,7 +390,17 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case keyDown:
         case autoKey:
-            if (app->preferences.window != NULL &&
+            if (app->pairing.window != NULL &&
+                FrontWindow() == app->pairing.window) {
+                action = platinum_pairing_handle_event(&app->pairing, event);
+                if (action == PLATINUM_PAIRING_CANCEL) {
+                    platinum_pairing_close(&app->pairing);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PAIRING_PAIR) {
+                    platinum_application_attempt_pair(app);
+                }
+            } else if (app->preferences.window != NULL &&
                 FrontWindow() == app->preferences.window) {
                 action = platinum_preferences_handle_event(
                     &app->preferences, event);
@@ -507,11 +556,13 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     }
 
     AppendMenu(app->file_menu, kNewPost);
+    AppendMenu(app->file_menu, kPairAccount);
     AppendMenu(app->file_menu, kCloseWindow);
     AppendMenu(app->file_menu, kQuit);
     SetItemCmdChar(app->file_menu, 1, 'n');
-    SetItemCmdChar(app->file_menu, 2, 'w');
-    SetItemCmdChar(app->file_menu, 3, 'q');
+    SetItemCmdChar(app->file_menu, 2, 'k');
+    SetItemCmdChar(app->file_menu, 3, 'w');
+    SetItemCmdChar(app->file_menu, 4, 'q');
 
     AppendMenu(app->edit_menu, kUndo);
     AppendMenu(app->edit_menu, kCut);
@@ -604,11 +655,14 @@ static void platinum_application_handle_menu(platinum_application *app,
             if (platinum_compose_open(&app->compose) == noErr)
                 SelectWindow(app->compose.window);
         } else if (item == 2) {
+            if (platinum_application_open_pairing(app) == noErr)
+                SelectWindow(app->pairing.window);
+        } else if (item == 3) {
             if (app->compose.window != NULL)
                 platinum_compose_close(&app->compose);
             else
                 app->running = 0;
-        } else if (item == 3) {
+        } else if (item == 4) {
             app->running = 0;
         }
     } else if (menu_id == kEditMenuID) {
@@ -830,5 +884,88 @@ static void platinum_application_sign_out(
 
     platinum_preferences_close(&app->preferences);
     SelectWindow(app->window);
+    platinum_application_invalidate(app);
+}
+
+static OSErr platinum_application_open_pairing(
+    platinum_application *app)
+{
+    const platinum_config *config;
+    const char *bridge_url;
+    OSErr status;
+
+    if (app == NULL)
+        return paramErr;
+
+    if (app->pairing.window != NULL) {
+        SelectWindow(app->pairing.window);
+        return noErr;
+    }
+
+    config = platinum_session_config(&app->session);
+    bridge_url = config != NULL ? config->bridge_url : NULL;
+    status = platinum_pairing_open(&app->pairing, bridge_url);
+    if (status == noErr)
+        SelectWindow(app->pairing.window);
+    return status;
+}
+
+static void platinum_application_show_pairing_error(
+    platinum_application *app,
+    const char *message)
+{
+    if (app == NULL || app->pairing.window == NULL)
+        return;
+
+    platinum_pairing_set_status(&app->pairing, message);
+    SelectWindow(app->pairing.window);
+}
+
+static void platinum_application_attempt_pair(
+    platinum_application *app)
+{
+    char bridge_url[PLATINUM_PAIRING_URL_MAX + 1];
+    char code[PLATINUM_PAIRING_CODE_MAX + 1];
+    wf_status status;
+
+    if (app == NULL || app->pairing.window == NULL)
+        return;
+
+    if (platinum_pairing_get_bridge_url(&app->pairing,
+                                        bridge_url,
+                                        sizeof(bridge_url)) != noErr) {
+        platinum_application_show_pairing_error(
+            app, "Enter a bridge URL.");
+        return;
+    }
+
+    if (platinum_pairing_get_code(&app->pairing,
+                                  code,
+                                  sizeof(code)) != noErr) {
+        platinum_application_show_pairing_error(
+            app, "Enter a six-character pairing code.");
+        return;
+    }
+
+    if (platinum_session_set_bridge_url(&app->session,
+                                        bridge_url) != noErr) {
+        platinum_application_show_pairing_error(
+            app, "The bridge URL could not be saved.");
+        return;
+    }
+
+    status = platinum_session_pair(&app->session, code);
+    if (status != WF_OK) {
+        platinum_application_show_pairing_error(
+            app, "Pairing failed. Check the bridge and code.");
+        return;
+    }
+
+    platinum_profile_close(&app->profile);
+    platinum_notifications_close(&app->notifications);
+    platinum_timeline_init(&app->timeline);
+    platinum_pairing_close(&app->pairing);
+    SelectWindow(app->window);
+    platinum_application_refresh_timeline(app);
     platinum_application_invalidate(app);
 }
