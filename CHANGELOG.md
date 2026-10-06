@@ -2,31 +2,41 @@
 
 Release tags are `vX.Y.Z` and must match `bridge/package.json`; the
 `release-check` workflow refuses a tag that does not, or that has no section
-here.
+here. Unreleased entries are grouped as Added, Changed, Fixed, Removed and
+Security, plus Repository for changes only contributors see, and each links its
+pull request.
 
 ## [Unreleased]
 
-Releases are paused until Platinum has run on Mac OS 9 (#62).
+Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
-### Bridge
+### Added
 
-- Self-update from GitHub releases (`npm run update`), opt-in and confirmed, with SHA-256 verification and rollback.
-- Opt-in app-password sign-in (`POST /v1/login/app-password`), separate from OAuth pairing.
-- Idempotent like and repost with undo (`POST /v1/like`, `POST /v1/repost`); timeline posts carry `liked` and `reposted`.
-- Mark notifications seen (`POST /v1/notifications/seen`), up to a timestamp the client was given.
-- `/health` reports the real package version.
+- The bridge can update itself from this repository's releases, when you ask it to: it checks the SHA-256 first, keeps the previous version for rollback, and never restarts itself. [#50](https://github.com/ewanc26/platinum/pull/50)
+- You can sign in to the bridge with an app password instead of the browser, if the operator turns it on. Off by default, and the password is never stored or logged. [#55](https://github.com/ewanc26/platinum/pull/55)
+- The timeline pages back: View > Load Older Posts, or Down Arrow on the last post. I keep forty posts at most. [#59](https://github.com/ewanc26/platinum/pull/59)
+- Like, unlike, repost and undo a repost from the new Post menu (Command-L, Command-E). The bridge side is idempotent, so pressing twice does no harm. [#60](https://github.com/ewanc26/platinum/pull/60), [#61](https://github.com/ewanc26/platinum/pull/61)
+- Opening Notifications marks them seen, up to the newest one shown, and the list pages back the same way the timeline does. [#64](https://github.com/ewanc26/platinum/pull/64)
+- A logo, and a Mac icon family generated from the same shape (not yet built into an application). [#57](https://github.com/ewanc26/platinum/pull/57)
 
-### Mac client
+### Changed
 
-- Timeline and notification paging, each keeping at most forty rows.
-- Like and repost the selected post from the Post menu.
-- Opening or refreshing Notifications marks them seen, up to the newest one shown.
-- Windows hilite and deactivate correctly, and a click on a background window brings it forward.
-- The application state is no longer on the stack.
+- The Mac client no longer depends on cJSON; it reads the bridge's JSON with a small bounded C89 reader, and every Mac source compiles as strict C89 in CI. [#21](https://github.com/ewanc26/platinum/pull/21), [#23](https://github.com/ewanc26/platinum/pull/23)
+- `/health` reports the bridge's real version instead of a stale one. [#50](https://github.com/ewanc26/platinum/pull/50)
+- The README follows the layout the rest of the stack uses. [#57](https://github.com/ewanc26/platinum/pull/57)
+
+### Fixed
+
+- Windows hilite and dim properly when they gain and lose focus, text fields stop blinking in background windows, and clicking a background window brings it forward instead of pressing whatever was under the pointer. [#53](https://github.com/ewanc26/platinum/pull/53)
+- The application state no longer lives on the stack, which on a Classic Mac is small and fixed at launch. [#59](https://github.com/ewanc26/platinum/pull/59)
 
 ### Repository
 
-- Flow checks, a single `CI gate`, the parity matrix, the Wolfram duplication guard, generated logo and icon, and a release dry run on every PR.
+- The contribution flow is enforced in CI: conventional commits, a single `CI gate`, rebase-only merges, and a check that every Mac source is compiled. [#24](https://github.com/ewanc26/platinum/pull/24), [#54](https://github.com/ewanc26/platinum/pull/54)
+- A parity table against Cobalt and Indigo, built from the code and checked in CI. [#44](https://github.com/ewanc26/platinum/pull/44)
+- A guard that stops logic Wolfram owns being copied into the bridge or the Mac client. [#58](https://github.com/ewanc26/platinum/pull/58)
+- A release dry run on every pull request, with real releases blocked while they're paused. [#63](https://github.com/ewanc26/platinum/pull/63)
+- Labels and repository metadata as code, checked against Wolfram's. [#65](https://github.com/ewanc26/platinum/pull/65)
 
 ## [0.3.1]
 
