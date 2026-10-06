@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, edited, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -21,28 +20,18 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
-      # Labels and repository metadata follow Wolfram's canonical copies. The
-      # pin is a commit, bumped deliberately, like the transport ref below.
+      # Wolfram's update vectors, which the bridge's port must run unchanged.
+      # The pin is a commit, bumped deliberately, like the transport ref below.
+      # Labels, metadata, conventions and style are checked by flow.yml.
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
           ref: 4ba931a37b0913e660fd54a8a569728c325ecc6e
           path: .wolfram-canon
           sparse-checkout: |
-            .github
-            tools/repo_sync.py
             test/vectors/update
       - name: The bridge's update vectors are Wolfram's, unchanged
         run: diff -ru .wolfram-canon/test/vectors/update bridge/test/vectors/update
-      - name: Labels and repository metadata match the canonical set
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
-          python3 .wolfram-canon/tools/repo_sync.py labels check --repo "$GITHUB_REPOSITORY" \
-            --file .github/labels.yml --canon .wolfram-canon/.github/labels.yml
-          python3 .wolfram-canon/tools/repo_sync.py metadata check --repo "$GITHUB_REPOSITORY" \
-            --file .github/repo-metadata.yml --canon .wolfram-canon/.github/repo-metadata.yml
       - run: tools/check-flow.sh duplication
       - name: Logo and icon are generated from one shape
         run: tools/gen-art.py --check
@@ -50,18 +39,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: tools/check-parity.sh
-      - name: Pull request title, body and commits
-        if: github.event_name == 'pull_request'
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/body.md"
-          tools/check-flow.sh title "$PR_TITLE"
-          tools/check-flow.sh body "$RUNNER_TEMP/body.md"
-          tools/check-flow.sh commits "$BASE_SHA..$HEAD_SHA"
 
   bridge:
     runs-on: ubuntu-latest
