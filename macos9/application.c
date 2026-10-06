@@ -2,6 +2,7 @@
 
 #include <Events.h>
 #include <Fonts.h>
+#include <Memory.h>
 #include <Menus.h>
 #include <Quickdraw.h>
 #include <TextEdit.h>
@@ -17,6 +18,7 @@
 #include "preferences.h"
 #include "pairing.h"
 #include "text_codec.h"
+#include "draft.h"
 #include "scrollbar.h"
 #include "json_min.h"
 #include "wolfram/macos9_tls.h"
@@ -45,6 +47,11 @@ static void platinum_application_engage(platinum_application *app,
 static void platinum_application_reply(platinum_application *app);
 static void platinum_application_quote(platinum_application *app);
 static void platinum_application_delete_post(platinum_application *app);
+static void platinum_application_new_post(platinum_application *app);
+static void platinum_application_open_diag(platinum_application *app);
+static void platinum_application_check_diag(platinum_application *app);
+static void platinum_application_close_compose(platinum_application *app,
+                                               int sent);
 static void platinum_application_show_thread(platinum_application *app);
 static void platinum_application_show_author(platinum_application *app);
 static void platinum_application_show_people(platinum_application *app,
@@ -217,6 +224,10 @@ static unsigned char kBringAllToFront[] = {
 static unsigned char kAbout[] = {
     14, 'A', 'b', 'o', 'u', 't', ' ', 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm'
 };
+static unsigned char kStatusItem[] = {
+    17, 'C', 'o', 'n', 'n', 'e', 'c', 't', 'i', 'o', 'n', ' ', 'S', 't', 'a',
+    't', 'u', 's'
+};
 static unsigned char kHelpItem[] = {
     13, 'P', 'l', 'a', 't', 'i', 'n', 'u', 'm', ' ', 'H', 'e', 'l', 'p'
 };
@@ -238,6 +249,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_thread_init(&app->thread);
     platinum_people_init(&app->people);
     platinum_search_init(&app->search);
+    platinum_diagwin_init(&app->diagwin);
     platinum_apppw_init(&app->apppw);
     platinum_preferences_init(&app->preferences);
     memset(&app->pairing, 0, sizeof(app->pairing));
@@ -331,8 +343,9 @@ void platinum_application_dispose(platinum_application *app)
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
     platinum_search_close(&app->search);
+    platinum_diagwin_close(&app->diagwin);
     platinum_profile_close(&app->profile);
-    platinum_compose_close(&app->compose);
+    platinum_application_close_compose(app, 0);
     platinum_session_close(&app->session);
     platinum_application_dispose_menus(app);
 }
@@ -391,6 +404,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_people_close(&app->people);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->diagwin.window != NULL &&
+                           window == app->diagwin.window) {
+                    platinum_diagwin_close(&app->diagwin);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->search.window != NULL &&
                            window == app->search.window) {
                     platinum_search_close(&app->search);
@@ -413,7 +431,7 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (app->compose.window != NULL &&
                            window == app->compose.window) {
-                    platinum_compose_close(&app->compose);
+                    platinum_application_close_compose(app, 0);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
                 }
@@ -432,6 +450,16 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                }
+            } else if (app->diagwin.window != NULL &&
+                       window == app->diagwin.window) {
+                action = platinum_diagwin_handle_event(&app->diagwin, event);
+                if (action == PLATINUM_DIAGWIN_CLOSE) {
+                    platinum_diagwin_close(&app->diagwin);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_DIAGWIN_CHECK) {
+                    platinum_application_check_diag(app);
                 }
             } else if (app->search.window != NULL &&
                        window == app->search.window) {
@@ -516,7 +544,7 @@ static void platinum_application_handle_event(platinum_application *app,
                        window == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
                 if (action == PLATINUM_COMPOSE_CANCEL) {
-                    platinum_compose_close(&app->compose);
+                    platinum_application_close_compose(app, 0);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_COMPOSE_POST) {
@@ -553,8 +581,7 @@ static void platinum_application_handle_event(platinum_application *app,
                 else if (action == PLATINUM_UI_ACTION_REFRESH)
                     platinum_application_refresh_timeline(app);
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
-                    if (platinum_compose_open(&app->compose) == noErr)
-                        SelectWindow(app->compose.window);
+                    platinum_application_new_post(app);
                 } else if (action == PLATINUM_UI_ACTION_PROFILE) {
                     platinum_application_open_profile(app);
                 } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
@@ -590,6 +617,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->diagwin.window != NULL &&
+                window == app->diagwin.window) {
+                platinum_diagwin_handle_event(&app->diagwin, event);
             } else if (app->search.window != NULL &&
                 window == app->search.window) {
                 platinum_search_handle_event(&app->search, event);
@@ -627,6 +657,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->diagwin.window != NULL &&
+                window == app->diagwin.window) {
+                platinum_diagwin_handle_event(&app->diagwin, event);
             } else if (app->search.window != NULL &&
                 window == app->search.window) {
                 platinum_search_handle_event(&app->search, event);
@@ -685,6 +718,16 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_preferences_close(&app->preferences);
                     platinum_application_open_pairing(app);
                 }
+            } else if (app->diagwin.window != NULL &&
+                FrontWindow() == app->diagwin.window) {
+                action = platinum_diagwin_handle_event(&app->diagwin, event);
+                if (action == PLATINUM_DIAGWIN_CLOSE) {
+                    platinum_diagwin_close(&app->diagwin);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_DIAGWIN_CHECK) {
+                    platinum_application_check_diag(app);
+                }
             } else if (app->search.window != NULL &&
                 FrontWindow() == app->search.window) {
                 action = platinum_search_handle_event(&app->search, event);
@@ -742,7 +785,7 @@ static void platinum_application_handle_event(platinum_application *app,
                 FrontWindow() == app->compose.window) {
                 action = platinum_compose_handle_event(&app->compose, event);
                 if (action == PLATINUM_COMPOSE_CANCEL) {
-                    platinum_compose_close(&app->compose);
+                    platinum_application_close_compose(app, 0);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_COMPOSE_POST) {
@@ -758,8 +801,7 @@ static void platinum_application_handle_event(platinum_application *app,
                 else if (action == PLATINUM_UI_ACTION_REFRESH)
                     platinum_application_refresh_timeline(app);
                 else if (action == PLATINUM_UI_ACTION_COMPOSE) {
-                    if (platinum_compose_open(&app->compose) == noErr)
-                        SelectWindow(app->compose.window);
+                    platinum_application_new_post(app);
                 } else if (action == PLATINUM_UI_ACTION_PROFILE) {
                     platinum_application_open_profile(app);
                 } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
@@ -1326,6 +1368,85 @@ static void platinum_application_delete_post(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/*
+ * A new, plain post: opens compose (or brings it forward) and puts back the
+ * text that was left unsent last time, if any.
+ */
+static void platinum_application_new_post(platinum_application *app)
+{
+    char draft[PLATINUM_DRAFT_MAX + 1];
+
+    if (app == NULL)
+        return;
+    if (app->compose.window != NULL) {
+        SelectWindow(app->compose.window);
+        return;
+    }
+    if (platinum_compose_open(&app->compose) != noErr)
+        return;
+    if (platinum_draft_load(draft, sizeof(draft)) == noErr && draft[0] != '\0') {
+        platinum_compose_set_text(&app->compose, draft);
+        platinum_compose_set_status(&app->compose,
+                                    "Restored the post you did not send.");
+    }
+    SelectWindow(app->compose.window);
+}
+
+/*
+ * Close the compose window. A new post that was not sent keeps its text as a
+ * draft (empty text clears the draft); a sent post clears it. A reply or a quote
+ * is not kept, so it can never come back as a plain post.
+ */
+static void platinum_application_close_compose(platinum_application *app,
+                                               int sent)
+{
+    char text[PLATINUM_COMPOSE_MAX_TEXT + 1];
+
+    if (app == NULL)
+        return;
+    if (app->compose.window != NULL) {
+        if (sent) {
+            (void)platinum_draft_clear();
+        } else if (app->compose.reply_uri[0] == '\0' &&
+                   app->compose.quote_uri[0] == '\0') {
+            if (platinum_compose_get_text(&app->compose, text,
+                                          sizeof(text)) == noErr)
+                (void)platinum_draft_save(text);
+            else
+                (void)platinum_draft_clear();
+        }
+    }
+    platinum_compose_close(&app->compose);
+}
+
+/* Help > Connection Status. */
+static void platinum_application_open_diag(platinum_application *app)
+{
+    if (app == NULL)
+        return;
+    if (platinum_diagwin_open(&app->diagwin) != noErr)
+        return;
+    platinum_application_check_diag(app);
+    SelectWindow(app->diagwin.window);
+}
+
+/* Take a fresh snapshot: ask the bridge for /health and read what is known.
+ * Never puts a token anywhere; only whether one is held. */
+static void platinum_application_check_diag(platinum_application *app)
+{
+    const platinum_config *config;
+
+    if (app == NULL || app->diagwin.window == NULL)
+        return;
+    config = platinum_session_config(&app->session);
+    (void)platinum_diag_check(&app->diagwin.diag,
+                              platinum_session_bridge(&app->session),
+                              config != NULL ? config->bridge_url : NULL,
+                              platinum_session_is_paired(&app->session),
+                              app->last_error, (long)FreeMem());
+    InvalRect(&app->diagwin.window->portRect);
+}
+
 /* Open compose as a quote of the selected post. */
 static void platinum_application_quote(platinum_application *app)
 {
@@ -1552,6 +1673,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
 
     AppendMenu(app->help_menu, kAbout);
     AppendMenu(app->help_menu, kHelpItem);
+    AppendMenu(app->help_menu, kStatusItem);
 
     InsertMenu(app->file_menu, 0);
     InsertMenu(app->edit_menu, 0);
@@ -1622,8 +1744,7 @@ static void platinum_application_handle_menu(platinum_application *app,
 
     if (menu_id == kFileMenuID) {
         if (item == 1) {
-            if (platinum_compose_open(&app->compose) == noErr)
-                SelectWindow(app->compose.window);
+            platinum_application_new_post(app);
         } else if (item == 2) {
             if (platinum_application_open_pairing(app) == noErr)
                 SelectWindow(app->pairing.window);
@@ -1637,7 +1758,7 @@ static void platinum_application_handle_menu(platinum_application *app,
             else if (app->preferences.window != NULL)
                 platinum_preferences_close(&app->preferences);
             else if (app->compose.window != NULL)
-                platinum_compose_close(&app->compose);
+                platinum_application_close_compose(app, 0);
             else
                 app->running = 0;
         } else if (item == 5) {
@@ -1700,6 +1821,8 @@ static void platinum_application_handle_menu(platinum_application *app,
         else
             platinum_application_invalidate(app);
     } else if (menu_id == kHelpMenuID) {
+        if (item == 3)
+            platinum_application_open_diag(app);
         platinum_application_invalidate(app);
     }
 }
@@ -1707,6 +1830,8 @@ static void platinum_application_handle_menu(platinum_application *app,
 static void platinum_application_post_status(platinum_application *app,
                                              wf_status status)
 {
+    if (app != NULL && status != WF_OK)
+        app->last_error = status;
     if (app == NULL || app->compose.window == NULL)
         return;
 
@@ -1797,7 +1922,7 @@ static void platinum_application_submit_post(platinum_application *app)
     }
 
     platinum_compose_set_status(&app->compose, NULL);
-    platinum_compose_close(&app->compose);
+    platinum_application_close_compose(app, 1);
     SelectWindow(app->window);
     platinum_application_refresh_timeline(app);
     if (gate_failed) {
@@ -1953,6 +2078,8 @@ static void platinum_application_sign_out(
 static void platinum_application_recover_auth(platinum_application *app,
                                              wf_status status)
 {
+    if (app != NULL && status != WF_OK)
+        app->last_error = status;
     if (app == NULL || status != WF_ERR_AUTH)
         return;
 

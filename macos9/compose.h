@@ -59,6 +59,8 @@ int platinum_compose_set_quote(platinum_compose *compose,
 /* Step the reply gate to the next choice, wrapping. A reply has no gate (it
  * belongs to the thread root), so this does nothing on one and returns 0. */
 int platinum_compose_cycle_gate(platinum_compose *compose);
+/* Replace the text (a draft being put back). */
+void platinum_compose_set_text(platinum_compose *compose, const char *text);
 void platinum_compose_draw(platinum_compose *compose);
 
 OSErr platinum_compose_get_text(const platinum_compose *compose,
