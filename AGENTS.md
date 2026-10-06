@@ -142,6 +142,8 @@ platinum/
 │   ├── profile_feed.c
 │   ├── profile.h
 │   ├── config.h
+│   ├── image_blob.c
+│   ├── image_pix.c
 │   ├── main.c
 │   ├── search.c
 │   ├── search_query.c

@@ -19,6 +19,7 @@ int last_method; /* 0 = none, 1 = GET, 2 = POST */
 int fake_status;      /* wf_status to return */
 long fake_http_status;/* HTTP status to put in the response */
 const char *fake_body;/* response body to hand back */
+size_t fake_body_len; /* see wolfram_stub.h */
 
 /* ------------------------------------------------------------------ */
 /* Wolfram transport stubs                                             */
@@ -97,7 +98,14 @@ static void record_response(wf_response *out)
      * than expose a real defect. */
     memset(out, 0, sizeof(*out));
     out->status = fake_http_status;
-    if (fake_body != NULL) {
+    if (fake_body != NULL && fake_body_len > 0) {
+        out->body = (char *)malloc(fake_body_len + 1);
+        if (out->body != NULL) {
+            memcpy(out->body, fake_body, fake_body_len);
+            out->body[fake_body_len] = '\0';
+            out->body_len = fake_body_len;
+        }
+    } else if (fake_body != NULL) {
         out->body = stub_strdup(fake_body);
         if (out->body != NULL)
             out->body_len = strlen(out->body);
