@@ -12,4 +12,4 @@ repo:
   description: "A Bluesky client for Classic Mac OS 9, with a small Node bridge doing the parts a 1990s operating system can't."
   homepage: ""
   topics: [classic-mac, classic-mac-os, codewarrior, mac-os-9, macintosh, mactls, open-transport, retrocomputing, social-networking, c89, nodejs]
-  enforce_live: false
+  enforce_live: true
