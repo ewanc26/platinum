@@ -29,10 +29,15 @@ BOOL = {"Boolean", "bool"}
 def kind(t):
     t = re.sub(r"\b(const|struct|unsigned)\b", "", t).strip()
     t = re.sub(r"\s+", " ", t)
-    if t in STR:
-        return "ptr"
+    if t in STR or t == "Ptr":
+        return "ptr:mem"
     if "*" in t:
-        return "ptr"
+        # A plain pointer is compared by what it points to, so two pointer
+        # arguments in the wrong order (FSRead's buffer and count) differ.
+        base = re.sub(r"\*", "", t).strip()
+        if base in ("void", "Ptr", "char", "unsigned char"):
+            return "ptr:mem"
+        return "ptr:" + kind(base)
     if t in I8:
         return "i8"
     if t in I16:
@@ -43,8 +48,10 @@ def kind(t):
         return "bool"
     if t.endswith("UPP") or t.endswith("Proc") or t.endswith("ProcPtr") or t == "ProcPtr":
         return "ptr"
-    if t.endswith("Handle") or t.endswith("Ptr"):
+    if t.endswith("Handle"):
         return "ptr"
+    if t.endswith("Ptr") and len(t) > 3:
+        return "ptr:" + kind(t[:-3])
     return t
 
 
@@ -102,6 +109,11 @@ def real_table():
     return table
 
 
+def same(a, b):
+    """Equal, or both pointers and one of them is opaque (a handle, a proc)."""
+    return a == b or (a.startswith("ptr") and b.startswith("ptr") and "ptr" in (a, b))
+
+
 def differences():
     real = real_table()
     out = {}
@@ -110,7 +122,7 @@ def differences():
             out[name] = "not in the Multiversal table"
         elif len(got) != len(real[name]):
             out[name] = f"takes {len(real[name])} arguments, the stub declares {len(got)}"
-        elif got != real[name]:
+        elif not all(same(a, b) for a, b in zip(got, real[name])):
             out[name] = f"argument kinds differ: real {real[name]}, stub {got}"
     return out
 

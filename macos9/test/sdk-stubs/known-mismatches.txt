@@ -5,13 +5,15 @@
 Alert  # takes 2 arguments, the stub declares 4
 BlockCopy  # not in the Multiversal table
 BlockZero  # not in the Multiversal table
-CopyBits  # argument kinds differ: real ['ptr', 'ptr', 'ptr', 'ptr', 'i16', 'ptr'], stub ['ptr', 'ptr', 'ptr', 'ptr', 'ptr', 'i16']
+CopyBits  # argument kinds differ: real ['ptr:BitMap', 'ptr:BitMap', 'ptr:Rect', 'ptr:Rect', 'i16', 'ptr'], stub ['ptr:BitMap', 'ptr:BitMap', 'ptr:Rect', 'ptr:Rect', 'ptr:Graf', 'i16']
 DisableControl  # not in the Multiversal table
 Draw1Control  # takes 1 arguments, the stub declares 2
 DrawControl  # not in the Multiversal table
 EnableControl  # not in the Multiversal table
 FSDelete  # takes 2 arguments, the stub declares 1
+FSRead  # argument kinds differ: real ['i16', 'ptr:i32', 'ptr:mem'], stub ['i16', 'ptr:mem', 'ptr:i32']
 FSWritErr  # not in the Multiversal table
+FSWrite  # argument kinds differ: real ['i16', 'ptr:i32', 'ptr:mem'], stub ['i16', 'ptr:mem', 'ptr:i32']
 FSpClose  # not in the Multiversal table
 FindFolder  # not in the Multiversal table
 FlushEvents  # argument kinds differ: real ['i16', 'i16'], stub ['i16', 'i32']
@@ -23,13 +25,13 @@ GetCtlValue  # not in the Multiversal table
 GetDefaultFont  # not in the Multiversal table
 GetFontFamily  # not in the Multiversal table
 GetFontMetrics  # not in the Multiversal table
-GetFontName  # argument kinds differ: real ['i16', 'ptr'], stub ['i32', 'ptr']
+GetFontName  # argument kinds differ: real ['i16', 'ptr:mem'], stub ['i32', 'ptr:mem']
 HSetState  # argument kinds differ: real ['ptr', 'i8'], stub ['ptr', 'i16']
 HiliteMenu  # argument kinds differ: real ['i16'], stub ['i32']
 InitControls  # not in the Multiversal table
 MemMove  # not in the Multiversal table
 MemPtrSize  # not in the Multiversal table
-NewControl  # argument kinds differ: real ['ptr', 'ptr', 'ptr', 'bool', 'i16', 'i16', 'i16', 'i16', 'i32'], stub ['ptr', 'ptr', 'ptr', 'bool', 'i16', 'i16', 'i16', 'ptr', 'i32']
+NewControl  # argument kinds differ: real ['ptr:Window', 'ptr:Rect', 'ptr:mem', 'bool', 'i16', 'i16', 'i16', 'i16', 'i32'], stub ['ptr:Window', 'ptr:Rect', 'ptr:mem', 'bool', 'i16', 'i16', 'i16', 'ptr', 'i32']
 NewHandle  # takes 3 arguments, the stub declares 1
 NewPtr  # takes 3 arguments, the stub declares 1
 PBClose  # takes 2 arguments, the stub declares 1
