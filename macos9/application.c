@@ -43,6 +43,7 @@ static void platinum_application_load_older(platinum_application *app);
 static void platinum_application_engage(platinum_application *app,
                                         int repost);
 static void platinum_application_reply(platinum_application *app);
+static void platinum_application_quote(platinum_application *app);
 static void platinum_application_show_thread(platinum_application *app);
 static void platinum_application_show_author(platinum_application *app);
 static void platinum_application_show_people(platinum_application *app,
@@ -112,6 +113,9 @@ static unsigned char kAddWordItem[] = {
 };
 static unsigned char kRemoveWordItem[] = {
     18, 'R', 'e', 'm', 'o', 'v', 'e', ' ', 'M', 'u', 't', 'e', 'd', ' ', 'W', 'o', 'r', 'd'
+};
+static unsigned char kQuoteItem[] = {
+    13, 'Q', 'u', 'o', 't', 'e', ' ', 'P', 'o', 's', 't', '.', '.', '.'
 };
 static unsigned char kMuteItem[] = {
     14, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e'
@@ -1229,6 +1233,31 @@ static void platinum_application_reply(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/* Open compose as a quote of the selected post. */
+static void platinum_application_quote(platinum_application *app)
+{
+    const platinum_post_preview *post;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    if (app->compose.window != NULL) {
+        SelectWindow(app->compose.window);
+        return;
+    }
+
+    post = &app->timeline.posts[index];
+    if (platinum_compose_open(&app->compose) != noErr)
+        return;
+    (void)platinum_compose_set_quote(&app->compose, post->uri, post->cid,
+                                     post->handle);
+    SelectWindow(app->compose.window);
+    platinum_application_invalidate(app);
+}
+
 /* Like or repost the selected post, or undo it if the row says it is done. */
 static void platinum_application_engage(platinum_application *app, int repost)
 {
@@ -1414,6 +1443,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kAuthorPostsItem);
     AppendMenu(app->post_menu, kMuteItem);
     AppendMenu(app->post_menu, kBlockItem);
+    AppendMenu(app->post_menu, kQuoteItem);
     SetItemCmd(app->post_menu, 1, 'l');
     SetItemCmd(app->post_menu, 2, 'e');
     SetItemCmd(app->post_menu, 3, 'j');
@@ -1541,7 +1571,9 @@ static void platinum_application_handle_menu(platinum_application *app,
                 SelectWindow(app->search.window);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 12)
+        if (item == 13)
+            platinum_application_quote(app);
+        else if (item == 12)
             platinum_application_relate(app, PLATINUM_RELATION_BLOCK);
         else if (item == 11)
             platinum_application_relate(app, PLATINUM_RELATION_MUTE);
@@ -1597,6 +1629,7 @@ static void platinum_application_submit_post(platinum_application *app)
     wf_response response;
     wf_status status;
     platinum_bridge_client *bridge;
+    int gate_failed;
 
     if (app == NULL || app->compose.window == NULL)
         return;
@@ -1624,9 +1657,12 @@ static void platinum_application_submit_post(platinum_application *app)
         return;
     }
 
-    body = platinum_bridge_post_body(utf8_text,
-                                     app->compose.reply_uri,
-                                     app->compose.reply_cid);
+    body = platinum_bridge_post_body_ex(utf8_text,
+                                        app->compose.reply_uri,
+                                        app->compose.reply_cid,
+                                        app->compose.quote_uri,
+                                        app->compose.quote_cid,
+                                        app->compose.reply_gate);
     if (body == NULL) {
         platinum_compose_set_status(&app->compose,
                                     "Not enough memory to prepare the post.");
@@ -1647,6 +1683,8 @@ static void platinum_application_submit_post(platinum_application *app)
 
     status = platinum_bridge_post(bridge, "/v1/post", body, &response);
     free(body);
+    gate_failed = status == WF_OK && response.body != NULL &&
+                  platinum_bridge_reply_gate_failed(response.body);
     wf_response_free(&response);
     platinum_compose_set_posting(&app->compose, 0);
 
@@ -1659,6 +1697,11 @@ static void platinum_application_submit_post(platinum_application *app)
     platinum_compose_close(&app->compose);
     SelectWindow(app->window);
     platinum_application_refresh_timeline(app);
+    if (gate_failed) {
+        /* The post is out; say plainly that the limit was not set. */
+        strcpy(app->timeline.status,
+               "Posted, but I could not limit who can reply. Anyone can.");
+    }
     platinum_application_invalidate(app);
 }
 
