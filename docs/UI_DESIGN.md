@@ -124,8 +124,9 @@ Load Older Posts fetches the next page of the timeline. Pressing Down Arrow on t
 
 - Like or Unlike (Command-L)
 - Repost or Undo Repost (Command-E)
+- Reply... (Command-J)
 
-Both act on the selected timeline post and flip whatever the row currently shows. The detail pane spells the state out in words ("4 likes (you liked it)"), so it never depends on colour or a glyph. The bridge is idempotent, so a command sent twice does no harm.
+Reply... opens the compose window addressed to the selected post, with "Replying to @handle" at the bottom left; posting sends the post's identifiers and the bridge works out the thread root. Like and repost act on the selected timeline post and flip whatever the row currently shows. The detail pane spells the state out in words ("4 likes (you liked it)"), so it never depends on colour or a glyph. The bridge is idempotent, so a command sent twice does no harm.
 
 ### Window
 
