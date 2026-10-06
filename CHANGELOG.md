@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Help > Connection Status shows the bridge address, whether you're signed in, the bridge's health answer, the last failure and free memory. Closing New Post without sending keeps its text as a draft, and the next New Post puts it back. [#99](https://github.com/ewanc26/platinum/pull/99)
 - Delete My Post (Post menu) deletes the selected post if it's yours. Choose it twice: the first time it only asks. The bridge refuses anyone else's post too. [#97](https://github.com/ewanc26/platinum/pull/97)
 - File > Sign In with App Password... signs you in with a handle and an app password, if the bridge allows it. The password is typed into a masked box, wiped as soon as it's used, and the window warns when the bridge address is plain http. [#96](https://github.com/ewanc26/platinum/pull/96)
 - Quote Post... (Post menu) opens the compose window as a quote of the selected post, and new posts and quotes have a "Who can reply" button that steps through Everyone, Nobody, People you mention, People you follow and Your followers. If the limit can't be set the post still goes out and I say so. [#95](https://github.com/ewanc26/platinum/pull/95)
@@ -44,6 +45,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Fixed
 
+- The very first save of the settings file would have failed on a real Mac: `FSMakeFSSpec` reports "not found" for a file that doesn't exist yet, and I treated that as an error, so pairing for the first time could not store its token. Saving now creates the file. Settings and drafts also share one file reader and writer now, and File > New Post no longer opens a second compose window on top of one that is already open. [#99](https://github.com/ewanc26/platinum/pull/99)
 - The compose and pairing windows now call TextEdit the way the Toolbox defines it. They had been written against calls that don't exist (a nine-argument `TENew`, a `TEKey` that took a key map), so the 300-character and six-character limits couldn't have worked and the text read back included whatever sat after it in the handle. The limits are now enforced when you type. [#85](https://github.com/ewanc26/platinum/pull/85)
 - Saving and loading the preferences file passed `FSWrite` and `FSRead` the buffer and the byte count the wrong way round, which on a real Mac would have used the count as the buffer. The Control Manager calls use the real names, and the stand-in constants for window parts, permissions and folder types now match the real ones. [#84](https://github.com/ewanc26/platinum/pull/84)
 - Windows hilite and dim properly when they gain and lose focus, text fields stop blinking in background windows, and clicking a background window brings it forward instead of pressing whatever was under the pointer. [#53](https://github.com/ewanc26/platinum/pull/53)
