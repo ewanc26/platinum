@@ -55,6 +55,8 @@ static void platinum_application_run_search(platinum_application *app);
 static void platinum_application_show_named(platinum_application *app,
                                             int kind);
 static void platinum_application_follow(platinum_application *app);
+static void platinum_application_show_words(platinum_application *app);
+static void platinum_application_remove_word(platinum_application *app);
 static void platinum_application_relate(platinum_application *app, int kind);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
@@ -101,6 +103,15 @@ static unsigned char kAuthorItem[] = {
 };
 static unsigned char kFollowItem[] = {
     18, 'F', 'o', 'l', 'l', 'o', 'w', ' ', 'o', 'r', ' ', 'U', 'n', 'f', 'o', 'l', 'l', 'o', 'w'
+};
+static unsigned char kWordsItem[] = {
+    11, 'M', 'u', 't', 'e', 'd', ' ', 'W', 'o', 'r', 'd', 's'
+};
+static unsigned char kAddWordItem[] = {
+    15, 'A', 'd', 'd', ' ', 'M', 'u', 't', 'e', 'd', ' ', 'W', 'o', 'r', 'd'
+};
+static unsigned char kRemoveWordItem[] = {
+    18, 'R', 'e', 'm', 'o', 'v', 'e', ' ', 'M', 'u', 't', 'e', 'd', ' ', 'W', 'o', 'r', 'd'
 };
 static unsigned char kMuteItem[] = {
     14, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e'
@@ -891,6 +902,19 @@ static void platinum_application_run_search(platinum_application *app)
         return;
     }
 
+    if (app->search.mode == PLATINUM_SEARCH_WORD) {
+        status = platinum_bridge_set_muted_word(bridge, query, 1);
+        if (status != WF_OK) {
+            platinum_search_set_status(&app->search,
+                                       "The word could not be added.");
+            platinum_application_recover_auth(app, status);
+            return;
+        }
+        platinum_search_close(&app->search);
+        platinum_application_show_words(app);
+        return;
+    }
+
     posts = app->search.mode == PLATINUM_SEARCH_POSTS;
     platinum_search_close(&app->search);
 
@@ -913,6 +937,61 @@ static void platinum_application_run_search(platinum_application *app)
         if (app->people.window != NULL)
             InvalRect(&app->people.window->portRect);
     }
+}
+
+/* Your muted words, in the People window. */
+static void platinum_application_show_words(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL || platinum_people_open(&app->people) != noErr)
+        return;
+    status = platinum_people_load_kind(
+        &app->people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words", NULL,
+        NULL, "Muted words (click one, then View > Remove Muted Word)");
+    platinum_application_recover_auth(app, status);
+    if (app->people.window != NULL)
+        InvalRect(&app->people.window->portRect);
+}
+
+/* Remove the muted word selected in the People window. */
+static void platinum_application_remove_word(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const platinum_person *row;
+    char word[sizeof(row->uri)];
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    row = platinum_people_selection(&app->people);
+    if (app->people.window == NULL || app->people.kind != PLATINUM_PEOPLE_WORDS ||
+        row == NULL || row->uri[0] == '\0') {
+        if (app->people.window != NULL)
+            platinum_people_set_status(
+                &app->people, "Open Muted Words and click one first.");
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+        return;
+    }
+    strcpy(word, row->uri);
+    status = platinum_bridge_set_muted_word(bridge, word, 0);
+    if (status != WF_OK) {
+        platinum_people_set_status(&app->people,
+                                   "The word could not be removed.");
+        platinum_application_recover_auth(app, status);
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+        return;
+    }
+    platinum_application_show_words(app);
 }
 
 /* The author's own posts, in the posts list. */
@@ -1003,6 +1082,10 @@ static void platinum_application_open_person(platinum_application *app)
     if (row == NULL || row->uri[0] == '\0' || bridge == NULL)
         return;
 
+    if (app->people.kind == PLATINUM_PEOPLE_WORDS) {
+        /* A click only selects the word. */
+        return;
+    }
     if (app->people.kind == PLATINUM_PEOPLE_FEEDS) {
         if (platinum_thread_open(&app->thread) != noErr)
             return;
@@ -1314,6 +1397,9 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->view_menu, kSearchAccounts);
     AppendMenu(app->view_menu, kSearchPosts);
     SetItemCmd(app->view_menu, 8, 'f');
+    AppendMenu(app->view_menu, kWordsItem);
+    AppendMenu(app->view_menu, kAddWordItem);
+    AppendMenu(app->view_menu, kRemoveWordItem);
     SetItemCmd(app->view_menu, 1, 'r');
 
     AppendMenu(app->post_menu, kLikeItem);
@@ -1443,6 +1529,13 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_show_named(app, PLATINUM_PEOPLE_FEEDS);
         } else if (item == 6) {
             platinum_application_show_named(app, PLATINUM_PEOPLE_LISTS);
+        } else if (item == 9) {
+            platinum_application_show_words(app);
+        } else if (item == 10) {
+            if (platinum_search_open(&app->search, PLATINUM_SEARCH_WORD) == noErr)
+                SelectWindow(app->search.window);
+        } else if (item == 11) {
+            platinum_application_remove_word(app);
         } else if (item == 7 || item == 8) {
             if (platinum_search_open(&app->search, item == 8 ? PLATINUM_SEARCH_POSTS : PLATINUM_SEARCH_ACCOUNTS) == noErr)
                 SelectWindow(app->search.window);
