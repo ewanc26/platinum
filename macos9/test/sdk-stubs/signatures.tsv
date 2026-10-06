@@ -1,0 +1,107 @@
+# name|return|argument types, from autc04/multiversal defs (see tools/gen-signatures.py)
+Alert|INTEGER|INTEGER;ModalFilterUPP
+AppendMenu|void|MenuHandle;ConstStringPtr
+BeginUpdate|void|WindowPtr
+CharWidth|INTEGER|CharParameter
+CopyBits|void|BitMap*;BitMap*;const Rect*;const Rect*;INTEGER;RgnHandle
+DeleteMenu|void|INTEGER
+DisableItem|void|MenuHandle;INTEGER
+DisposeControl|void|ControlHandle
+DisposeHandle|void|Handle
+DisposeMenu|void|MenuHandle
+DisposePtr|void|Ptr
+DisposeRgn|void|RgnHandle
+DisposeWindow|void|WindowPtr
+DragWindow|void|WindowPtr;Point;const Rect*
+Draw1Control|void|ControlHandle
+DrawChar|void|CharParameter
+DrawMenuBar|void|
+DrawString|void|ConstStringPtr
+DrawText|void|Ptr;INTEGER;INTEGER
+EndUpdate|void|WindowPtr
+EqualRect|Boolean|const Rect*;const Rect*
+EraseRect|void|const Rect*
+EraseRgn|void|RgnHandle
+FSClose|OSErr|INTEGER
+FSDelete|OSErr|ConstStringPtr;INTEGER
+FSMakeFSSpec|OSErr|int16_t;int32_t;ConstStringPtr;FSSpecPtr
+FSRead|OSErr|INTEGER;LONGINT*;void*
+FSWrite|OSErr|INTEGER;LONGINT*;const void*
+FSpCreate|OSErr|FSSpecPtr;OSType;OSType;ScriptCode
+FSpDelete|OSErr|FSSpecPtr
+FSpOpenDF|OSErr|FSSpecPtr;SignedByte;int16_t*
+FillRect|void|const Rect*;const Pattern*
+FillRgn|void|RgnHandle;const Pattern*
+FindWindow|INTEGER|Point;WindowPtr*
+FlushEvents|void|INTEGER;INTEGER
+FrameRect|void|const Rect*
+FrameRgn|void|RgnHandle
+FrontWindow|WindowPtr|
+GetControlTitle|void|ControlHandle;StringPtr
+GetEOF|OSErr|INTEGER;LONGINT*
+GetFontName|void|INTEGER;StringPtr
+GetHandleSize|Size|Handle
+GetMenu|MenuHandle|INTEGER
+GetNextEvent|Boolean|INTEGER;EventRecord*
+GetPort|void|GrafPtr*
+GlobalToLocal|void|Point*
+HGetState|SignedByte|Handle
+HLock|void|Handle
+HSetState|void|Handle;SignedByte
+HideControl|void|ControlHandle
+HiliteMenu|void|INTEGER
+HiliteWindow|void|WindowPtr;Boolean
+InitCursor|void|
+InitDialogs|void|ProcPtr
+InitFonts|void|
+InitGraf|void|GrafPtr*
+InitMenus|void|
+InitWindows|void|
+InsertMenu|void|MenuHandle;INTEGER
+InsetRect|void|Rect*;INTEGER;INTEGER
+InvalRect|void|const Rect*
+LineTo|void|INTEGER;INTEGER
+LocalToGlobal|void|Point*
+MenuSelect|LONGINT|Point
+MoveTo|void|INTEGER;INTEGER
+NewCWindow|WindowPtr|void*;const Rect*;ConstStringPtr;Boolean;INTEGER;WindowPtr;Boolean;LONGINT
+NewControl|ControlHandle|WindowPtr;const Rect*;ConstStringPtr;Boolean;INTEGER;INTEGER;INTEGER;INTEGER;LONGINT
+NewHandle|Handle|Size;bool;bool
+NewMenu|MenuHandle|INTEGER;ConstStringPtr
+NewPtr|Ptr|Size;bool;bool
+NewRgn|RgnHandle|
+OffsetRect|void|Rect*;INTEGER;INTEGER
+OffsetRgn|void|RgnHandle;INTEGER;INTEGER
+PBClose|OSErr|ParmBlkPtr;Boolean
+PBCreate|OSErr|ParmBlkPtr;Boolean
+PBOpen|OSErr|ParmBlkPtr;Boolean
+PaintRect|void|const Rect*
+PenPat|void|const Pattern*
+PenSize|void|INTEGER;INTEGER
+PtInRect|Boolean|Point;const Rect*
+SelectWindow|void|WindowPtr
+SetControlTitle|void|ControlHandle;ConstStringPtr
+SetEOF|OSErr|INTEGER;LONGINT
+SetPort|void|GrafPtr
+SetRect|void|Rect*;INTEGER;INTEGER;INTEGER;INTEGER
+SetRectRgn|void|RgnHandle;INTEGER;INTEGER;INTEGER;INTEGER
+ShowControl|void|ControlHandle
+StringWidth|INTEGER|ConstStringPtr
+TEActivate|void|TEHandle
+TEAutoView|void|Boolean;TEHandle
+TEClick|void|Point;Boolean;TEHandle
+TECopy|void|TEHandle
+TEDeactivate|void|TEHandle
+TEDispose|void|TEHandle
+TEGetText|CharsHandle|TEHandle
+TEInit|void|
+TEInsert|void|Ptr;LONGINT;TEHandle
+TEKey|void|CharParameter;TEHandle
+TENew|TEHandle|const Rect*;const Rect*
+TEPaste|void|TEHandle
+TESetText|void|Ptr;LONGINT;TEHandle
+TEUpdate|void|const Rect*;TEHandle
+TextFont|void|INTEGER
+TextSize|void|INTEGER
+TrackControl|INTEGER|ControlHandle;Point;ControlActionUPP
+WaitNextEvent|Boolean|INTEGER;EventRecord*;LONGINT;RgnHandle
