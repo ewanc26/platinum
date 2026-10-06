@@ -208,16 +208,56 @@ void platinum_bridge_pairing_free(platinum_bridge_pairing *pairing)
     memset(pairing, 0, sizeof(*pairing));
 }
 
+/*
+ * Every member is read into a local buffer before any of it is stored in `out`,
+ * so a response missing one field leaves the caller with nothing rather than a
+ * half-populated pairing that still looks usable. (An earlier version assigned
+ * each field as it parsed and then inspected the freed struct, so a malformed
+ * response was always reported as WF_ERR_ALLOC.)
+ */
+static wf_status bridge_read_pairing(const char *body,
+                                     platinum_bridge_pairing *out)
+{
+    char token[BRIDGE_TOKEN_MAX];
+    char did[BRIDGE_DID_MAX];
+    char installation_id[BRIDGE_INSTALLATION_ID_MAX];
+    long protocol;
+    wf_status status;
+
+    status = platinum_json_get_int(body, "protocol", &protocol);
+    if (status != WF_OK)
+        return status;
+    status = platinum_json_get_string(body, "token", token, sizeof(token));
+    if (status != WF_OK)
+        return status;
+    status = platinum_json_get_string(body, "did", did, sizeof(did));
+    if (status != WF_OK)
+        return status;
+    status = platinum_json_get_string(body, "installationId", installation_id,
+                                      sizeof(installation_id));
+    if (status != WF_OK)
+        return status;
+    if (protocol != BRIDGE_PROTOCOL_VERSION)
+        return WF_ERR_UNSUPPORTED;
+
+    out->protocol = (int)protocol;
+    out->token = bridge_strdup(token);
+    out->did = bridge_strdup(did);
+    out->installation_id = bridge_strdup(installation_id);
+    if (out->token == NULL || out->did == NULL ||
+        out->installation_id == NULL) {
+        platinum_bridge_pairing_free(out);
+        return WF_ERR_ALLOC;
+    }
+    return WF_OK;
+}
+
 wf_status platinum_bridge_pair(platinum_bridge_client *client,
                                const char *code,
                                platinum_bridge_pairing *out)
 {
     char *url;
     char *body;
-    char token[BRIDGE_TOKEN_MAX];
-    char did[BRIDGE_DID_MAX];
-    char installation_id[BRIDGE_INSTALLATION_ID_MAX];
-    long protocol;
     wf_response raw;
     wf_status status;
 
@@ -262,61 +302,131 @@ wf_status platinum_bridge_pair(platinum_bridge_client *client,
         return WF_ERR_PARSE;
     }
 
-    /*
-     * Every member is read into a local buffer before any of it is stored in
-     * `out`. The previous implementation assigned each field as it parsed and
-     * then inspected the same field after platinum_bridge_pairing_free() had
-     * zeroed the struct, so a malformed response was always reported as
-     * WF_ERR_ALLOC no matter what had actually gone wrong.
-     *
-     * Reading everything first also means a response missing one field leaves
-     * the caller with nothing rather than a half-populated pairing that still
-     * looks usable.
-     */
-    status = platinum_json_get_int(raw.body, "protocol", &protocol);
-    if (status != WF_OK) {
-        wf_response_free(&raw);
-        return status;
-    }
+    status = bridge_read_pairing(raw.body, out);
+    wf_response_free(&raw);
+    return status;
+}
 
-    status = platinum_json_get_string(raw.body, "token", token, sizeof(token));
-    if (status != WF_OK) {
-        wf_response_free(&raw);
-        return status;
-    }
+void platinum_bridge_wipe(void *data, size_t size)
+{
+    volatile unsigned char *p = (volatile unsigned char *)data;
 
-    status = platinum_json_get_string(raw.body, "did", did, sizeof(did));
-    if (status != WF_OK) {
-        wf_response_free(&raw);
-        return status;
-    }
+    while (data != NULL && size-- > 0)
+        *p++ = 0;
+}
 
-    status = platinum_json_get_string(raw.body, "installationId",
-                                      installation_id,
-                                      sizeof(installation_id));
-    if (status != WF_OK) {
-        wf_response_free(&raw);
-        return status;
-    }
+#define BRIDGE_LOGIN_FIELD_MAX 256
+/* Each escaped field may grow six-fold; plus the JSON around them. */
+static char login_identifier[BRIDGE_LOGIN_FIELD_MAX * 6 + 1];
+static char login_password[BRIDGE_LOGIN_FIELD_MAX * 6 + 1];
+static char login_body[BRIDGE_LOGIN_FIELD_MAX * 12 + 96];
 
-    if (protocol != BRIDGE_PROTOCOL_VERSION) {
-        wf_response_free(&raw);
-        return WF_ERR_UNSUPPORTED;
-    }
+static void bridge_login_wipe(void)
+{
+    platinum_bridge_wipe(login_identifier, sizeof(login_identifier));
+    platinum_bridge_wipe(login_password, sizeof(login_password));
+    platinum_bridge_wipe(login_body, sizeof(login_body));
+}
 
-    out->protocol = (int)protocol;
-    out->token = bridge_strdup(token);
-    out->did = bridge_strdup(did);
-    out->installation_id = bridge_strdup(installation_id);
-    if (out->token == NULL || out->did == NULL ||
-        out->installation_id == NULL) {
-        platinum_bridge_pairing_free(out);
-        wf_response_free(&raw);
+int platinum_bridge_login_scratch_clear(void)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(login_identifier); ++i)
+        if (login_identifier[i] != 0)
+            return 0;
+    for (i = 0; i < sizeof(login_password); ++i)
+        if (login_password[i] != 0)
+            return 0;
+    for (i = 0; i < sizeof(login_body); ++i)
+        if (login_body[i] != 0)
+            return 0;
+    return 1;
+}
+
+static int bridge_login_reason(const char *body)
+{
+    char code[48];
+
+    if (body == NULL ||
+        platinum_json_get_string(body, "error", code, sizeof(code)) != WF_OK)
+        return PLATINUM_LOGIN_OTHER;
+    if (strcmp(code, "app_password_disabled") == 0)
+        return PLATINUM_LOGIN_DISABLED;
+    if (strcmp(code, "invalid_credentials") == 0)
+        return PLATINUM_LOGIN_INVALID;
+    if (strcmp(code, "too_many_attempts") == 0)
+        return PLATINUM_LOGIN_TOO_MANY;
+    if (strcmp(code, "invalid_service") == 0)
+        return PLATINUM_LOGIN_BAD_SERVICE;
+    if (strcmp(code, "invalid_request") == 0)
+        return PLATINUM_LOGIN_BAD_REQUEST;
+    return PLATINUM_LOGIN_OTHER;
+}
+
+wf_status platinum_bridge_login_app_password(platinum_bridge_client *client,
+                                             const char *identifier,
+                                             const char *password,
+                                             platinum_bridge_pairing *out,
+                                             int *reason)
+{
+    char *url;
+    wf_response raw;
+    wf_status status;
+    size_t i;
+
+    if (reason != NULL)
+        *reason = PLATINUM_LOGIN_OTHER;
+    if (client == NULL || client->xrpc == NULL || identifier == NULL ||
+        password == NULL || out == NULL)
+        return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    memset(&raw, 0, sizeof(raw));
+
+    if (identifier[0] == '\0' || password[0] == '\0' ||
+        strlen(identifier) > BRIDGE_LOGIN_FIELD_MAX ||
+        strlen(password) > BRIDGE_LOGIN_FIELD_MAX)
+        return WF_ERR_INVALID_ARG;
+    for (i = 0; password[i] != '\0'; ++i)
+        if ((unsigned char)password[i] < 32 || password[i] == 127)
+            return WF_ERR_INVALID_ARG;
+
+    if (platinum_json_escape(login_identifier, sizeof(login_identifier),
+                             identifier) != WF_OK ||
+        platinum_json_escape(login_password, sizeof(login_password),
+                             password) != WF_OK) {
+        bridge_login_wipe();
+        return WF_ERR_INVALID_ARG;
+    }
+    strcpy(login_body, "{\"identifier\":\"");
+    strcat(login_body, login_identifier);
+    strcat(login_body, "\",\"password\":\"");
+    strcat(login_body, login_password);
+    strcat(login_body, "\"}");
+
+    url = bridge_join(client->base_url, "/v1/login/app-password");
+    if (url == NULL) {
+        bridge_login_wipe();
         return WF_ERR_ALLOC;
     }
+    status = wf_http_post(client->xrpc, url, "application/json", login_body,
+                          NULL, 0, &raw);
+    free(url);
+    bridge_login_wipe();
 
+    if (status != WF_OK || raw.status != 200) {
+        if (reason != NULL)
+            *reason = bridge_login_reason(raw.body);
+        wf_response_free(&raw);
+        return status != WF_OK ? status : WF_ERR_HTTP;
+    }
+    if (raw.body == NULL) {
+        wf_response_free(&raw);
+        return WF_ERR_PARSE;
+    }
+    status = bridge_read_pairing(raw.body, out);
     wf_response_free(&raw);
-    return WF_OK;
+    return status;
 }
 
 wf_status platinum_bridge_get(platinum_bridge_client *client,

@@ -102,6 +102,8 @@ jobs:
           set -euo pipefail
           for f in \
             macos9/application.c \
+            macos9/apppw.c \
+            macos9/apppw_input.c \
             macos9/bridge_client.c \
             macos9/compose.c \
             macos9/compose_model.c \
@@ -117,6 +119,7 @@ jobs:
             macos9/profile.c \
             macos9/profile_feed.c \
             macos9/scrollbar.c \
+            macos9/secret.c \
             macos9/search.c \
             macos9/search_query.c \
             macos9/session.c \
@@ -126,6 +129,7 @@ jobs:
             macos9/thread_feed.c \
             macos9/timeline.c \
             macos9/ui.c \
+            macos9/test/test_apppw.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_compose.c \
             macos9/test/test_json_min.c \
@@ -133,6 +137,7 @@ jobs:
             macos9/test/test_people.c \
             macos9/test/test_profile.c \
             macos9/test/test_search.c \
+            macos9/test/test_secret.c \
             macos9/test/test_textfield.c \
             macos9/test/test_thread.c \
             macos9/test/test_timeline.c \
@@ -192,6 +197,15 @@ jobs:
             -o /tmp/test_textfield \
             macos9/textfield.c macos9/test/test_textfield.c
           /tmp/test_textfield
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_apppw \
+            macos9/apppw_input.c macos9/text_codec.c macos9/test/test_apppw.c
+          /tmp/test_apppw
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_secret \
+            macos9/secret.c macos9/text_codec.c macos9/bridge_client.c \
+            macos9/json_min.c macos9/test/wolfram_stub.c macos9/test/test_secret.c
+          /tmp/test_secret
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_search \
             macos9/search_query.c macos9/text_codec.c macos9/test/test_search.c

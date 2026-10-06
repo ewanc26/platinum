@@ -15,7 +15,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | --- | --- | --- | --- |
 | OAuth sign-in (browser, paired) | no | yes | implemented (`macos9/bridge_client.c`) |
 | App-password sign-in (bridge endpoint) | yes | yes | implemented (`bridge/src/auth/app-password.ts`) |
-| App-password sign-in (Mac window) | yes | yes | [#51](https://github.com/ewanc26/platinum/issues/51) |
+| App-password sign-in (Mac window) | yes | yes | implemented (`macos9/apppw.c`) |
 | Session survives restart | yes | yes | implemented (`macos9/session.c`) |
 | Sign out with server-side revocation | yes | yes | implemented (`macos9/session.c`) |
 | Home timeline | yes | yes | implemented (`macos9/timeline.c`) |
@@ -55,4 +55,4 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-30 implemented, 10 tracked by an open issue, 1 not possible.
+31 implemented, 9 tracked by an open issue, 1 not possible.

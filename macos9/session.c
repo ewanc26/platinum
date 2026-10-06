@@ -89,11 +89,43 @@ OSErr platinum_session_set_bridge_url(platinum_session *session,
     return noErr;
 }
 
+/* Keep a pairing the bridge issued: save it, then use it. Frees `pairing`. */
+static wf_status session_adopt(platinum_session *session,
+                               platinum_bridge_pairing *pairing)
+{
+    platinum_config updated;
+    wf_status status;
+
+    updated = session->config;
+    if (platinum_config_set_token(&updated, pairing->token) != noErr ||
+        platinum_config_set_did(&updated, pairing->did) != noErr ||
+        platinum_config_set_installation_id(&updated,
+                                             pairing->installation_id) != noErr) {
+        platinum_bridge_pairing_free(pairing);
+        return WF_ERR_VALIDATION;
+    }
+
+    {
+        OSErr save_status = platinum_config_save(&updated);
+        if (save_status != noErr) {
+            platinum_bridge_pairing_free(pairing);
+            return WF_ERR_STATE;
+        }
+    }
+
+    status = platinum_bridge_client_set_token(session->bridge, pairing->token);
+    platinum_bridge_pairing_free(pairing);
+    if (status != WF_OK)
+        return status;
+
+    session->config = updated;
+    return WF_OK;
+}
+
 wf_status platinum_session_pair(platinum_session *session,
                                 const char *code)
 {
     platinum_bridge_pairing pairing;
-    platinum_config updated;
     wf_status status;
 
     if (session == NULL || session->bridge == NULL || code == NULL)
@@ -103,31 +135,26 @@ wf_status platinum_session_pair(platinum_session *session,
     status = platinum_bridge_pair(session->bridge, code, &pairing);
     if (status != WF_OK)
         return status;
+    return session_adopt(session, &pairing);
+}
 
-    updated = session->config;
-    if (platinum_config_set_token(&updated, pairing.token) != noErr ||
-        platinum_config_set_did(&updated, pairing.did) != noErr ||
-        platinum_config_set_installation_id(&updated,
-                                             pairing.installation_id) != noErr) {
-        platinum_bridge_pairing_free(&pairing);
-        return WF_ERR_VALIDATION;
-    }
+wf_status platinum_session_sign_in_app_password(platinum_session *session,
+                                                const char *identifier,
+                                                const char *password,
+                                                int *reason)
+{
+    platinum_bridge_pairing pairing;
+    wf_status status;
 
-    {
-        OSErr save_status = platinum_config_save(&updated);
-        if (save_status != noErr) {
-            platinum_bridge_pairing_free(&pairing);
-            return WF_ERR_STATE;
-        }
-    }
+    if (session == NULL || session->bridge == NULL)
+        return WF_ERR_INVALID_ARG;
 
-    status = platinum_bridge_client_set_token(session->bridge, pairing.token);
-    platinum_bridge_pairing_free(&pairing);
+    memset(&pairing, 0, sizeof(pairing));
+    status = platinum_bridge_login_app_password(session->bridge, identifier,
+                                                password, &pairing, reason);
     if (status != WF_OK)
         return status;
-
-    session->config = updated;
-    return WF_OK;
+    return session_adopt(session, &pairing);
 }
 
 wf_status platinum_session_sign_out(platinum_session *session)

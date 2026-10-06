@@ -58,6 +58,11 @@ macos9/scrollbar.c                 platform
 macos9/scrollbar.h                 platform
 macos9/search.c                    platform  # the Search window
 macos9/search.h                    platform
+macos9/apppw.c                    platform  # the app-password window: URL and handle in TextEdit, the password in a masked buffer
+macos9/apppw.h                    platform
+macos9/apppw_input.c              platform  # plain-http check and handle preparation, no Toolbox so it links on a host
+macos9/secret.c                   platform  # masked password buffer, wiped on use; no Toolbox so it links on a host
+macos9/secret.h                   platform
 macos9/search_query.c              platform  # trims and converts a typed query, no Toolbox so it links on a host
 macos9/session.c                   platform  # stored token and revocation
 macos9/session.h                   platform
