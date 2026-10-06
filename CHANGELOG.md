@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge can post a quote of another post, and set who may reply to a new post (everyone, nobody, people you mention, follow, or who follow you). The Mac compose window can't ask for either yet. [#93](https://github.com/ewanc26/platinum/pull/94)
 - View > Muted Words lists your muted words; Add Muted Word... and Remove Muted Word edit them. Posts matching one are hidden from the timeline, feeds and post search. [#92](https://github.com/ewanc26/platinum/pull/92)
 - The bridge now hides posts matching your muted words from the timeline, feeds and post search, and can list, add and remove them. The Mac side can't manage them yet. [#90](https://github.com/ewanc26/platinum/pull/91)
 - Mute or Unmute and Block or Unblock (Post menu) act on the account in the Profile window, which says in words whether you've muted or blocked them. Blocking asks first: choose it twice. [#89](https://github.com/ewanc26/platinum/pull/89)

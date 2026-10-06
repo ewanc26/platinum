@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
+import { DomainApi, validReplyGate, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
 import { validMutedWord } from './domain/muted.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
@@ -387,7 +387,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/post') {
-    let input: { text?: string; replyTo?: { uri?: unknown; cid?: unknown } }
+    let input: { text?: string; replyTo?: { uri?: unknown; cid?: unknown }; quote?: { uri?: unknown; cid?: unknown }; replyGate?: unknown }
 
     try {
       input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
@@ -414,8 +414,24 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         return json(res, 400, errorBody('invalid_post_ref', 'replyTo must name a post by uri and cid.'))
       }
     }
-    const posted = await domain.post(agent, input.text, replyTo)
-    if (!posted) return json(res, 404, errorBody('post_not_found', 'The post being replied to no longer exists.'))
+    let quote: { uri: string; cid: string } | undefined
+    if (input.quote !== undefined) {
+      quote = typeof input.quote === 'object' && input.quote !== null
+        ? validPostRef(input.quote.uri, input.quote.cid)
+        : undefined
+      if (!quote) {
+        return json(res, 400, errorBody('invalid_post_ref', 'quote must name a post by uri and cid.'))
+      }
+    }
+    let replyGate: ReturnType<typeof validReplyGate>
+    if (input.replyGate !== undefined) {
+      replyGate = validReplyGate(input.replyGate)
+      if (!replyGate || (replyTo && replyGate !== 'everyone')) {
+        return json(res, 400, errorBody('invalid_reply_gate', 'replyGate is everyone, nobody, mentioned, following or followers, and only on a post that is not itself a reply.'))
+      }
+    }
+    const posted = await domain.post(agent, input.text, replyTo, { quote, replyGate })
+    if (!posted) return json(res, 404, errorBody('post_not_found', 'The post being replied to or quoted no longer exists.'))
     return json(res, 200, posted)
   }
 
