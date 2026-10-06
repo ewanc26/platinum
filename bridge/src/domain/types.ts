@@ -19,6 +19,15 @@ export interface ActorList {
   cursor?: string
 }
 
+export interface Named {
+  uri: string
+  name: string
+}
+
+export interface NamedList {
+  items: Named[]
+}
+
 export interface FollowResult {
   did: string
   on: boolean
