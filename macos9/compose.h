@@ -19,7 +19,13 @@ typedef struct platinum_compose {
     /* Set when replying: the post being answered, as the bridge named it. */
     char reply_uri[513];
     char reply_cid[256];
-    char reply_to[72];
+    /* The line under the text: "Replying to @x" or "Quoting @x". */
+    char caption[72];
+    /* Set when quoting: the post being quoted. */
+    char quote_uri[513];
+    char quote_cid[256];
+    /* Who may reply to a new post: an index for platinum_bridge_reply_gate_*. */
+    int reply_gate;
     char status[PLATINUM_COMPOSE_STATUS_MAX + 1];
 } platinum_compose;
 
@@ -42,6 +48,17 @@ int platinum_compose_set_reply(platinum_compose *compose,
                                const char *uri,
                                const char *cid,
                                const char *handle);
+/*
+ * Make this compose window a quote of a post. Like a reply it names the post by
+ * uri and cid; unlike a reply it keeps the reply gate. Replaces any reply.
+ */
+int platinum_compose_set_quote(platinum_compose *compose,
+                               const char *uri,
+                               const char *cid,
+                               const char *handle);
+/* Step the reply gate to the next choice, wrapping. A reply has no gate (it
+ * belongs to the thread root), so this does nothing on one and returns 0. */
+int platinum_compose_cycle_gate(platinum_compose *compose);
 void platinum_compose_draw(platinum_compose *compose);
 
 OSErr platinum_compose_get_text(const platinum_compose *compose,

@@ -459,35 +459,95 @@ wf_status platinum_bridge_set_muted_word(platinum_bridge_client *client,
     return status;
 }
 
-char *platinum_bridge_post_body(const char *utf8_text,
-                                const char *reply_uri,
-                                const char *reply_cid)
+int platinum_bridge_reply_gate_failed(const char *response_body)
+{
+    platinum_json root;
+    int applied;
+
+    if (response_body == NULL ||
+        platinum_json_open(&root, response_body) != WF_OK ||
+        platinum_json_bool(root, "replyGateApplied", &applied) != WF_OK)
+        return 0;
+    return applied == 0;
+}
+
+static const char *const kGateNames[PLATINUM_REPLY_GATE_COUNT] = {
+    "everyone", "nobody", "mentioned", "following", "followers"
+};
+static const char *const kGateLabels[PLATINUM_REPLY_GATE_COUNT] = {
+    "Everyone", "Nobody", "People you mention", "People you follow",
+    "Your followers"
+};
+
+const char *platinum_bridge_reply_gate_name(int index)
+{
+    return (index >= 0 && index < PLATINUM_REPLY_GATE_COUNT) ? kGateNames[index]
+                                                              : NULL;
+}
+
+const char *platinum_bridge_reply_gate_label(int index)
+{
+    return (index >= 0 && index < PLATINUM_REPLY_GATE_COUNT) ? kGateLabels[index]
+                                                              : NULL;
+}
+
+/* Append ,"key":{"uri":"...","cid":"..."}; 0 on failure. */
+static int post_body_ref(char *body, char *scratch, size_t scratch_cap,
+                         const char *key, const char *uri, const char *cid)
+{
+    strcat(body, ",\"");
+    strcat(body, key);
+    strcat(body, "\":{\"uri\":\"");
+    if (platinum_json_escape(scratch, scratch_cap, uri) != WF_OK)
+        return 0;
+    strcat(body, scratch);
+    strcat(body, "\",\"cid\":\"");
+    if (platinum_json_escape(scratch, scratch_cap, cid) != WF_OK)
+        return 0;
+    strcat(body, scratch);
+    strcat(body, "\"}");
+    return 1;
+}
+
+char *platinum_bridge_post_body_ex(const char *utf8_text,
+                                   const char *reply_uri,
+                                   const char *reply_cid,
+                                   const char *quote_uri,
+                                   const char *quote_cid,
+                                   int reply_gate)
 {
     size_t text_cap;
     size_t id_cap;
     size_t body_cap;
     char *text_esc;
-    char *uri_esc;
-    char *cid_esc;
+    char *scratch;
     char *body;
-    int has_uri;
-    int has_cid;
+    int has_reply;
+    int has_quote;
 
     if (utf8_text == NULL)
         return NULL;
-    has_uri = reply_uri != NULL && reply_uri[0] != '\0';
-    has_cid = reply_cid != NULL && reply_cid[0] != '\0';
-    if (has_uri != has_cid)
+    has_reply = reply_uri != NULL && reply_uri[0] != '\0';
+    if (has_reply != (reply_cid != NULL && reply_cid[0] != '\0'))
+        return NULL;
+    has_quote = quote_uri != NULL && quote_uri[0] != '\0';
+    if (has_quote != (quote_cid != NULL && quote_cid[0] != '\0'))
+        return NULL;
+    if (reply_gate < 0 || reply_gate >= PLATINUM_REPLY_GATE_COUNT ||
+        (has_reply && reply_gate != 0))
         return NULL;
 
+    id_cap = 1;
+    if (has_reply && (strlen(reply_uri) + strlen(reply_cid)) * 6 + 2 > id_cap)
+        id_cap = (strlen(reply_uri) + strlen(reply_cid)) * 6 + 2;
+    if (has_quote && (strlen(quote_uri) + strlen(quote_cid)) * 6 + 2 > id_cap)
+        id_cap = (strlen(quote_uri) + strlen(quote_cid)) * 6 + 2;
     text_cap = strlen(utf8_text) * 6 + 1;
-    id_cap = has_uri ? (strlen(reply_uri) + strlen(reply_cid)) * 6 + 2 : 1;
-    body_cap = text_cap + id_cap + 64;
+    body_cap = text_cap + 2 * id_cap + 160;
     text_esc = (char *)malloc(text_cap);
-    uri_esc = (char *)malloc(id_cap);
-    cid_esc = (char *)malloc(id_cap);
+    scratch = (char *)malloc(id_cap);
     body = (char *)malloc(body_cap);
-    if (text_esc == NULL || uri_esc == NULL || cid_esc == NULL || body == NULL)
+    if (text_esc == NULL || scratch == NULL || body == NULL)
         goto fail;
 
     if (platinum_json_escape(text_esc, text_cap, utf8_text) != WF_OK)
@@ -495,26 +555,33 @@ char *platinum_bridge_post_body(const char *utf8_text,
     strcpy(body, "{\"text\":\"");
     strcat(body, text_esc);
     strcat(body, "\"");
-    if (has_uri) {
-        if (platinum_json_escape(uri_esc, id_cap, reply_uri) != WF_OK ||
-            platinum_json_escape(cid_esc, id_cap, reply_cid) != WF_OK)
-            goto fail;
-        strcat(body, ",\"replyTo\":{\"uri\":\"");
-        strcat(body, uri_esc);
-        strcat(body, "\",\"cid\":\"");
-        strcat(body, cid_esc);
-        strcat(body, "\"}");
+    if (has_reply &&
+        !post_body_ref(body, scratch, id_cap, "replyTo", reply_uri, reply_cid))
+        goto fail;
+    if (has_quote &&
+        !post_body_ref(body, scratch, id_cap, "quote", quote_uri, quote_cid))
+        goto fail;
+    if (reply_gate != 0) {
+        strcat(body, ",\"replyGate\":\"");
+        strcat(body, kGateNames[reply_gate]);
+        strcat(body, "\"");
     }
     strcat(body, "}");
     free(text_esc);
-    free(uri_esc);
-    free(cid_esc);
+    free(scratch);
     return body;
 
 fail:
     free(text_esc);
-    free(uri_esc);
-    free(cid_esc);
+    free(scratch);
     free(body);
     return NULL;
+}
+
+char *platinum_bridge_post_body(const char *utf8_text,
+                                const char *reply_uri,
+                                const char *reply_cid)
+{
+    return platinum_bridge_post_body_ex(utf8_text, reply_uri, reply_cid, NULL,
+                                        NULL, 0);
 }

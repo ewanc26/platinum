@@ -417,6 +417,58 @@ static void test_muted_word(void)
     platinum_bridge_client_free(client);
 }
 
+static void test_post_body_ex(void)
+{
+    char *body;
+
+    body = platinum_bridge_post_body_ex("look", NULL, NULL, "at://did:plc:a/app.bsky.feed.post/3k",
+                                        "cq", 0);
+    check(body != NULL &&
+              strcmp(body, "{\"text\":\"look\",\"quote\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/3k\","
+                           "\"cid\":\"cq\"}}") == 0,
+          "a quote adds a quote member");
+    free(body);
+
+    body = platinum_bridge_post_body_ex("x", NULL, NULL, NULL, NULL, 3);
+    check(body != NULL && strcmp(body, "{\"text\":\"x\",\"replyGate\":\"following\"}") == 0,
+          "a gate adds replyGate by the bridge's name");
+    free(body);
+
+    body = platinum_bridge_post_body_ex("x", "at://r", "cr", "at://q", "cq", 0);
+    check(body != NULL && strstr(body, "\"replyTo\"") != NULL && strstr(body, "\"quote\"") != NULL,
+          "a reply can quote");
+    free(body);
+
+    body = platinum_bridge_post_body_ex("a\"b", NULL, NULL, "at://q\"", "c\\", 1);
+    check(body != NULL && strstr(body, "\"at://q\\\"\"") != NULL && strstr(body, "\"c\\\\\"") != NULL &&
+              strstr(body, "\"nobody\"") != NULL,
+          "identifiers are escaped");
+    free(body);
+
+    check(platinum_bridge_post_body_ex("x", NULL, NULL, "at://q", NULL, 0) == NULL,
+          "a quote needs both uri and cid");
+    check(platinum_bridge_post_body_ex("x", "at://r", "cr", NULL, NULL, 2) == NULL,
+          "a gate on a reply is refused");
+    check(platinum_bridge_post_body_ex("x", NULL, NULL, NULL, NULL, 9) == NULL &&
+              platinum_bridge_post_body_ex("x", NULL, NULL, NULL, NULL, -1) == NULL,
+          "an unknown gate is refused");
+    body = platinum_bridge_post_body_ex("x", NULL, NULL, NULL, NULL, 0);
+    check(body != NULL && strcmp(body, "{\"text\":\"x\"}") == 0, "the default gate sends nothing");
+    free(body);
+
+    check(platinum_bridge_reply_gate_failed("{\"uri\":\"a\",\"cid\":\"b\",\"replyGateApplied\":false}") == 1 &&
+              platinum_bridge_reply_gate_failed("{\"uri\":\"a\",\"replyGateApplied\":true}") == 0 &&
+              platinum_bridge_reply_gate_failed("{\"uri\":\"a\"}") == 0 &&
+              platinum_bridge_reply_gate_failed("not json") == 0 &&
+              platinum_bridge_reply_gate_failed(NULL) == 0,
+          "only an explicit false means the gate failed");
+    check(strcmp(platinum_bridge_reply_gate_name(4), "followers") == 0 &&
+              platinum_bridge_reply_gate_name(5) == NULL &&
+              strcmp(platinum_bridge_reply_gate_label(0), "Everyone") == 0 &&
+              platinum_bridge_reply_gate_label(-1) == NULL,
+          "gate names and labels, bounded");
+}
+
 static void test_post_body(void)
 {
     char *body;
@@ -456,6 +508,7 @@ static void test_post_body(void)
 int main(void)
 {
     test_post_body();
+    test_post_body_ex();
     test_mark_seen();
     test_muted_word();
     test_pair_success();

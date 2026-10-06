@@ -35,6 +35,7 @@ macos9/bridge_client.c             protocol  # client for the bridge protocol ov
 macos9/bridge_client.h             protocol
 macos9/compose.c                   platform
 macos9/compose.h                   platform
+macos9/compose_model.c            platform  # what a compose window replies to or quotes, and its reply gate; no QuickDraw so it links on a host
 macos9/config.c                    platform  # Preferences file
 macos9/config.h                    platform
 macos9/json_min.c                  protocol  # bounded C89 reader; Wolfram's JSON is cJSON (C99), unusable here (#39)
