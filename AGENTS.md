@@ -660,8 +660,11 @@ unless marked otherwise:
 - Releases are paused (`RELEASES_PAUSED`, #62). Never tag, never run
   `scripts/release.sh` without `--dry-run`, and never delete `RELEASES_PAUSED`;
   that is the owner's call. No workflow may publish on its own: `release-check`
-  only verifies a pushed tag. Add a line under Unreleased in `CHANGELOG.md` with
-  every behaviour change.
+  only verifies a pushed tag. Every PR with a user-visible change adds an
+  entry under Unreleased in `CHANGELOG.md` (Added, Changed, Fixed, Removed,
+  Security; Repository for contributor-only changes), in the owner's voice,
+  linking the PR. A PR with nothing user-visible says
+  `Changelog: none — <reason>` in its body.
 - Releases (once unpaused): tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
   `CHANGELOG.md` section. `release-check` rejects a mismatch. Publish nothing
   from CI.
