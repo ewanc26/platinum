@@ -113,11 +113,14 @@ jobs:
             macos9/scrollbar.c \
             macos9/session.c \
             macos9/text_codec.c \
+            macos9/thread.c \
+            macos9/thread_feed.c \
             macos9/timeline.c \
             macos9/ui.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_json_min.c \
             macos9/test/test_notifications.c \
+            macos9/test/test_thread.c \
             macos9/test/test_timeline.c \
             macos9/test/wolfram_stub.c
           do
@@ -165,6 +168,12 @@ jobs:
             macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_notifications.c
           /tmp/test_notifications
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_thread \
+            macos9/thread_feed.c macos9/timeline.c macos9/text_codec.c \
+            macos9/bridge_client.c macos9/json_min.c \
+            macos9/test/wolfram_stub.c macos9/test/test_thread.c
+          /tmp/test_thread
 
   # Builds the release inputs exactly as a real release would, publishes
   # nothing, and checks them with the updater's own parser, so the first real
