@@ -627,6 +627,29 @@ Do not put generated citations, tool output or internal reasoning into repositor
 
 ## 15. Git workflow
 
+<!-- flow:begin -->
+## Unified flow (canonical: ewanc26/wolfram, docs/flow.md)
+
+This block is byte-identical in every repo of the stack and is drift-checked by CI. Do not edit a copy; change it by PR to wolfram, then copy it out.
+
+- Branch from main as `<type>/<slug>`. Types: feat fix docs ci chore refactor test perf build ui release (titles and commits also allow revert). Slug: lowercase `a-z 0-9 . _ -`.
+- Commit subjects and PR titles are Conventional Commits: `type(scope): summary`. Keep commits focused. Never push an empty commit.
+- Agent commits end with the `Co-Authored-By:` and `Claude-Session:` trailers the session supplies. PR descriptions use `.github/PULL_REQUEST_TEMPLATE.md` (What this changes, Verification, Docs) and end with the session link.
+- Nothing goes straight to main. Branch, open a PR, wait for green CI, merge the PR with a rebase merge (never squash, never a merge commit). Required checks: `CI gate` and `flow / conventions`.
+- A rebase merge lands every commit on main as written, so each commit stands alone: a conventional subject, builds, passes tests. Write review fixes as real conventional commits (`fix(scope): ...`), never "address review".
+- Never force-push, so a PR branch is never rebased locally, and never merge main into a PR branch (a merge commit breaks the rebase merge; the flow check fails it). If a PR is behind or conflicted and GitHub can still rebase-merge it cleanly, merge it once CI is green on the current head. Otherwise cut a fresh branch from main, cherry-pick the commits, open a new PR linking the old one, and close the old one with a comment.
+- Never merge red. Never force-push. Never skip, disable or delete a test to get green: read the job log, reproduce, fix the root cause, wait, repeat. A red main is fixed before anything else.
+- Update AGENTS.md, README and docs/ in the same PR as the change. AGENTS.md is imperative and exact; README and docs are user-facing prose.
+- Label every issue: exactly one kind (bug, enhancement, documentation, refactor, test, chore, question) and at least one `area: <x>`. The taxonomy is `.github/labels.yml` (canonical in wolfram, drift-checked as `flow / labels and metadata`); add a label there, never ad hoc. Repository description, homepage, topics and features are `.github/repo-metadata.yml`; the owner applies it with `tools/apply-repo-metadata.sh`, because agents cannot write repository metadata.
+- State exactly what was verified and where (host, emulator, hardware). Never claim hardware you did not use.
+- Releases go through the repo's own release script only, and only after every consumer in the stack has been verified against the change.
+- Anything only the owner can supply (credentials, hardware results, money, irreversible actions): file an issue labelled `needs-owner` and move on.
+- READMEs and logos follow `docs/house-style.md` (wolfram), checked by `flow / style`.
+- No secrets in the repo or its CI. No Vercel. No registry publishing.
+<!-- flow:end -->
+
+Platinum-specific rules follow; the block above wins where they overlap.
+
 Use feature branches and pull requests.
 
 Keep commits atomic and use conventional commit messages, for example:
@@ -638,8 +661,9 @@ Keep commits atomic and use conventional commit messages, for example:
 
 Do not combine unrelated cleanup with a feature change.
 
-Flow rules, all enforced by `tools/check-flow.sh` via the `Flow and drift` job
-unless marked otherwise:
+Platinum's own checks, run by `tools/check-flow.sh` and the other scripts in
+`tools/` in the `Flow and drift` job. Branch, title, body, commit and
+merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow.yml`).
 
 - Merge PRs by rebase only, never squash or merge commit. Each commit must be a
   standalone conventional commit that builds and passes tests. Never merge
@@ -649,9 +673,9 @@ unless marked otherwise:
 - Never commit to `main`. Branch, open a PR, merge only when `CI gate` is green
   (merge rule: by convention until the owner requires `CI gate` in branch
   protection; see CONTRIBUTING.md).
-- PR titles and every commit subject are conventional commits.
-- A PR body has `## What this changes`, `## Why` and `## Verification` and says
-  what the verification does not prove.
+- PR bodies use the canonical template (What this changes, Verification, Docs)
+  and say what the verification does not prove: a clean C89 job is not a
+  CodeWarrior build and not Mac OS 9.
 - Every `macos9/**/*.c` file is listed in the C89 job in `ci.yml` and named in
   section 3 of this file. Adding a source means editing both.
 - The Wolfram ref pinned in `ci.yml` appears in README.md and this file. Bump
