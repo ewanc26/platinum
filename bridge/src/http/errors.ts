@@ -19,6 +19,7 @@ export type BridgeErrorCode =
   | 'invalid_actor'
   | 'actor_not_found'
   | 'invalid_query'
+  | 'invalid_word'
   | 'invalid_uri'
   | 'not_found'
 
