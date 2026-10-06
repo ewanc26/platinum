@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Search Accounts and Search Posts (View menu; Command-F searches posts). Results open in the People window or the posts list, forty at a time. [#86](https://github.com/ewanc26/platinum/pull/86)
 - Show Author's Posts, Saved Feeds and My Lists: an author's own posts, your saved feeds and your lists, all clickable and paged, with accounts in any list opening their profile. [#81](https://github.com/ewanc26/platinum/pull/81)
 - The bridge can search accounts and posts, list your saved feeds and lists, and return a feed's posts or a list's members. The Mac side isn't wired up yet. [#80](https://github.com/ewanc26/platinum/pull/80)
 - Who Liked This, Who Reposted This, Show Followers and Show Following (Post menu) open a People window listing the accounts, forty at a time. The bridge can list who liked or reposted a post. [#79](https://github.com/ewanc26/platinum/pull/79)

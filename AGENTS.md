@@ -135,6 +135,8 @@ platinum/
 │   ├── profile.h
 │   ├── config.h
 │   ├── main.c
+│   ├── search.c
+│   ├── search_query.c
 │   ├── session.c
 │   ├── session.h
 │   ├── scrollbar.c
@@ -848,6 +850,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - interactive navigation and timeline selection;
 - bounded timeline and notification paging (forty rows kept each);
 - like and repost with undo (Post menu, `POST /v1/like` and `/v1/repost`);
+- search for accounts and posts (`/v1/search/*`, Search window);
 - posts lists (an author's posts, a feed) in the thread window, and clickable People rows for feeds, lists and accounts;
 - People window for followers, following, likes and reposts;
 - other people's profiles with follow state and the pinned post, and follow or unfollow;

@@ -116,6 +116,8 @@ jobs:
             macos9/profile.c \
             macos9/profile_feed.c \
             macos9/scrollbar.c \
+            macos9/search.c \
+            macos9/search_query.c \
             macos9/session.c \
             macos9/text_codec.c \
             macos9/textfield.c \
@@ -128,6 +130,7 @@ jobs:
             macos9/test/test_notifications.c \
             macos9/test/test_people.c \
             macos9/test/test_profile.c \
+            macos9/test/test_search.c \
             macos9/test/test_textfield.c \
             macos9/test/test_thread.c \
             macos9/test/test_timeline.c \
@@ -187,6 +190,10 @@ jobs:
             -o /tmp/test_textfield \
             macos9/textfield.c macos9/test/test_textfield.c
           /tmp/test_textfield
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_search \
+            macos9/search_query.c macos9/text_codec.c macos9/test/test_search.c
+          /tmp/test_search
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_profile \
             macos9/profile_feed.c macos9/timeline.c macos9/text_codec.c \

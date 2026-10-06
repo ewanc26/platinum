@@ -42,8 +42,8 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Full-size image viewer | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Link-card previews | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Attach images to a post | yes | yes | [#33](https://github.com/ewanc26/platinum/issues/33) |
-| Actor search | yes | yes | [#34](https://github.com/ewanc26/platinum/issues/34) |
-| Post search | yes | yes | [#34](https://github.com/ewanc26/platinum/issues/34) |
+| Actor search | yes | yes | implemented (`macos9/application.c`) |
+| Post search | yes | yes | implemented (`macos9/application.c`) |
 | Custom feeds | yes | yes | implemented (`macos9/application.c`) |
 | Lists | yes | yes | implemented (`macos9/application.c`) |
 | Mute and block | yes | yes | [#35](https://github.com/ewanc26/platinum/issues/35) |
@@ -55,4 +55,4 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-24 implemented, 16 tracked by an open issue, 1 not possible.
+26 implemented, 14 tracked by an open issue, 1 not possible.
