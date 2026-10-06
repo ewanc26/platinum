@@ -56,6 +56,7 @@ POST /v1/revoke
 GET /v1/profile
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
+GET /v1/thread?uri=...
 POST /v1/post
 POST /v1/like
 POST /v1/repost
@@ -139,6 +140,29 @@ notification you displayed, exactly as the bridge sent it, not the Mac's clock:
 notifications that arrive after the list was fetched then stay unread. A time in
 the future is clamped to the bridge's now. Returns `{"seenAt": "..."}`; `400
 invalid_seen_at` for anything that is not an ISO 8601 timestamp.
+
+### Thread
+
+`GET /v1/thread?uri=at://...` returns one flat, bounded list so the Mac never
+walks a reply tree: ancestors first (oldest at the top, negative `depth`), the
+post asked for at `depth` 0, then replies depth-first with positive `depth`.
+Each entry is a timeline post plus `depth`. At most 40 posts, 6 levels of
+replies and 10 ancestors; `truncated` is true when anything was left out.
+Blocked and deleted posts are skipped. `400 invalid_post_ref` for a uri that is
+not an `app.bsky.feed.post` AT URI; `404 post_not_found` when the post is gone.
+
+```json
+{ "posts": [ { "uri": "at://...", "depth": -1, "text": "..." } ], "truncated": false }
+```
+
+### Replying
+
+`POST /v1/post` accepts an optional `"replyTo": {"uri": "...", "cid": "..."}`
+naming the post being answered. The bridge reads that post's own record to find
+the thread root, so the Mac never needs the root rule: a reply to a top-level
+post uses it as both root and parent, and a reply to a reply keeps the original
+root. Errors: `400 invalid_post_ref` for a malformed `replyTo`, `404
+post_not_found` if the parent has gone.
 
 ### Like and repost
 
