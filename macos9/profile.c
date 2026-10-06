@@ -1,9 +1,7 @@
 #include "profile.h"
-#include "text_codec.h"
 
 #include <Quickdraw.h>
 #include <stdio.h>
-#include "json_min.h"
 #include <string.h>
 
 static unsigned char kProfileTitle[] = {
@@ -12,139 +10,14 @@ static unsigned char kProfileTitle[] = {
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
-static const char kNoProfile[] = "No profile information is available.";
-static const char kLoading[] = "Loading profile...";
 
-/*
- * Copy a string member of `root` into `destination`, converting it to
- * MacRoman on the way in.
- *
- * A member that is absent, or that is present but not a string, leaves the
- * destination empty. That is deliberate rather than lax: the bridge is trusted
- * to send the documented shape, and a field of the wrong type is a response
- * this client does not understand, so showing nothing is better than showing
- * whatever the parser happened to find there.
- */
-static void profile_copy(char *destination,
-                         long capacity,
-                         platinum_json root,
-                         const char *name)
-{
-    char utf8[PLATINUM_TEXT_UTF8_CAPACITY];
-    long length;
-
-    if (destination == NULL || capacity <= 0)
-        return;
-
-    destination[0] = '\0';
-    if (platinum_json_string_truncating(root, name, utf8, sizeof(utf8))
-        != WF_OK)
-        return;
-
-    length = platinum_text_utf8_to_macroman(utf8, destination, capacity, NULL);
-    if (length < 0)
-        destination[0] = '\0';
-}
-
-static long profile_number(platinum_json root, const char *name)
-{
-    long value = 0;
-
-    if (platinum_json_int(root, name, &value) != WF_OK)
-        return 0;
-
-    return value;
-}
-
+/* The model sets status text only; the window repaints here. */
 void platinum_profile_set_status(platinum_profile *profile,
                                  const char *status)
 {
-    long length;
-
-    if (profile == NULL)
-        return;
-
-    profile->status[0] = '\0';
-    if (status == NULL)
-        return;
-
-    length = (long)strlen(status);
-    if (length > PLATINUM_PROFILE_STATUS_MAX)
-        length = PLATINUM_PROFILE_STATUS_MAX;
-
-    memcpy(profile->status, status, (size_t)length);
-    profile->status[length] = '\0';
-
-    if (profile->window != NULL)
+    platinum_profile_status_text(profile, status);
+    if (profile != NULL && profile->window != NULL)
         InvalRect(&profile->window->portRect);
-}
-
-void platinum_profile_init(platinum_profile *profile)
-{
-    if (profile == NULL)
-        return;
-
-    memset(profile, 0, sizeof(*profile));
-    platinum_profile_set_status(profile, kNoProfile);
-}
-
-wf_status platinum_profile_refresh(platinum_profile *profile,
-                                   platinum_bridge_client *bridge)
-{
-    wf_response response;
-    platinum_json root;
-    wf_status status;
-
-    if (profile == NULL || bridge == NULL)
-        return WF_ERR_INVALID_ARG;
-
-    memset(&response, 0, sizeof(response));
-    profile->loading = 1;
-    platinum_profile_set_status(profile, kLoading);
-
-    status = platinum_bridge_get(bridge, "/v1/profile", &response);
-    if (status != WF_OK) {
-        profile->loading = 0;
-        if (status == WF_ERR_AUTH)
-            platinum_profile_set_status(
-                profile, "Session expired. Pair the account again.");
-        else
-            platinum_profile_set_status(profile, "Profile refresh failed.");
-        wf_response_free(&response);
-        return status;
-    }
-
-    status = platinum_json_open(&root,
-                               response.body != NULL ? response.body : "");
-    if (status != WF_OK) {
-        profile->loading = 0;
-        platinum_profile_set_status(profile, "The bridge returned invalid profile data.");
-        wf_response_free(&response);
-        return WF_ERR_PARSE;
-    }
-
-    profile_copy(profile->did, sizeof(profile->did), root, "did");
-    profile_copy(profile->handle, sizeof(profile->handle), root, "handle");
-    profile_copy(profile->display_name, sizeof(profile->display_name), root,
-                 "displayName");
-    profile_copy(profile->description, sizeof(profile->description), root,
-                 "description");
-    profile->followers_count = profile_number(root, "followersCount");
-    profile->follows_count = profile_number(root, "followsCount");
-    profile->posts_count = profile_number(root, "postsCount");
-
-    /* Every member is read while the response is still alive, and the cursor
-     * only ever pointed into response.body, so nothing here can be left
-     * holding into a freed buffer. */
-    wf_response_free(&response);
-
-    profile->loading = 0;
-    if (profile->handle[0] == '\0' && profile->did[0] == '\0')
-        platinum_profile_set_status(profile, kNoProfile);
-    else
-        platinum_profile_set_status(profile, NULL);
-
-    return WF_OK;
 }
 
 static void profile_text(const char *text, short x, short y)
@@ -237,6 +110,20 @@ void platinum_profile_draw(platinum_profile *profile)
             profile->follows_count,
             profile->posts_count);
     profile_text(counts, 16, 136);
+
+    /* Relationship in words, never by colour. */
+    if (profile->other) {
+        profile_text(profile->following ? "You follow them." : "You do not follow them.",
+                     16, 160);
+        if (profile->followed_by)
+            profile_text("They follow you.", 16, 176);
+    }
+
+    if (profile->has_pinned) {
+        profile_text("Pinned post:", 16, 204);
+        profile_text(profile->pinned.line1, 16, 220);
+        profile_text(profile->pinned.line2, 16, 234);
+    }
 
     close_rect = profile->window->portRect;
     close_rect.left = close_rect.right - 78;

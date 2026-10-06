@@ -46,7 +46,8 @@ macos9/pairing.c                   platform
 macos9/pairing.h                   platform
 macos9/preferences.c               platform
 macos9/preferences.h               platform
-macos9/profile.c                   platform
+macos9/profile.c                   platform  # the Profile window
+macos9/profile_feed.c              platform  # view model of a bridge profile, no QuickDraw so it links on a host
 macos9/profile.h                   platform
 macos9/scrollbar.c                 platform
 macos9/scrollbar.h                 platform
