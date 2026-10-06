@@ -17,7 +17,8 @@ typedef unsigned short UInt16;
 typedef signed long SInt32;
 typedef unsigned long UInt32;
 typedef long Size;
-typedef unsigned short OSType;
+typedef unsigned long OSType; /* a four-character code: 32 bits */
+typedef short ScriptCode;
 typedef UInt32 KeyMap[4];
 
 typedef char *Ptr;
@@ -35,7 +36,7 @@ typedef unsigned char TextByte;
 typedef signed char SignedByte;
 
 typedef long Fixed;
-typedef SInt32 OSErr;
+typedef SInt16 OSErr; /* 16 bits on the classic Toolbox */
 typedef SInt32 OSStatus;
 typedef UInt32 FourCharCode;
 
@@ -94,19 +95,23 @@ typedef struct StubParamStructRec { long stub; } ParamStructRec;
 #define nil 0L
 
 #define noErr 0
+/* FindWindow part codes, as in the Window Manager chapter of Inside Macintosh. */
+#define inDesk 0
 #define inMenuBar 1
-#define inGoAway 2
-#define inDrag 5
-#define inContent 4
+#define inSysWindow 2
+#define inContent 3
+#define inDrag 4
+#define inGrow 5
+#define inGoAway 6
 #define paramErr -50
 #define fnfErr -43
 #define memFullErr -108
 #define dirFErr -64
 #define eofErr -39
-#define overrunErr -55
+#define overrunErr -27
 
 #define systemFont 0
-#define smSystemScript 0
+#define smSystemScript (-1)
 #define smRoman 0
 
 #endif

@@ -5,8 +5,5 @@
 #include <MacTypes.h>
 #include <TextEdit.h>
 
-void GetFontName(long fontID, Str255 name);
-short GetFontFamily(StringPtr name);
-long GetDefaultFont(long fontNum);
 
 #endif
