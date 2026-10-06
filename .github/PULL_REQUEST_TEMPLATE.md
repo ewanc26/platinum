@@ -1,17 +1,13 @@
 ## What this changes
-
-## Why
-
-Link the issue, or say what the diff does not show.
+<!-- What changed and which problem it solves. Link the issue if there is one. -->
 
 ## Verification
+<!-- What you ran and where: host, emulator or hardware. Say exactly which; do not claim hardware you did not use. -->
 
-What was run and what it showed. Say what it does not prove: a clean C89 job is
-a dialect and type check, not a CodeWarrior build and not Mac OS 9 hardware.
+## Docs
+<!-- AGENTS.md, README and docs/ updated in this PR, or why none needed. -->
 
 ## Checklist
-
-- [ ] Branch is not `main`; title is a conventional commit
-- [ ] CHANGELOG.md Unreleased entry linking this PR, or `Changelog: none — <reason>` here
-- [ ] AGENTS.md, README and docs/ updated in this PR if behaviour or status changed
-- [ ] No tokens, passwords or `.env` files in the diff or the logs
+- [ ] CI is green (`CI gate` and `flow / conventions`)
+- [ ] No secrets, tokens or signing keys in the diff
+- [ ] Tests added or changed with the behaviour; none skipped, disabled or deleted

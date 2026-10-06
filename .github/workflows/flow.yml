@@ -1,0 +1,17 @@
+name: flow
+
+# The stack's shared flow checks, hosted by Wolfram (docs/flow.md there). Pinned
+# to a Wolfram commit rather than main, and bumped deliberately, so a change in
+# Wolfram cannot turn this repo red without a PR here.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  flow:
+    uses: ewanc26/wolfram/.github/workflows/flow-reusable.yml@aabb55e66ee5c8b971385c8bd9925d79f31eea54
+    with:
+      canon_ref: aabb55e66ee5c8b971385c8bd9925d79f31eea54
