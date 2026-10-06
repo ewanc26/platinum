@@ -32,6 +32,7 @@ typedef struct platinum_application {
     platinum_thread thread;
     platinum_people people;
     platinum_search search;
+    int delete_armed; /* Delete My Post was chosen once and is waiting for the second */
     platinum_apppw apppw;
     platinum_preferences preferences;
     platinum_pairing pairing;
