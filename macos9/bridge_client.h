@@ -50,6 +50,18 @@ wf_status platinum_bridge_post(platinum_bridge_client *client,
 wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
                                     const char *seen_at);
 
+/*
+ * Build the JSON body for POST /v1/post: {"text":"..."}, plus
+ * "replyTo":{"uri":"...","cid":"..."} when both reply arguments are non-empty.
+ * `utf8_text` is escaped, as are the reply identifiers. The caller frees the
+ * result with free(). Returns NULL for NULL text or on allocation failure; a
+ * reply with only one of uri and cid is refused (NULL) rather than sent as a
+ * plain post.
+ */
+char *platinum_bridge_post_body(const char *utf8_text,
+                                const char *reply_uri,
+                                const char *reply_cid);
+
 long platinum_bridge_query_escape(const char *value, char *out, long capacity);
 
 wf_status platinum_bridge_revoke(platinum_bridge_client *client,
