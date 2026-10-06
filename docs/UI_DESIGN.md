@@ -130,8 +130,10 @@ Show Thread opens a modeless Thread window around the selected post: earlier pos
 - Reply... (Command-J)
 - Show Author's Profile (Command-I)
 - Follow or Unfollow (Command-Y)
+- Who Liked This, Who Reposted This
+- Show Followers, Show Following
 
-Show Author's Profile opens the Profile window on the selected post's author, with whether you follow them and they follow you (in words) and their pinned post. Follow or Unfollow flips your follow of the account the Profile window is showing; it does nothing on your own profile. Reply... opens the compose window addressed to the selected post, with "Replying to @handle" at the bottom left; posting sends the post's identifiers and the bridge works out the thread root. Like and repost act on the selected timeline post and flip whatever the row currently shows. The detail pane spells the state out in words ("4 likes (you liked it)"), so it never depends on colour or a glyph. The bridge is idempotent, so a command sent twice does no harm.
+Who Liked This and Who Reposted This act on the selected post; Show Followers and Show Following act on the account in the Profile window. All four open the same People window: a heading, then one line per account (name and @handle), forty at most, with Down Arrow at the bottom loading the next page. Show Author's Profile opens the Profile window on the selected post's author, with whether you follow them and they follow you (in words) and their pinned post. Follow or Unfollow flips your follow of the account the Profile window is showing; it does nothing on your own profile. Reply... opens the compose window addressed to the selected post, with "Replying to @handle" at the bottom left; posting sends the post's identifiers and the bridge works out the thread root. Like and repost act on the selected timeline post and flip whatever the row currently shows. The detail pane spells the state out in words ("4 likes (you liked it)"), so it never depends on colour or a glyph. The bridge is idempotent, so a command sent twice does no harm.
 
 ### Window
 

@@ -24,7 +24,7 @@ repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggl
 profile-self|Own profile|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_refresh
 profile-other|Other people's profiles|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_load
 follow|Follow and unfollow|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_set_follow
-followers-following|Followers and following lists|yes|yes|issue|#31
+followers-following|Followers and following lists|yes|yes|implemented|macos9/people_feed.c::platinum_people_load
 profile-tabs|Profile posts tab|yes|yes|issue|#31
 pinned|Pinned post|yes|yes|implemented|macos9/profile_feed.c::has_pinned
 avatars|Avatars|yes|yes|issue|#32
@@ -39,7 +39,7 @@ feeds|Custom feeds|yes|yes|issue|#34
 lists|Lists|yes|yes|issue|#34
 mute-block|Mute and block|yes|yes|issue|#35
 muted-words|Muted words|no|yes|issue|#35
-engagement-lists|Who liked or reposted|yes|no|issue|#36
+engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
 diagnostics|Diagnostics window|yes|no|issue|#37
 drafts|Post drafts|no|yes|issue|#37
 auto-update-bridge|Auto-update (bridge, from GitHub releases)|no|no|implemented|bridge/src/update/install.ts::applyUpdate

@@ -8,6 +8,7 @@
 #include "profile.h"
 #include "notifications.h"
 #include "thread.h"
+#include "people.h"
 #include "preferences.h"
 #include "pairing.h"
 #include "scrollbar.h"
@@ -27,6 +28,7 @@ typedef struct platinum_application {
     platinum_profile profile;
     platinum_notifications notifications;
     platinum_thread thread;
+    platinum_people people;
     platinum_preferences preferences;
     platinum_pairing pairing;
     platinum_scrollbar timeline_scrollbar;
