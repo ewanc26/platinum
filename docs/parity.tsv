@@ -16,9 +16,9 @@ notifications-paging|Notifications paging|yes|yes|implemented|macos9/notificatio
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_load
 post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
-reply|Reply|yes|yes|implemented|macos9/compose.c::platinum_compose_set_reply
-quote|Quote post|yes|yes|issue|#29
-reply-gate|Reply gates|yes|no|issue|#29
+reply|Reply|yes|yes|implemented|macos9/compose_model.c::platinum_compose_set_reply
+quote|Quote post|yes|yes|implemented|macos9/application.c::platinum_compose_set_quote
+reply-gate|Reply gates|yes|no|implemented|macos9/compose_model.c::platinum_compose_cycle_gate
 like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement
 repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggle(
 profile-self|Own profile|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_refresh

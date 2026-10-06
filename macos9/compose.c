@@ -1,3 +1,4 @@
+#include "bridge_client.h"
 #include "compose.h"
 #include "text_codec.h"
 #include "textfield.h"
@@ -38,6 +39,16 @@ static void platinum_compose_text(const char *text, short x, short y)
     DrawText((Ptr)text, 0, (short)strlen(text));
 }
 
+/* The reply-gate button, at the left of the button row. */
+static void compose_gate_rect(const platinum_compose *compose, Rect *rect)
+{
+    *rect = compose->window->portRect;
+    rect->left = 14;
+    rect->right = rect->left + 200;
+    rect->top = rect->bottom - 30;
+    rect->bottom -= 8;
+}
+
 OSErr platinum_compose_open(platinum_compose *compose)
 {
     Rect bounds;
@@ -57,7 +68,7 @@ OSErr platinum_compose_open(platinum_compose *compose)
     text_rect.left = 14;
     text_rect.top = 14;
     text_rect.right = bounds.right - bounds.left - 14;
-    text_rect.bottom = bounds.bottom - bounds.top - 58;
+    text_rect.bottom = bounds.bottom - bounds.top - 84;
 
     compose->text = platinum_textfield_new(compose->window, &text_rect);
     if (compose->text == NULL) {
@@ -73,42 +84,6 @@ OSErr platinum_compose_open(platinum_compose *compose)
     TEActivate(compose->text);
 
     return noErr;
-}
-
-int platinum_compose_set_reply(platinum_compose *compose,
-                               const char *uri,
-                               const char *cid,
-                               const char *handle)
-{
-    size_t length;
-
-    if (compose == NULL)
-        return 0;
-    compose->reply_uri[0] = '\0';
-    compose->reply_cid[0] = '\0';
-    compose->reply_to[0] = '\0';
-    if (uri == NULL || cid == NULL || uri[0] == '\0' || cid[0] == '\0' ||
-        strlen(uri) >= sizeof(compose->reply_uri) ||
-        strlen(cid) >= sizeof(compose->reply_cid))
-        return 0;
-
-    strcpy(compose->reply_uri, uri);
-    strcpy(compose->reply_cid, cid);
-    strcpy(compose->reply_to, "Replying to ");
-    if (handle != NULL && handle[0] != '\0') {
-        length = strlen(compose->reply_to);
-        if (handle[0] != '@')
-            compose->reply_to[length++] = '@';
-        strncpy(compose->reply_to + length, handle,
-                sizeof(compose->reply_to) - length - 1);
-        compose->reply_to[sizeof(compose->reply_to) - 1] = '\0';
-    } else {
-        strcpy(compose->reply_to, "Replying to a post");
-    }
-
-    if (compose->window != NULL)
-        InvalRect(&compose->window->portRect);
-    return 1;
 }
 
 void platinum_compose_close(platinum_compose *compose)
@@ -137,6 +112,7 @@ void platinum_compose_draw(platinum_compose *compose)
     Rect text_frame;
     Rect cancel_rect;
     Rect post_rect;
+    Rect gate_rect;
 
     if (compose == NULL || compose->window == NULL || compose->text == NULL)
         return;
@@ -166,9 +142,19 @@ void platinum_compose_draw(platinum_compose *compose)
     post_rect.right = post_rect.left + 58;
     platinum_compose_button(&post_rect, kPost);
 
-    if (compose->reply_to[0] != '\0')
-        platinum_compose_text(compose->reply_to, 14,
-                              compose->window->portRect.bottom - 14);
+    if (compose->caption[0] != '\0')
+        platinum_compose_text(compose->caption, 14,
+                              compose->window->portRect.bottom - 66);
+
+    if (compose->reply_uri[0] == '\0') {
+        char label[48];
+
+        compose_gate_rect(compose, &gate_rect);
+        strcpy(label, "Who can reply: ");
+        strcat(label, platinum_bridge_reply_gate_label(compose->reply_gate));
+        FrameRect(&gate_rect);
+        platinum_compose_text(label, gate_rect.left + 6, gate_rect.top + 14);
+    }
 
     if (compose->posting) {
         platinum_compose_text(kPosting, 14, 28);
@@ -239,6 +225,14 @@ int platinum_compose_handle_event(platinum_compose *compose,
 
             if (PtInRect(where, &post_rect))
                 return PLATINUM_COMPOSE_POST;
+
+            compose_gate_rect(compose, &cancel_rect);
+            if (compose->reply_uri[0] == '\0' &&
+                PtInRect(where, &cancel_rect)) {
+                (void)platinum_compose_cycle_gate(compose);
+                InvalRect(&compose->window->portRect);
+                return PLATINUM_COMPOSE_NONE;
+            }
 
             if (compose_point_in_text(where, compose->text))
                 TEClick(where, (event->modifiers & shiftKey) != 0,

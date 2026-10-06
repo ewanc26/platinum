@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Quote Post... (Post menu) opens the compose window as a quote of the selected post, and new posts and quotes have a "Who can reply" button that steps through Everyone, Nobody, People you mention, People you follow and Your followers. If the limit can't be set the post still goes out and I say so. [#95](https://github.com/ewanc26/platinum/pull/95)
 - The bridge can post a quote of another post, and set who may reply to a new post (everyone, nobody, people you mention, follow, or who follow you). The Mac compose window can't ask for either yet. [#93](https://github.com/ewanc26/platinum/pull/94)
 - View > Muted Words lists your muted words; Add Muted Word... and Remove Muted Word edit them. Posts matching one are hidden from the timeline, feeds and post search. [#92](https://github.com/ewanc26/platinum/pull/92)
 - The bridge now hides posts matching your muted words from the timeline, feeds and post search, and can list, add and remove them. The Mac side can't manage them yet. [#90](https://github.com/ewanc26/platinum/pull/91)
