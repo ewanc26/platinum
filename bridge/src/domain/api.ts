@@ -1,4 +1,5 @@
 import type { Agent } from '@atproto/api'
+import { MutedWords, isMutedPost } from './muted.js'
 import type {
   Author,
   Notification,
@@ -50,6 +51,7 @@ type TimelinePostView = {
     did: string
     handle?: string
     displayName?: string
+    viewer?: { following?: string }
   }
   record: unknown
   likeCount?: number
@@ -204,6 +206,14 @@ export function validSeenAt(value: unknown, now = new Date()): string | undefine
 }
 
 export class DomainApi {
+  readonly mutedWords = new MutedWords()
+
+  /** Drop posts matching the account's muted words. A page can come back short; the cursor still moves on. */
+  private async unmuted<T extends { post: TimelinePostView }>(agent: Agent, items: T[]): Promise<T[]> {
+    const words = await this.mutedWords.load(agent)
+    return words.length === 0 ? items : items.filter(i => !isMutedPost(words, i.post))
+  }
+
   async profile(agent: Agent, actor?: string): Promise<Profile | undefined> {
     const mine = actor === undefined
     let profile
@@ -273,7 +283,7 @@ export class DomainApi {
 
   async searchPosts(agent: Agent, q: string, limit: number, cursor?: string): Promise<Timeline> {
     const r = await agent.app.bsky.feed.searchPosts({ q, limit, cursor })
-    return { posts: r.data.posts.map(post => normalizeTimelinePost({ post })), cursor: r.data.cursor }
+    return { posts: (await this.unmuted(agent, r.data.posts.map(post => ({ post })))).map(normalizeTimelinePost), cursor: r.data.cursor }
   }
 
   /** The account's saved custom feeds, named. Lists and the home timeline are left out. */
@@ -288,7 +298,7 @@ export class DomainApi {
   async feed(agent: Agent, uri: string, limit: number, cursor?: string): Promise<Timeline | undefined> {
     try {
       const r = await agent.app.bsky.feed.getFeed({ feed: uri, limit, cursor })
-      return { posts: r.data.feed.map(normalizeTimelinePost), cursor: r.data.cursor }
+      return { posts: (await this.unmuted(agent, r.data.feed)).map(normalizeTimelinePost), cursor: r.data.cursor }
     } catch (error) {
       if ((error as { status?: number }).status === 400) return undefined
       throw error
@@ -366,7 +376,7 @@ export class DomainApi {
     const result = await agent.getTimeline({ limit, cursor })
 
     return {
-      posts: result.data.feed.map(normalizeTimelinePost),
+      posts: (await this.unmuted(agent, result.data.feed)).map(normalizeTimelinePost),
       cursor: result.data.cursor,
     }
   }

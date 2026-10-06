@@ -65,6 +65,8 @@ GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
 GET /v1/search/actors?q=...
 GET /v1/search/posts?q=...
+GET /v1/muted-words
+POST /v1/muted-words
 GET /v1/feeds
 GET /v1/feed?uri=...
 GET /v1/lists
@@ -113,6 +115,22 @@ idempotent in the same way. A mute is private to your account; a block is a
 public record, and the bridge deletes it by looking up its key, so the Mac never
 holds that either. Another account's profile gains `muted` and `blocking`
 booleans (absent for your own). `404 actor_not_found` as for follow.
+
+### Muted words
+
+The bridge applies your muted words before it builds a response, so the Mac never
+downloads a post it would have to hide. It uses the SDK's own matcher, so
+Bluesky's rules apply (whole-word for short words, tags, expiry, "exclude
+following"). It filters the home timeline, a feed and post search; a page can
+therefore come back with fewer posts than asked for, and `cursor` still moves on.
+Threads, notifications and an author's own posts are left alone. If your
+preferences can't be read the posts are shown unfiltered, not hidden. The list is
+cached for a minute and re-read after any change here.
+
+`GET /v1/muted-words` returns `{"words":[{"value","targets":["content","tag"]}]}`,
+at most 100. `POST /v1/muted-words` with `{"value":"...","on":true}` adds (for
+content and tags, everyone) or removes a word, idempotently and ignoring case.
+`value` is 1 to 100 printable characters (`400 invalid_word`).
 
 ### Timeline response
 
