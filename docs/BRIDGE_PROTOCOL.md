@@ -58,6 +58,8 @@ GET /v1/follows?actor=...&cursor=...
 GET /v1/followers?actor=...&cursor=...
 GET /v1/author-feed?actor=...&cursor=...
 POST /v1/follow
+POST /v1/mute
+POST /v1/block
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
@@ -105,6 +107,12 @@ account's own posts, replies left out.
 `POST /v1/follow` with `{"did":"did:plc:...","on":true}` sets the follow state
 idempotently: the bridge reads the current state first, so the Mac never holds
 a follow record URI. Returns `{"did","on"}`.
+
+`POST /v1/mute` and `POST /v1/block` take the same `{"did","on"}` body and are
+idempotent in the same way. A mute is private to your account; a block is a
+public record, and the bridge deletes it by looking up its key, so the Mac never
+holds that either. Another account's profile gains `muted` and `blocking`
+booleans (absent for your own). `404 actor_not_found` as for follow.
 
 ### Timeline response
 

@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge can mute and block an account, each idempotently, and another account's profile now says whether you've muted or blocked them. The Mac side isn't wired up yet. [#87](https://github.com/ewanc26/platinum/pull/88)
 - Search Accounts and Search Posts (View menu; Command-F searches posts). Results open in the People window or the posts list, forty at a time. [#86](https://github.com/ewanc26/platinum/pull/86)
 - Show Author's Posts, Saved Feeds and My Lists: an author's own posts, your saved feeds and your lists, all clickable and paged, with accounts in any list opening their profile. [#81](https://github.com/ewanc26/platinum/pull/81)
 - The bridge can search accounts and posts, list your saved feeds and lists, and return a feed's posts or a list's members. The Mac side isn't wired up yet. [#80](https://github.com/ewanc26/platinum/pull/80)

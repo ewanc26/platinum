@@ -304,7 +304,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     }
   }
 
-  if (req.method === 'POST' && url.pathname === '/v1/follow') {
+  if (req.method === 'POST' && (url.pathname === '/v1/follow' || url.pathname === '/v1/mute' || url.pathname === '/v1/block')) {
     let input: { did?: unknown; on?: unknown }
     try {
       input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
@@ -318,7 +318,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!did || typeof input.on !== 'boolean') {
       return json(res, 400, errorBody('invalid_actor', 'A DID and a boolean "on" are required.'))
     }
-    const result = await domain.follow(agent, did, input.on)
+    const result = url.pathname === '/v1/mute' ? await domain.mute(agent, did, input.on) : url.pathname === '/v1/block' ? await domain.block(agent, did, input.on) : await domain.follow(agent, did, input.on)
     if (!result) return json(res, 404, errorBody('actor_not_found', 'No such account.'))
     return json(res, 200, result)
   }
