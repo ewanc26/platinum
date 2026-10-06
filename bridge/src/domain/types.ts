@@ -102,4 +102,6 @@ export interface ToggleResult {
 export interface PostResult {
   uri: string
   cid: string
+  /** Present, and false, only when a reply gate was asked for and could not be set. */
+  replyGateApplied?: boolean
 }

@@ -242,6 +242,18 @@ post uses it as both root and parent, and a reply to a reply keeps the original
 root. Errors: `400 invalid_post_ref` for a malformed `replyTo`, `404
 post_not_found` if the parent has gone.
 
+### Quoting and reply gates
+
+`POST /v1/post` also accepts `"quote": {"uri","cid"}` and `"replyGate"`. A quote
+embeds the post; the bridge looks it up and uses its current cid rather than the
+one sent, and writes nothing (`404 post_not_found`) if it has gone. A quote can
+also be a reply. `replyGate` is `everyone` (the default, no record), `nobody`,
+`mentioned`, `following` or `followers`, and is written as a separate threadgate
+record after the post. It is refused (`400 invalid_reply_gate`) on a reply, or
+with any other value. If the post lands and the gate does not, the post stands
+and the reply carries `"replyGateApplied": false`; that field is absent
+otherwise.
+
 ### Like and repost
 
 `POST /v1/like` and `POST /v1/repost` take `{"uri":"at://...","cid":"...","on":true}`
