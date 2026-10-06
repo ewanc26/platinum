@@ -36,7 +36,8 @@ enum {
     PLATINUM_UI_ACTION_NOTIFICATIONS = 5,
     PLATINUM_UI_ACTION_LOAD_OLDER = 6,
     PLATINUM_UI_ACTION_LIKE = 7,
-    PLATINUM_UI_ACTION_REPOST = 8
+    PLATINUM_UI_ACTION_REPOST = 8,
+    PLATINUM_UI_ACTION_REPLY = 9
 };
 
 void platinum_ui_state_init(platinum_ui_state *state);
