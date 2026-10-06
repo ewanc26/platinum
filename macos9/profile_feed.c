@@ -161,7 +161,14 @@ wf_status platinum_profile_load(platinum_profile *profile,
     profile->other = (actor != NULL);
     profile->following = 0;
     profile->followed_by = 0;
+    profile->muted = 0;
+    profile->blocking = 0;
+    profile->block_armed = 0;
     if (profile->other) {
+        if (platinum_json_bool(root, "muted", &flag) == WF_OK)
+            profile->muted = flag;
+        if (platinum_json_bool(root, "blocking", &flag) == WF_OK)
+            profile->blocking = flag;
         if (platinum_json_bool(root, "following", &flag) == WF_OK)
             profile->following = flag;
         if (platinum_json_bool(root, "followedBy", &flag) == WF_OK)
@@ -193,12 +200,14 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
     return platinum_profile_load(profile, bridge, NULL);
 }
 
-wf_status platinum_profile_set_follow(platinum_profile *profile,
-                                      platinum_bridge_client *bridge,
-                                      int on)
+wf_status platinum_profile_set_relation(platinum_profile *profile,
+                                        platinum_bridge_client *bridge,
+                                        int kind, int on)
 {
     char did[PLATINUM_PROFILE_DID_MAX * 2 + 2];
     char body[PLATINUM_PROFILE_DID_MAX * 2 + 48];
+    const char *route;
+    const char *verb;
     wf_response response;
     platinum_json root;
     int now_on;
@@ -206,9 +215,19 @@ wf_status platinum_profile_set_follow(platinum_profile *profile,
 
     if (profile == NULL || bridge == NULL)
         return WF_ERR_INVALID_ARG;
+    if (kind == PLATINUM_RELATION_MUTE) {
+        route = "/v1/mute";
+        verb = "mute";
+    } else if (kind == PLATINUM_RELATION_BLOCK) {
+        route = "/v1/block";
+        verb = "block";
+    } else {
+        route = "/v1/follow";
+        verb = "follow";
+    }
     if (!profile->other || profile->target_did[0] == '\0') {
         platinum_profile_status_text(profile,
-                                     "Open someone else's profile to follow them.");
+                                     "Open someone else's profile first.");
         return WF_ERR_INVALID_ARG;
     }
     if (platinum_json_escape(did, sizeof(did), profile->target_did) != WF_OK)
@@ -219,14 +238,18 @@ wf_status platinum_profile_set_follow(platinum_profile *profile,
     strcat(body, on ? "\",\"on\":true}" : "\",\"on\":false}");
 
     memset(&response, 0, sizeof(response));
-    status = platinum_bridge_post(bridge, "/v1/follow", body, &response);
+    status = platinum_bridge_post(bridge, route, body, &response);
     if (status != WF_OK) {
-        if (status == WF_ERR_AUTH)
+        if (status == WF_ERR_AUTH) {
             platinum_profile_status_text(
                 profile, "Session expired. Pair the account again.");
-        else
-            platinum_profile_status_text(profile,
-                                         "The follow did not go through.");
+        } else {
+            char text[PLATINUM_PROFILE_STATUS_MAX + 1];
+            strcpy(text, "The ");
+            strcat(text, verb);
+            strcat(text, " did not go through.");
+            platinum_profile_status_text(profile, text);
+        }
         wf_response_free(&response);
         return status;
     }
@@ -242,7 +265,20 @@ wf_status platinum_profile_set_follow(platinum_profile *profile,
     }
     wf_response_free(&response);
 
-    profile->following = now_on;
+    if (kind == PLATINUM_RELATION_MUTE)
+        profile->muted = now_on;
+    else if (kind == PLATINUM_RELATION_BLOCK)
+        profile->blocking = now_on;
+    else
+        profile->following = now_on;
     platinum_profile_status_text(profile, NULL);
     return WF_OK;
+}
+
+wf_status platinum_profile_set_follow(platinum_profile *profile,
+                                      platinum_bridge_client *bridge,
+                                      int on)
+{
+    return platinum_profile_set_relation(profile, bridge,
+                                         PLATINUM_RELATION_FOLLOW, on);
 }

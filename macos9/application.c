@@ -55,6 +55,7 @@ static void platinum_application_run_search(platinum_application *app);
 static void platinum_application_show_named(platinum_application *app,
                                             int kind);
 static void platinum_application_follow(platinum_application *app);
+static void platinum_application_relate(platinum_application *app, int kind);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
@@ -100,6 +101,12 @@ static unsigned char kAuthorItem[] = {
 };
 static unsigned char kFollowItem[] = {
     18, 'F', 'o', 'l', 'l', 'o', 'w', ' ', 'o', 'r', ' ', 'U', 'n', 'f', 'o', 'l', 'l', 'o', 'w'
+};
+static unsigned char kMuteItem[] = {
+    14, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e'
+};
+static unsigned char kBlockItem[] = {
+    16, 'B', 'l', 'o', 'c', 'k', ' ', 'o', 'r', ' ', 'U', 'n', 'b', 'l', 'o', 'c', 'k'
 };
 static unsigned char kAuthorPostsItem[] = {
     19, 'S', 'h', 'o', 'w', ' ', 'A', 'u', 't', 'h', 'o', 'r', '\'', 's', ' ',
@@ -1051,6 +1058,44 @@ static void platinum_application_follow(platinum_application *app)
     InvalRect(&app->profile.window->portRect);
 }
 
+/* Mute or block (or undo it) on the account in the Profile window. Muting is
+ * private and undone the same way. Blocking is public, so the first request
+ * only asks and the same request again within the window does it; any other
+ * menu choice disarms it. Unblocking needs no second step. */
+static void platinum_application_relate(platinum_application *app, int kind)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+    int on;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    if (app->profile.window == NULL || !app->profile.other) {
+        if (app->profile.window != NULL)
+            platinum_profile_set_status(
+                &app->profile, "Open someone else's profile first.");
+        return;
+    }
+
+    on = (kind == PLATINUM_RELATION_BLOCK) ? !app->profile.blocking
+                                           : !app->profile.muted;
+    if (kind == PLATINUM_RELATION_BLOCK && on && !app->profile.block_armed) {
+        app->profile.block_armed = 1;
+        platinum_profile_set_status(
+            &app->profile,
+            "Choose Block again to block them. Any other menu choice cancels.");
+        return;
+    }
+    app->profile.block_armed = 0;
+
+    status = platinum_profile_set_relation(&app->profile, bridge, kind, on);
+    platinum_application_recover_auth(app, status);
+    InvalRect(&app->profile.window->portRect);
+}
+
 /* Open the thread around the selected post. */
 static void platinum_application_show_thread(platinum_application *app)
 {
@@ -1281,6 +1326,8 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kFollowersItem);
     AppendMenu(app->post_menu, kFollowingItem);
     AppendMenu(app->post_menu, kAuthorPostsItem);
+    AppendMenu(app->post_menu, kMuteItem);
+    AppendMenu(app->post_menu, kBlockItem);
     SetItemCmd(app->post_menu, 1, 'l');
     SetItemCmd(app->post_menu, 2, 'e');
     SetItemCmd(app->post_menu, 3, 'j');
@@ -1357,6 +1404,9 @@ static void platinum_application_handle_menu(platinum_application *app,
     menu_id = (short)((choice >> 16) & 0xFFFF);
     item = (short)(choice & 0xFFFF);
 
+    if (!(menu_id == kPostMenuID && item == 12))
+        app->profile.block_armed = 0;
+
     if (menu_id == kFileMenuID) {
         if (item == 1) {
             if (platinum_compose_open(&app->compose) == noErr)
@@ -1398,7 +1448,11 @@ static void platinum_application_handle_menu(platinum_application *app,
                 SelectWindow(app->search.window);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 10)
+        if (item == 12)
+            platinum_application_relate(app, PLATINUM_RELATION_BLOCK);
+        else if (item == 11)
+            platinum_application_relate(app, PLATINUM_RELATION_MUTE);
+        else if (item == 10)
             platinum_application_show_posts(app);
         else if (item >= 6 && item <= 9)
             platinum_application_show_people(app, item);

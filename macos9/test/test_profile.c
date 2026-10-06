@@ -119,8 +119,43 @@ static void test_follow(void)
     platinum_bridge_client_free(bridge);
 }
 
+static void test_mute_block(void)
+{
+    static platinum_profile profile;
+    platinum_bridge_client *bridge;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_profile_init(&profile);
+    respond(WF_OK, 200,
+            "{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\",\"muted\":true,"
+            "\"blocking\":false,\"following\":false,\"followedBy\":false}");
+    platinum_profile_load(&profile, bridge, "bob.test");
+    check(profile.muted == 1 && profile.blocking == 0, "mute and block state read");
+
+    respond(WF_OK, 200, "{\"did\":\"did:plc:bob\",\"on\":false}");
+    check(platinum_profile_set_relation(&profile, bridge, PLATINUM_RELATION_MUTE, 0) == WF_OK &&
+              profile.muted == 0 && strstr(last_url, "/v1/mute") != NULL,
+          "unmute posts to /v1/mute and clears the state");
+
+    respond(WF_OK, 200, "{\"did\":\"did:plc:bob\",\"on\":true}");
+    check(platinum_profile_set_relation(&profile, bridge, PLATINUM_RELATION_BLOCK, 1) == WF_OK &&
+              profile.blocking == 1 && profile.muted == 0 && profile.following == 0 &&
+              strstr(last_url, "/v1/block") != NULL &&
+              strcmp(last_body, "{\"did\":\"did:plc:bob\",\"on\":true}") == 0,
+          "block posts to /v1/block and touches only blocking");
+
+    respond(WF_ERR_HTTP, 500, "{}");
+    check(platinum_profile_set_relation(&profile, bridge, PLATINUM_RELATION_BLOCK, 0) != WF_OK &&
+              profile.blocking == 1 &&
+              strcmp(profile.status, "The block did not go through.") == 0,
+          "a failed unblock changes nothing and says so");
+
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
+    test_mute_block();
     test_other();
     test_follow();
     if (failures != 0) {

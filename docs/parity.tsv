@@ -37,7 +37,7 @@ search-actors|Actor search|yes|yes|implemented|macos9/application.c::/v1/search/
 search-posts|Post search|yes|yes|implemented|macos9/application.c::/v1/search/posts
 feeds|Custom feeds|yes|yes|implemented|macos9/application.c::/v1/feeds
 lists|Lists|yes|yes|implemented|macos9/application.c::/v1/lists
-mute-block|Mute and block|yes|yes|issue|#35
+mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
 muted-words|Muted words|no|yes|issue|#35
 engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
 diagnostics|Diagnostics window|yes|no|issue|#37

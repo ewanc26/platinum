@@ -117,6 +117,10 @@ void platinum_profile_draw(platinum_profile *profile)
                      16, 160);
         if (profile->followed_by)
             profile_text("They follow you.", 16, 176);
+        if (profile->muted)
+            profile_text("You have muted them.", 16, 190);
+        if (profile->blocking)
+            profile_text("You have blocked them.", 16, 190);
     }
 
     if (profile->has_pinned) {

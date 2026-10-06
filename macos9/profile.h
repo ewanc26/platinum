@@ -30,6 +30,10 @@ typedef struct platinum_profile {
     int other;
     int following;
     int followed_by;
+    int muted;
+    int blocking;
+    /* Block asks twice: set by the first request, cleared by anything else. */
+    int block_armed;
     /* The account's DID, copied exactly (the display copy above may clip). */
     char target_did[PLATINUM_PROFILE_DID_MAX + 1];
     int has_pinned;
@@ -57,6 +61,16 @@ wf_status platinum_profile_load(platinum_profile *profile,
 wf_status platinum_profile_set_follow(platinum_profile *profile,
                                       platinum_bridge_client *bridge,
                                       int on);
+enum {
+    PLATINUM_RELATION_FOLLOW = 0,
+    PLATINUM_RELATION_MUTE = 1,
+    PLATINUM_RELATION_BLOCK = 2
+};
+/* Follow, mute or block (or undo it) on the account shown, idempotently. The
+ * follow, mute and block states change only on a well-formed answer. */
+wf_status platinum_profile_set_relation(platinum_profile *profile,
+                                        platinum_bridge_client *bridge,
+                                        int kind, int on);
 /* Set status text without touching any window. */
 void platinum_profile_status_text(platinum_profile *profile,
                                   const char *status);
