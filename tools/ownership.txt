@@ -20,6 +20,8 @@ bridge/src/auth/oauth-node-pairing.ts port   # port of oauth_pairing.h (wolfram#
 bridge/src/auth/tokens.ts          bridge    # bridge tokens are Platinum's own credential
 bridge/src/domain/api.ts           port      # post and notification shaping; Wolfram post_display.h owns the model (#39)
 bridge/src/domain/muted.ts         bridge    # muted-word filtering of Platinum responses; the matcher is the AT Protocol SDK's
+bridge/src/image/convert.ts       bridge    # decode, shrink, quantise and pack an image into docs/IMAGES.md's blob; Platinum's own format, the matching C side is Platinum's too
+bridge/src/image/fetch.ts         bridge    # CDN-only image fetch, validated refs, a small cache
 bridge/src/domain/types.ts         protocol  # wire types of docs/BRIDGE_PROTOCOL.md
 bridge/src/http/errors.ts          protocol  # stable error codes
 bridge/src/http/json.ts            bridge    # body limits and responses

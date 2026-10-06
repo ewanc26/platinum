@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge can turn an image into a small indexed-colour bitmap for the Mac to draw: `GET /v1/image`, JPEG and PNG in, at most 320 pixels wide, 16 or 256 colours, with the format written up in docs/IMAGES.md and pinned by test vectors. Nothing on the Mac draws one yet. [#100](https://github.com/ewanc26/platinum/pull/100)
 - Delete My Post (Post menu) deletes the selected post if it's yours. Choose it twice: the first time it only asks. The bridge refuses anyone else's post too. [#97](https://github.com/ewanc26/platinum/pull/97)
 - File > Sign In with App Password... signs you in with a handle and an app password, if the bridge allows it. The password is typed into a masked box, wiped as soon as it's used, and the window warns when the bridge address is plain http. [#96](https://github.com/ewanc26/platinum/pull/96)
 - Quote Post... (Post menu) opens the compose window as a quote of the selected post, and new posts and quotes have a "Who can reply" button that steps through Everyone, Nobody, People you mention, People you follow and Your followers. If the limit can't be set the post still goes out and I say so. [#95](https://github.com/ewanc26/platinum/pull/95)

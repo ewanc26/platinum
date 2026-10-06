@@ -65,6 +65,7 @@ GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
 GET /v1/search/actors?q=...
 GET /v1/search/posts?q=...
+GET /v1/image?ref=...&w=...&depth=...
 GET /v1/muted-words
 POST /v1/muted-words
 GET /v1/feeds
@@ -116,6 +117,11 @@ idempotent in the same way. A mute is private to your account; a block is a
 public record, and the bridge deletes it by looking up its key, so the Mac never
 holds that either. Another account's profile gains `muted` and `blocking`
 booleans (absent for your own). `404 actor_not_found` as for follow.
+
+### Images
+
+`GET /v1/image` returns a small indexed-colour bitmap, not an image file. The
+format, the parameters and the errors are in [IMAGES.md](IMAGES.md).
 
 ### Muted words
 
