@@ -4,6 +4,8 @@ import type {
   Notification,
   Notifications,
   PostResult,
+  Thread,
+  ThreadPost,
   ToggleResult,
   Profile,
   Timeline,
@@ -101,6 +103,50 @@ export function normalizeNotification(notification: {
   }
 }
 
+export const MAX_THREAD_POSTS = 40
+export const MAX_THREAD_DEPTH = 6
+const MAX_ANCESTORS = 10
+
+type ThreadNode = { post?: TimelinePostView; parent?: unknown; replies?: unknown[] }
+
+function isThreadNode(value: unknown): value is ThreadNode {
+  if (value === null || typeof value !== 'object') return false
+  const post = (value as ThreadNode).post
+  return post !== undefined && post !== null && typeof post === 'object' && typeof post.uri === 'string'
+}
+
+/**
+ * Flatten a getPostThread tree into one bounded list the Mac can draw as rows:
+ * ancestors first (oldest at the top, negative depth), the post asked for at
+ * depth 0, then replies depth-first. Blocked and not-found nodes are skipped.
+ */
+export function flattenThread(root: unknown): Thread {
+  const out: ThreadPost[] = []
+  let truncated = false
+  if (!isThreadNode(root)) return { posts: out, truncated }
+
+  const ancestors: ThreadNode[] = []
+  let node: unknown = root.parent
+  while (isThreadNode(node) && ancestors.length < MAX_ANCESTORS) {
+    ancestors.unshift(node)
+    node = node.parent
+  }
+  if (isThreadNode(node)) truncated = true
+  ancestors.forEach((a, i) => out.push({ ...normalizeTimelinePost({ post: a.post! }), depth: i - ancestors.length }))
+  out.push({ ...normalizeTimelinePost({ post: root.post! }), depth: 0 })
+
+  const walk = (n: ThreadNode, depth: number) => {
+    for (const r of n.replies ?? []) {
+      if (!isThreadNode(r)) continue
+      if (out.length >= MAX_THREAD_POSTS || depth > MAX_THREAD_DEPTH) { truncated = true; return }
+      out.push({ ...normalizeTimelinePost({ post: r.post! }), depth })
+      walk(r, depth + 1)
+    }
+  }
+  walk(root, 1)
+  return { posts: out, truncated }
+}
+
 export type ToggleKind = 'like' | 'repost'
 
 /** A post reference from a client. Bounded and shaped, never trusted further. */
@@ -192,8 +238,31 @@ export class DomainApi {
     return { seenAt }
   }
 
-  async post(agent: Agent, text: string): Promise<PostResult> {
-    const result = await agent.post({ text })
+  async thread(agent: Agent, ref: { uri: string }): Promise<Thread | undefined> {
+    const result = await agent.getPostThread({ uri: ref.uri, depth: MAX_THREAD_DEPTH, parentHeight: MAX_ANCESTORS })
+    const thread = flattenThread(result.data.thread)
+    return thread.posts.length > 0 ? thread : undefined
+  }
+
+  /**
+   * Post, optionally as a reply. The reply root is worked out here from the
+   * parent's own record, so the Mac only ever names the post it is replying to.
+   * Returns undefined when the parent no longer exists.
+   */
+  async post(agent: Agent, text: string, replyTo?: { uri: string; cid: string }): Promise<PostResult | undefined> {
+    if (!replyTo) {
+      const result = await agent.post({ text })
+      return { uri: result.uri, cid: result.cid }
+    }
+    const found = await agent.getPosts({ uris: [replyTo.uri] })
+    const parent = found.data.posts[0]
+    if (!parent) return undefined
+    const record = parent.record as { reply?: { root?: { uri?: unknown; cid?: unknown } } } | undefined
+    const r = record?.reply?.root
+    const root = r && typeof r.uri === 'string' && typeof r.cid === 'string'
+      ? { uri: r.uri, cid: r.cid }
+      : { uri: parent.uri, cid: parent.cid }
+    const result = await agent.post({ text, reply: { root, parent: { uri: parent.uri, cid: parent.cid } } })
     return { uri: result.uri, cid: result.cid }
   }
 }

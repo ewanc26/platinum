@@ -282,11 +282,19 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, await domain.markSeen(agent, seenAt))
   }
 
+  if (req.method === 'GET' && url.pathname === '/v1/thread') {
+    const ref = validPostRef(url.searchParams.get('uri'), 'x')
+    if (!ref) return json(res, 400, errorBody('invalid_post_ref', 'uri must be an app.bsky.feed.post AT URI.'))
+    const thread = await domain.thread(agent, ref)
+    if (!thread) return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
+    return json(res, 200, thread)
+  }
+
   if (req.method === 'POST' && url.pathname === '/v1/post') {
-    let input: { text?: string }
+    let input: { text?: string; replyTo?: { uri?: unknown; cid?: unknown } }
 
     try {
-      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as { text?: string }
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
     } catch (error) {
       if (error instanceof RequestBodyTooLargeError) {
         throw new BridgeError('invalid_json', 413, 'The request body is too large.')
@@ -301,7 +309,18 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 400, errorBody('text_too_long', 'Post text must not exceed 300 characters.'))
     }
 
-    return json(res, 200, await domain.post(agent, input.text))
+    let replyTo: { uri: string; cid: string } | undefined
+    if (input.replyTo !== undefined) {
+      replyTo = typeof input.replyTo === 'object' && input.replyTo !== null
+        ? validPostRef(input.replyTo.uri, input.replyTo.cid)
+        : undefined
+      if (!replyTo) {
+        return json(res, 400, errorBody('invalid_post_ref', 'replyTo must name a post by uri and cid.'))
+      }
+    }
+    const posted = await domain.post(agent, input.text, replyTo)
+    if (!posted) return json(res, 404, errorBody('post_not_found', 'The post being replied to no longer exists.'))
+    return json(res, 200, posted)
   }
 
   return json(res, 404, { error: 'not_found', message: 'The requested endpoint does not exist.' })
