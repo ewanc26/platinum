@@ -1,0 +1,45 @@
+{
+ "description": "Converter vectors for docs/IMAGES.md. rgba is the decoded source, blob is the exact PLIM output.",
+ "vectors": [
+  {
+   "name": "four colours, no change",
+   "width": 2,
+   "height": 2,
+   "rgba": "ff0000ff00ff00ff0000ffffffffffff",
+   "maxWidth": 320,
+   "maxHeight": 320,
+   "depth": 4,
+   "blob": "504c494d0104000200020002000400000000ff00ff00ff0000ffffff21000300"
+  },
+  {
+   "name": "area average shrink, rounded half up",
+   "width": 4,
+   "height": 4,
+   "rgba": "000000ff010101ff000000ff000000ff010101ff010101ff000000ff020202ffffffffffffffffff000000ff000000fffffffffffefefeff010101ff010101ff",
+   "maxWidth": 2,
+   "maxHeight": 2,
+   "depth": 4,
+   "blob": "504c494d010400020002000200020000010101ffffff00001000"
+  },
+  {
+   "name": "alpha is flattened onto white",
+   "width": 1,
+   "height": 1,
+   "rgba": "ff000080",
+   "maxWidth": 320,
+   "maxHeight": 320,
+   "depth": 4,
+   "blob": "504c494d010400010001000200010000ff7f7f0000"
+  },
+  {
+   "name": "eight bit depth",
+   "width": 1,
+   "height": 1,
+   "rgba": "ff000080",
+   "maxWidth": 320,
+   "maxHeight": 320,
+   "depth": 8,
+   "blob": "504c494d010800010001000200010000ff7f7f0000"
+  }
+ ]
+}
