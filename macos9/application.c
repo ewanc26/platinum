@@ -44,6 +44,8 @@ static void platinum_application_engage(platinum_application *app,
                                         int repost);
 static void platinum_application_reply(platinum_application *app);
 static void platinum_application_show_thread(platinum_application *app);
+static void platinum_application_show_author(platinum_application *app);
+static void platinum_application_follow(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
@@ -82,6 +84,13 @@ static unsigned char kViewMenu[] = { 4, 'V', 'i', 'e', 'w' };
 static unsigned char kPostMenu[] = { 4, 'P', 'o', 's', 't' };
 static unsigned char kLikeItem[] = {
     14, 'L', 'i', 'k', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'l', 'i', 'k', 'e'
+};
+static unsigned char kAuthorItem[] = {
+    21, 'S', 'h', 'o', 'w', ' ', 'A', 'u', 't', 'h', 'o', 'r', '\'', 's', ' ',
+    'P', 'r', 'o', 'f', 'i', 'l', 'e'
+};
+static unsigned char kFollowItem[] = {
+    18, 'F', 'o', 'l', 'l', 'o', 'w', ' ', 'o', 'r', ' ', 'U', 'n', 'f', 'o', 'l', 'l', 'o', 'w'
 };
 static unsigned char kReplyItem[] = {
     8, 'R', 'e', 'p', 'l', 'y', '.', '.', '.'
@@ -436,6 +445,10 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_reply(app);
                 } else if (action == PLATINUM_UI_ACTION_THREAD) {
                     platinum_application_show_thread(app);
+                } else if (action == PLATINUM_UI_ACTION_AUTHOR) {
+                    platinum_application_show_author(app);
+                } else if (action == PLATINUM_UI_ACTION_FOLLOW) {
+                    platinum_application_follow(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -644,6 +657,55 @@ static void platinum_application_refresh_timeline(platinum_application *app)
         platinum_application_timeline_visible_rows(app),
         app->ui.scroll_row);
     platinum_application_invalidate(app);
+}
+
+/* Open the selected post's author in the Profile window. */
+static void platinum_application_show_author(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    if (platinum_profile_open(&app->profile) != noErr)
+        return;
+
+    status = platinum_profile_load(&app->profile, bridge,
+                                   app->timeline.posts[index].handle);
+    platinum_application_recover_auth(app, status);
+    if (app->profile.window != NULL)
+        InvalRect(&app->profile.window->portRect);
+}
+
+/* Follow or unfollow the account in the Profile window. */
+static void platinum_application_follow(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    if (app->profile.window == NULL || !app->profile.other) {
+        if (app->profile.window != NULL)
+            platinum_profile_set_status(
+                &app->profile, "Open someone else's profile to follow them.");
+        return;
+    }
+
+    status = platinum_profile_set_follow(&app->profile, bridge,
+                                         !app->profile.following);
+    platinum_application_recover_auth(app, status);
+    InvalRect(&app->profile.window->portRect);
 }
 
 /* Open the thread around the selected post. */
@@ -864,9 +926,13 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kLikeItem);
     AppendMenu(app->post_menu, kRepostItem);
     AppendMenu(app->post_menu, kReplyItem);
+    AppendMenu(app->post_menu, kAuthorItem);
+    AppendMenu(app->post_menu, kFollowItem);
     SetItemCmdChar(app->post_menu, 1, 'l');
     SetItemCmdChar(app->post_menu, 2, 'e');
     SetItemCmdChar(app->post_menu, 3, 'j');
+    SetItemCmdChar(app->post_menu, 4, 'i');
+    SetItemCmdChar(app->post_menu, 5, 'y');
 
     AppendMenu(app->window_menu, kTimelineWindow);
     AppendMenu(app->window_menu, kNotificationsWindow);
@@ -972,7 +1038,11 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_show_thread(app);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 3)
+        if (item == 4)
+            platinum_application_show_author(app);
+        else if (item == 5)
+            platinum_application_follow(app);
+        else if (item == 3)
             platinum_application_reply(app);
         else
             platinum_application_engage(app, item == 2);

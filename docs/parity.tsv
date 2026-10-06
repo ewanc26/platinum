@@ -21,12 +21,12 @@ quote|Quote post|yes|yes|issue|#29
 reply-gate|Reply gates|yes|no|issue|#29
 like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement
 repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggle(
-profile-self|Own profile|yes|yes|implemented|macos9/profile.c::platinum_profile_refresh
-profile-other|Other people's profiles|yes|yes|issue|#31
-follow|Follow and unfollow|yes|yes|issue|#31
+profile-self|Own profile|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_refresh
+profile-other|Other people's profiles|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_load
+follow|Follow and unfollow|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_set_follow
 followers-following|Followers and following lists|yes|yes|issue|#31
 profile-tabs|Profile posts tab|yes|yes|issue|#31
-pinned|Pinned post|yes|yes|issue|#31
+pinned|Pinned post|yes|yes|implemented|macos9/profile_feed.c::has_pinned
 avatars|Avatars|yes|yes|issue|#32
 post-images|Post images|yes|yes|issue|#32
 alt-text|Image alt text|yes|yes|issue|#32

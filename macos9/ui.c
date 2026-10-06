@@ -414,6 +414,10 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
             return PLATINUM_UI_ACTION_REPLY;
         if (key == 't' || key == 'T')
             return PLATINUM_UI_ACTION_THREAD;
+        if (key == 'i' || key == 'I')
+            return PLATINUM_UI_ACTION_AUTHOR;
+        if (key == 'y' || key == 'Y')
+            return PLATINUM_UI_ACTION_FOLLOW;
     }
 
     switch (key) {
