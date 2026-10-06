@@ -2,6 +2,7 @@
 AppendMenu|void|MenuHandle;ConstStringPtr
 BeginUpdate|void|WindowPtr
 CharWidth|INTEGER|CharParameter
+CopyBits|void|BitMap*;BitMap*;const Rect*;const Rect*;INTEGER;RgnHandle
 DeleteMenu|void|INTEGER
 DisableItem|void|MenuHandle;INTEGER
 DisposeControl|void|ControlHandle
@@ -35,6 +36,7 @@ FrameRect|void|const Rect*
 FrameRgn|void|RgnHandle
 FreeMem|int32_t|
 FrontWindow|WindowPtr|
+GetCTSeed|LONGINT|
 GetControlMaximum|INTEGER|ControlHandle
 GetControlMinimum|INTEGER|ControlHandle
 GetControlValue|INTEGER|ControlHandle
@@ -47,6 +49,7 @@ GlobalToLocal|void|Point*
 HGetState|SignedByte|Handle
 HLock|void|Handle
 HSetState|void|Handle;SignedByte
+HUnlock|void|Handle
 HideControl|void|ControlHandle
 HiliteMenu|void|INTEGER
 HiliteWindow|void|WindowPtr;Boolean
@@ -65,7 +68,9 @@ MenuSelect|LONGINT|Point
 MoveTo|void|INTEGER;INTEGER
 NewCWindow|WindowPtr|void*;const Rect*;ConstStringPtr;Boolean;INTEGER;WindowPtr;Boolean;LONGINT
 NewControl|ControlHandle|WindowPtr;const Rect*;ConstStringPtr;Boolean;INTEGER;INTEGER;INTEGER;INTEGER;LONGINT
+NewHandle|Handle|Size
 NewMenu|MenuHandle|INTEGER;ConstStringPtr
+NewPtr|Ptr|Size
 NewRgn|RgnHandle|
 OffsetRect|void|Rect*;INTEGER;INTEGER
 OffsetRgn|void|RgnHandle;INTEGER;INTEGER

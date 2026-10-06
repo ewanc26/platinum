@@ -5,6 +5,9 @@
 #include <MacTypes.h>
 
 
+Ptr NewPtr(Size byteCount);
+Handle NewHandle(Size byteCount);
+void HUnlock(Handle h);
 void DisposePtr(Ptr p);
 void DisposeHandle(Handle h);
 SInt32 GetHandleSize(Handle h);

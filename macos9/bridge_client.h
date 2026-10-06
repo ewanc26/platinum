@@ -84,6 +84,19 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
                                     const char *seen_at);
 
 /*
+ * GET /v1/image for a reference the bridge gave (see docs/IMAGES.md). On success
+ * `*blob` is a malloc'd copy of the answer, `*length` its size, and the caller
+ * frees it; hand it to platinum_image_parse. `width` is 16 to 320 and `depth`
+ * 4 or 8; other values, an empty or over-long ref, or an answer over
+ * PLATINUM_IMAGE_FETCH_MAX bytes are refused (WF_ERR_INVALID_ARG, or
+ * WF_ERR_PARSE for the answer) before anything is kept.
+ */
+#define PLATINUM_IMAGE_FETCH_MAX 80000L
+wf_status platinum_bridge_get_image(platinum_bridge_client *client,
+                                    const char *ref, int width, int depth,
+                                    unsigned char **blob, long *length);
+
+/*
  * Delete one of your own posts: POST /v1/post/delete {"uri":"..."}. `uri` is
  * escaped; empty or over 512 bytes is refused with no request. The bridge
  * refuses anyone else's post (403), and deleting one that is gone is not an error.

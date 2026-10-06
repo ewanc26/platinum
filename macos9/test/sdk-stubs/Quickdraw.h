@@ -16,6 +16,8 @@ typedef struct StubGrafPort {
 
 extern GrafPort qd;
 
+#define srcCopy 0
+
 
 void SetRect(Rect *r, short left, short top, short right, short bottom);
 void InsetRect(Rect *r, short dx, short dy);
@@ -28,6 +30,9 @@ void EraseRect(const Rect *r);
 short FindWindow(Point pt, WindowPtr *window);
 void FillRect(const Rect *r, Pattern *pat);
 void PaintRect(const Rect *r);
+void CopyBits(BitMap *srcBits, BitMap *dstBits, const Rect *srcRect,
+              const Rect *dstRect, short mode, RgnHandle maskRgn);
+long GetCTSeed(void);
 void InvalRect(const Rect *r);
 
 void InitGraf(GrafPtr *thePort);

@@ -37,6 +37,8 @@ jobs:
       - run: tools/check-flow.sh duplication
       - name: SDK stubs match the real Toolbox signatures
         run: tools/check-stubs.py
+      - name: The Mac image test uses the bridge's image vectors
+        run: tools/check-image-vectors.py
       - name: Logo and icon are generated from one shape
         run: tools/gen-art.py --check
       - name: Parity matrix matches the code
@@ -111,6 +113,8 @@ jobs:
             macos9/compose.c \
             macos9/compose_model.c \
             macos9/config.c \
+            macos9/image_blob.c \
+            macos9/image_pix.c \
             macos9/json_min.c \
             macos9/main.c \
             macos9/notifications.c \
@@ -136,6 +140,7 @@ jobs:
             macos9/test/test_apppw.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_diag.c \
+            macos9/test/test_image_blob.c \
             macos9/test/test_compose.c \
             macos9/test/test_json_min.c \
             macos9/test/test_notifications.c \
@@ -221,6 +226,11 @@ jobs:
             macos9/compose_model.c macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_compose.c
           /tmp/test_compose
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_image_blob \
+            macos9/image_blob.c macos9/bridge_client.c macos9/json_min.c \
+            macos9/test/wolfram_stub.c macos9/test/test_image_blob.c
+          /tmp/test_image_blob
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_diag \
             macos9/diag.c macos9/bridge_client.c macos9/json_min.c \

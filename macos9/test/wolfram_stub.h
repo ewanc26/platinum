@@ -17,5 +17,8 @@ extern int last_method;
 extern int fake_status;
 extern long fake_http_status;
 extern const char *fake_body;
+/* If non-zero, the response body is exactly this many bytes of fake_body, which
+ * may contain NULs; if zero it is the C string. */
+extern size_t fake_body_len;
 
 #endif
