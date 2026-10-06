@@ -1,16 +1,18 @@
 import { parseVersion } from './version.js'
 
-// update.json, written by scripts/release.sh and attached to each GitHub
-// release. Shape follows ewanc26/wolfram#106 (the canonical shared contract):
-// { schema, app, version, notes, asset: { name, url, size, sha256 }, signature }.
-// This is the Node port; vectors are in test/update-vectors.json and should be
-// replaced by Wolfram's test/vectors/update/ once published.
+// update.json: a port of Wolfram's wf_update_parse_manifest (update.h,
+// docs/update.md, ewanc26/wolfram#106), tested against Wolfram's vectors in
+// test/vectors/update/manifest.json. The bridge is Node and cannot call
+// Wolfram's C, so this copy exists; it is deleted if a Node binding appears.
+//
+// ManifestError.kind is 'parse' where Wolfram returns WF_ERR_PARSE and
+// 'validation' where it returns WF_ERR_VALIDATION (a policy mismatch).
 
 export interface Asset {
   name: string
   url: string
   size: number
-  sha256: string
+  sha256: string // lowercase hex
 }
 
 export interface Manifest {
@@ -19,56 +21,100 @@ export interface Manifest {
   version: string
   notes: string
   asset: Asset
-  signature: null
+  /** A signature was present. It is reserved and NOT verified (#49). */
+  hasSignature: boolean
 }
 
+export interface Policy {
+  /** Reject assets larger than this; default 64 MiB, as in Wolfram. */
+  maxSize?: number
+  app?: string
+  urlPrefix?: string
+}
+
+export const DEFAULT_MAX_SIZE = 64 * 1024 * 1024
 export const MAX_MANIFEST_BYTES = 64 * 1024
-export const MAX_ARTIFACT_BYTES = 128 * 1024 * 1024
+const APP_MAX = 32
+const VERSION_MAX = 32
+const NOTES_MAX = 1024
+const NAME_MAX = 96
+const URL_MAX = 512
 
-export class ManifestError extends Error {}
-
-function fail(msg: string): never {
-  throw new ManifestError(msg)
+export class ManifestError extends Error {
+  constructor(readonly kind: 'parse' | 'validation', message: string) {
+    super(message)
+  }
 }
 
-export function parseManifest(text: string, opts: { app: string; urlPrefix: string }): Manifest {
-  if (Buffer.byteLength(text) > MAX_MANIFEST_BYTES) fail('manifest too large')
+const parseFail = (m: string): never => { throw new ManifestError('parse', m) }
+
+/** Wolfram's buffers hold cap-1 bytes plus a NUL; a longer value is refused, never cut. */
+function fits(o: Record<string, unknown>, key: string, cap: number): string | undefined {
+  const v = o[key]
+  if (typeof v !== 'string' || Buffer.byteLength(v) >= cap) return undefined
+  return v
+}
+
+/** https://host[:port]/..., no userinfo, no whitespace, control bytes or backslash. */
+function urlOk(u: string): boolean {
+  if (!u.startsWith('https://')) return false
+  for (const ch of Buffer.from(u)) if (ch <= 0x20 || ch === 0x7f || ch === 0x5c) return false
+  const rest = u.slice(8)
+  const end = rest.search(/[/?#]/)
+  const host = end < 0 ? rest : rest.slice(0, end)
+  return host.length > 0 && !host.includes('@')
+}
+
+export function parseManifest(text: string, policy: Policy = {}): Manifest {
+  if (Buffer.byteLength(text) > MAX_MANIFEST_BYTES) parseFail('manifest too large')
   let raw: unknown
   try {
     raw = JSON.parse(text)
   } catch {
-    fail('manifest is not JSON')
+    parseFail('manifest is not JSON')
   }
-  if (typeof raw !== 'object' || raw === null) fail('manifest is not an object')
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) parseFail('manifest is not an object')
   const o = raw as Record<string, unknown>
-  if (o.schema !== 1) fail('unsupported manifest schema')
-  if (o.app !== opts.app) fail('manifest is for a different app')
-  if (typeof o.version !== 'string') fail('manifest has no version')
+  if (o.schema !== 1) parseFail('unsupported manifest schema')
+  const app = fits(o, 'app', APP_MAX)
+  const version = fits(o, 'version', VERSION_MAX)
+  if (!app || !version) parseFail('manifest app or version missing or too long')
   try {
-    parseVersion(o.version)
+    parseVersion(version!)
   } catch {
-    fail('manifest version is not a version')
+    parseFail('manifest version is not a version')
   }
-  if (typeof o.notes !== 'string' || o.notes.length > 1024) fail('manifest notes missing or too long')
-  // A signature is reserved. Until a key exists, anything but null is refused
-  // so a manifest cannot claim a signature this code does not check.
-  if (o.signature !== null) fail('manifest carries a signature this updater cannot verify')
-  const a = o.asset
-  if (typeof a !== 'object' || a === null) fail('manifest has no asset')
-  const r = a as Record<string, unknown>
-  if (typeof r.name !== 'string' || !/^[A-Za-z0-9._-]{1,96}$/.test(r.name)) fail('asset name is not a plain file name')
-  if (typeof r.url !== 'string' || r.url.length > 512 || !r.url.startsWith('https://') || !r.url.startsWith(opts.urlPrefix)) {
-    fail('asset url is not an https URL under the release prefix')
+  const asset = o.asset
+  if (typeof asset !== 'object' || asset === null || Array.isArray(asset)) parseFail('manifest has no asset')
+  const a = asset as Record<string, unknown>
+  const name = fits(a, 'name', NAME_MAX)
+  const url = fits(a, 'url', URL_MAX)
+  const sha = fits(a, 'sha256', 65)
+  if (!name || !url || !sha || !urlOk(url)) parseFail('asset name, url or sha256 missing, too long or unsafe')
+  const size = a.size
+  if (typeof size !== 'number' || !Number.isInteger(size) || size < 1 || size > 4294967295) parseFail('asset size out of range')
+  if (!/^[0-9A-Fa-f]{64}$/.test(sha!)) parseFail('asset sha256 is not 64 hex digits')
+  let notes = ''
+  if (o.notes !== undefined && o.notes !== null) {
+    if (typeof o.notes !== 'string' || Buffer.byteLength(o.notes) >= NOTES_MAX) parseFail('notes too long')
+    notes = o.notes as string
   }
-  const size = r.size
-  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size <= 0 || size > MAX_ARTIFACT_BYTES) fail('asset size is out of range')
-  if (typeof r.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(r.sha256)) fail('asset sha256 is not 64 lowercase hex digits')
-  return {
+  const manifest: Manifest = {
     schema: 1,
-    app: o.app,
-    version: o.version,
-    notes: o.notes,
-    asset: { name: r.name, url: r.url, size, sha256: r.sha256 },
-    signature: null,
+    app: app!,
+    version: version!,
+    notes,
+    asset: { name: name!, url: url!, size: size as number, sha256: sha!.toLowerCase() },
+    hasSignature: o.signature !== undefined && o.signature !== null,
   }
+
+  const max = policy.maxSize || DEFAULT_MAX_SIZE
+  if (manifest.asset.size > max) throw new ManifestError('validation', 'asset larger than the policy allows')
+  if (policy.app !== undefined && policy.app !== manifest.app) throw new ManifestError('validation', 'manifest is for a different app')
+  if (policy.urlPrefix !== undefined) {
+    if (!policy.urlPrefix.startsWith('https://') || !manifest.asset.url.startsWith(policy.urlPrefix)) {
+      throw new ManifestError('validation', 'asset url is outside the release prefix')
+    }
+  }
+  return manifest
 }

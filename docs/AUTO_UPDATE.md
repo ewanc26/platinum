@@ -17,8 +17,9 @@ PLATINUM_BRIDGE_INSTALL_DIR=/srv/platinum npm run update -- rollback
 `apply` asks for confirmation (`--yes` in a script) and then:
 
 1. fetches `update.json` from the latest release;
-2. refuses it unless it is for app `platinum-bridge`, schema 1, with a null signature, and every URL is
-   `https://github.com/ewanc26/platinum/releases/...`;
+2. refuses it unless it is for app `platinum-bridge`, schema 1, and the asset
+   URL is under `https://github.com/ewanc26/platinum/releases/download/`. It also
+   refuses a signed manifest: nothing here can verify a signature yet (#49);
 3. downloads the archive with a size cap and checks its size and SHA-256 against
    the manifest before anything is unpacked;
 4. rejects archive members that are absolute or contain `..`, unpacks into
@@ -51,9 +52,9 @@ Manifest format, version comparison and checksum verification should be shared
 with Cobalt and Indigo, so they are specified in
 [wolfram#106](https://github.com/ewanc26/wolfram/issues/106). The bridge is
 Node and cannot call Wolfram's C directly, so `bridge/src/update/` is a
-TypeScript port tested against `bridge/test/update-vectors.json`, which is the
-vector file proposed for Wolfram. When Wolfram publishes its vectors this copy
-becomes a verified port; if a Node binding appears, the port is deleted.
+TypeScript port of `wolfram/update.h`, tested against Wolfram's own vectors
+(`bridge/test/vectors/update/`, copied verbatim and compared with Wolfram's in
+CI). If a Node binding appears, the port is deleted.
 
 ## The Mac OS 9 client (not implemented)
 
