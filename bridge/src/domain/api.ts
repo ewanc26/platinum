@@ -426,24 +426,68 @@ export class DomainApi {
   }
 
   /**
-   * Post, optionally as a reply. The reply root is worked out here from the
-   * parent's own record, so the Mac only ever names the post it is replying to.
-   * Returns undefined when the parent no longer exists.
+   * Post, optionally as a reply, a quote, or with a reply gate. The reply root
+   * is worked out here from the parent's own record, so the Mac only ever names
+   * the post it is replying to or quoting. Returns undefined when the parent or
+   * quoted post no longer exists, and writes nothing then. The gate is a
+   * separate record: if the post lands and the gate does not, the post stands
+   * and `replyGateApplied` is false so the Mac can say so.
    */
-  async post(agent: Agent, text: string, replyTo?: { uri: string; cid: string }): Promise<PostResult | undefined> {
-    if (!replyTo) {
-      const result = await agent.post({ text })
-      return { uri: result.uri, cid: result.cid }
+  async post(
+    agent: Agent,
+    text: string,
+    replyTo?: { uri: string; cid: string },
+    options: { quote?: { uri: string; cid: string }; replyGate?: ReplyGate } = {},
+  ): Promise<PostResult | undefined> {
+    const record: { text: string; reply?: unknown; embed?: unknown } = { text }
+    if (replyTo) {
+      const found = await agent.getPosts({ uris: [replyTo.uri] })
+      const parent = found.data.posts[0]
+      if (!parent) return undefined
+      const pr = parent.record as { reply?: { root?: { uri?: unknown; cid?: unknown } } } | undefined
+      const r = pr?.reply?.root
+      const root = r && typeof r.uri === 'string' && typeof r.cid === 'string'
+        ? { uri: r.uri, cid: r.cid }
+        : { uri: parent.uri, cid: parent.cid }
+      record.reply = { root, parent: { uri: parent.uri, cid: parent.cid } }
     }
-    const found = await agent.getPosts({ uris: [replyTo.uri] })
-    const parent = found.data.posts[0]
-    if (!parent) return undefined
-    const record = parent.record as { reply?: { root?: { uri?: unknown; cid?: unknown } } } | undefined
-    const r = record?.reply?.root
-    const root = r && typeof r.uri === 'string' && typeof r.cid === 'string'
-      ? { uri: r.uri, cid: r.cid }
-      : { uri: parent.uri, cid: parent.cid }
-    const result = await agent.post({ text, reply: { root, parent: { uri: parent.uri, cid: parent.cid } } })
-    return { uri: result.uri, cid: result.cid }
+    if (options.quote) {
+      // The AppView's own cid, not the Mac's, so a stale copy cannot be quoted.
+      const found = await agent.getPosts({ uris: [options.quote.uri] })
+      const quoted = found.data.posts[0]
+      if (!quoted) return undefined
+      record.embed = { $type: 'app.bsky.embed.record', record: { uri: quoted.uri, cid: quoted.cid } }
+    }
+    const result = await agent.post(record as never)
+    const out: PostResult = { uri: result.uri, cid: result.cid }
+
+    const gate = options.replyGate
+    if (gate && gate !== 'everyone') {
+      const rule = GATE_RULES[gate]
+      try {
+        await agent.app.bsky.feed.threadgate.create(
+          { repo: (agent as unknown as { accountDid: string }).accountDid, rkey: result.uri.split('/').pop() ?? '' },
+          { post: result.uri, allow: rule as never, createdAt: new Date().toISOString() },
+        )
+      } catch {
+        out.replyGateApplied = false
+      }
+    }
+    return out
   }
+}
+
+export type ReplyGate = 'everyone' | 'nobody' | 'mentioned' | 'following' | 'followers'
+
+const GATE_RULES: Record<Exclude<ReplyGate, 'everyone'>, unknown[]> = {
+  nobody: [],
+  mentioned: [{ $type: 'app.bsky.feed.threadgate#mentionRule' }],
+  following: [{ $type: 'app.bsky.feed.threadgate#followingRule' }],
+  followers: [{ $type: 'app.bsky.feed.threadgate#followerRule' }],
+}
+
+export function validReplyGate(value: unknown): ReplyGate | undefined {
+  return value === 'everyone' || value === 'nobody' || value === 'mentioned' || value === 'following' || value === 'followers'
+    ? value
+    : undefined
 }
