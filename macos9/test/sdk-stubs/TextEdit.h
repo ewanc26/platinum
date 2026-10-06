@@ -29,18 +29,14 @@ void TEClick(Point where, Boolean extendSelection,
              short count, short wordCount, TEHandle te);
 void TEAutoView(TEHandle te, short maxSize);
 void TESetSelection(TEHandle te, long selStart, long selLength);
-void TEGetSelection(TEHandle te, long *selStart, long *selLength);
-void TESetCaret(TEHandle te, Point caretPos);
 void TEInsert(const Ptr text, long insertLength, TEHandle te);
 void TECopy(TEHandle te, StringPtr dest);
 void TEPaste(TEHandle te, Handle textHandle);
 void TEUpdate(const Rect *updateRect, TEHandle te);
-void TEForceRedraw(TEHandle te, Boolean redrawLater);
 Handle TEGetText(TEHandle te);
 void TESetText(TEHandle te, Handle textHandle);
 
-long TextSize(short size);
-void TextAlign(short alignment);
-long TextFont(long fontID);
+void TextSize(short size);
+void TextFont(short font);
 
 #endif
