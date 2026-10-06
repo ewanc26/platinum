@@ -61,6 +61,8 @@ POST /v1/follow
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
+GET /v1/post/likes?uri=...&cursor=...
+GET /v1/post/reposts?uri=...&cursor=...
 POST /v1/post
 POST /v1/like
 POST /v1/repost
@@ -176,6 +178,14 @@ not an `app.bsky.feed.post` AT URI; `404 post_not_found` when the post is gone.
 ```json
 { "posts": [ { "uri": "at://...", "depth": -1, "text": "..." } ], "truncated": false }
 ```
+
+### Who liked or reposted
+
+`GET /v1/post/likes?uri=` and `GET /v1/post/reposts?uri=` take `limit` and
+`cursor` and return the same account list as follows and followers:
+`{"actors":[{"did","handle","displayName"}],"cursor":"..."}`. `400
+invalid_post_ref` for a uri that is not an `app.bsky.feed.post` AT URI; `404
+post_not_found` when the post is gone.
 
 ### Replying
 
