@@ -683,6 +683,14 @@ unless marked otherwise:
   `.r` holds raw `data` resources only and must never include Apple headers or
   art. It is not wired into a build (blocked on #41) and has not been seen on
   Mac OS 9.
+- Labels and repository metadata are code: `.github/labels.yml` and
+  `.github/repo-metadata.yml`. Their `core` blocks are copied verbatim from
+  Wolfram at the commit pinned in `ci.yml`; Platinum adds only `area: <x>`
+  labels under `local`. CI fails if the files drift from Wolfram's or the live
+  labels drift from the file. Every issue gets exactly one kind label (bug,
+  enhancement, documentation, refactor, test, chore, question) and at least one
+  `area:` label. Live metadata is applied by the owner and only warned about
+  until `enforce_live` is true.
 - Shared logic belongs in Wolfram. `tools/check-flow.sh duplication` enforces it:
   no AT Protocol method string (NSID) anywhere under `macos9/` (the Mac speaks
   only the bridge protocol); a raw NSID under `bridge/src/` only in a file owned

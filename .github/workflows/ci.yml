@@ -21,6 +21,25 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
+      # Labels and repository metadata follow Wolfram's canonical copies. The
+      # pin is a commit, bumped deliberately, like the transport ref below.
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: 4ba931a37b0913e660fd54a8a569728c325ecc6e
+          path: .wolfram-canon
+          sparse-checkout: |
+            .github
+            tools/repo_sync.py
+      - name: Labels and repository metadata match the canonical set
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
+          python3 .wolfram-canon/tools/repo_sync.py labels check --repo "$GITHUB_REPOSITORY" \
+            --file .github/labels.yml --canon .wolfram-canon/.github/labels.yml
+          python3 .wolfram-canon/tools/repo_sync.py metadata check --repo "$GITHUB_REPOSITORY" \
+            --file .github/repo-metadata.yml --canon .wolfram-canon/.github/repo-metadata.yml
       - run: tools/check-flow.sh duplication
       - name: Logo and icon are generated from one shape
         run: tools/gen-art.py --check
