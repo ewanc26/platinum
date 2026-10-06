@@ -4,6 +4,8 @@ import type {
   Notification,
   Notifications,
   PostResult,
+  ActorList,
+  FollowResult,
   Thread,
   ThreadPost,
   ToggleResult,
@@ -147,6 +149,14 @@ export function flattenThread(root: unknown): Thread {
   return { posts: out, truncated }
 }
 
+/** A handle or DID a client may ask about. Bounded and shaped; never a URL. */
+export function validActor(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 253) return undefined
+  if (/^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(value)) return value
+  if (/^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(value)) return value.toLowerCase()
+  return undefined
+}
+
 export type ToggleKind = 'like' | 'repost'
 
 /** A post reference from a client. Bounded and shaped, never trusted further. */
@@ -172,9 +182,23 @@ export function validSeenAt(value: unknown, now = new Date()): string | undefine
 }
 
 export class DomainApi {
-  async profile(agent: Agent): Promise<Profile> {
-    const result = await agent.getProfile({ actor: agent.accountDid })
-    const profile = result.data
+  async profile(agent: Agent, actor?: string): Promise<Profile | undefined> {
+    const mine = actor === undefined
+    let profile
+    try {
+      profile = (await agent.getProfile({ actor: actor ?? agent.accountDid })).data
+    } catch (error) {
+      if (!mine && (error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+
+    let pinned: TimelinePost | undefined
+    const ref = profile.pinnedPost
+    if (ref && typeof ref.uri === 'string') {
+      const found = await agent.getPosts({ uris: [ref.uri] })
+      const post = found.data.posts[0]
+      if (post) pinned = normalizeTimelinePost({ post })
+    }
 
     return {
       did: profile.did,
@@ -188,7 +212,38 @@ export class DomainApi {
       followersCount: profile.followersCount,
       followsCount: profile.followsCount,
       postsCount: profile.postsCount,
+      following: mine ? undefined : typeof profile.viewer?.following === 'string',
+      followedBy: mine ? undefined : typeof profile.viewer?.followedBy === 'string',
+      pinned,
     }
+  }
+
+  async actors(agent: Agent, kind: 'follows' | 'followers', actor: string, limit: number, cursor?: string): Promise<ActorList> {
+    if (kind === 'follows') {
+      const r = await agent.getFollows({ actor, limit, cursor })
+      return { actors: r.data.follows.map(authorFrom), cursor: r.data.cursor }
+    }
+    const r = await agent.getFollowers({ actor, limit, cursor })
+    return { actors: r.data.followers.map(authorFrom), cursor: r.data.cursor }
+  }
+
+  async authorFeed(agent: Agent, actor: string, limit: number, cursor?: string): Promise<Timeline> {
+    const r = await agent.getAuthorFeed({ actor, limit, cursor, filter: 'posts_no_replies' })
+    return { posts: r.data.feed.map(normalizeTimelinePost), cursor: r.data.cursor }
+  }
+
+  /** Set following to `on`, idempotently, from the viewer state the AppView reports. */
+  async follow(agent: Agent, did: string, on: boolean): Promise<FollowResult | undefined> {
+    let existing: string | undefined
+    try {
+      existing = (await agent.getProfile({ actor: did })).data.viewer?.following
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+    if (on && !existing) await agent.follow(did)
+    else if (!on && existing) await agent.deleteFollow(existing)
+    return { did, on }
   }
 
   async timeline(agent: Agent, limit: number, cursor?: string): Promise<Timeline> {
