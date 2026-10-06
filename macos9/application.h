@@ -10,6 +10,7 @@
 #include "thread.h"
 #include "people.h"
 #include "search.h"
+#include "apppw.h"
 #include "preferences.h"
 #include "pairing.h"
 #include "scrollbar.h"
@@ -31,6 +32,7 @@ typedef struct platinum_application {
     platinum_thread thread;
     platinum_people people;
     platinum_search search;
+    platinum_apppw apppw;
     platinum_preferences preferences;
     platinum_pairing pairing;
     platinum_scrollbar timeline_scrollbar;

@@ -22,6 +22,13 @@ OSErr platinum_session_set_bridge_url(platinum_session *session,
 
 wf_status platinum_session_pair(platinum_session *session,
                                 const char *code);
+/* Sign in with a handle and an app password instead of a pairing code. The
+ * caller wipes its copy of the password afterwards. `reason` is optional, see
+ * platinum_bridge_login_app_password. */
+wf_status platinum_session_sign_in_app_password(platinum_session *session,
+                                                const char *identifier,
+                                                const char *password,
+                                                int *reason);
 wf_status platinum_session_sign_out(platinum_session *session);
 
 int platinum_session_is_paired(const platinum_session *session);
