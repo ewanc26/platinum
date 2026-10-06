@@ -80,3 +80,44 @@ test('follow lists and the author feed are reduced to the contract', async () =>
   assert.equal(feed.posts.length, 1)
   assert.equal(feed.cursor, 'c2')
 })
+
+test('mute is idempotent and uses the viewer state', async () => {
+  const calls: string[] = []
+  const mk = (muted: boolean) => ({
+    accountDid: 'did:plc:me',
+    getProfile: async () => ({ data: { did: 'did:plc:b', viewer: { muted } } }),
+    mute: async (d: string) => { calls.push(`mute ${d}`) },
+    unmute: async (d: string) => { calls.push(`unmute ${d}`) },
+  }) as unknown as Agent
+  const api = new DomainApi()
+  assert.deepEqual(await api.mute(mk(false), 'did:plc:b', true), { did: 'did:plc:b', on: true })
+  await api.mute(mk(true), 'did:plc:b', true)
+  await api.mute(mk(true), 'did:plc:b', false)
+  await api.mute(mk(false), 'did:plc:b', false)
+  assert.deepEqual(calls, ['mute did:plc:b', 'unmute did:plc:b'])
+})
+
+test('block creates and deletes the record without exposing its URI', async () => {
+  const calls: string[] = []
+  const mk = (blocking?: string) => ({
+    accountDid: 'did:plc:me',
+    getProfile: async () => ({ data: { did: 'did:plc:b', viewer: { blocking } } }),
+    app: { bsky: { graph: { block: {
+      create: async (p: { repo: string }, r: { subject: string }) => { calls.push(`create ${p.repo} ${r.subject}`) },
+      delete: async (p: { repo: string; rkey: string }) => { calls.push(`delete ${p.repo} ${p.rkey}`) },
+    } } } },
+  }) as unknown as Agent
+  const api = new DomainApi()
+  const r = await api.block(mk(), 'did:plc:b', true)
+  assert.deepEqual(r, { did: 'did:plc:b', on: true })
+  await api.block(mk('at://did:plc:me/app.bsky.graph.block/3k'), 'did:plc:b', true)
+  await api.block(mk('at://did:plc:me/app.bsky.graph.block/3k'), 'did:plc:b', false)
+  await api.block(mk(), 'did:plc:b', false)
+  assert.deepEqual(calls, ['create did:plc:me did:plc:b', 'delete did:plc:me 3k'])
+})
+
+test('mute and block report an unknown account as undefined', async () => {
+  const agent = { getProfile: async () => { throw Object.assign(new Error('x'), { status: 400 }) } } as unknown as Agent
+  assert.equal(await new DomainApi().mute(agent, 'did:plc:z', true), undefined)
+  assert.equal(await new DomainApi().block(agent, 'did:plc:z', true), undefined)
+})

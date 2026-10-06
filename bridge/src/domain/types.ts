@@ -11,6 +11,9 @@ export interface Profile {
   /** The signed-in account follows / is followed by this one. Absent for your own profile. */
   following?: boolean
   followedBy?: boolean
+  /** You have muted / blocked this account. Absent for your own profile. */
+  muted?: boolean
+  blocking?: boolean
   pinned?: TimelinePost
 }
 
@@ -26,6 +29,11 @@ export interface Named {
 
 export interface NamedList {
   items: Named[]
+}
+
+export interface MuteBlockResult {
+  did: string
+  on: boolean
 }
 
 export interface FollowResult {

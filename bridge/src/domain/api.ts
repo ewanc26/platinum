@@ -7,6 +7,7 @@ import type {
   ActorList,
   NamedList,
   FollowResult,
+  MuteBlockResult,
   Thread,
   ThreadPost,
   ToggleResult,
@@ -235,6 +236,8 @@ export class DomainApi {
       postsCount: profile.postsCount,
       following: mine ? undefined : typeof profile.viewer?.following === 'string',
       followedBy: mine ? undefined : typeof profile.viewer?.followedBy === 'string',
+      muted: mine ? undefined : profile.viewer?.muted === true,
+      blocking: mine ? undefined : typeof profile.viewer?.blocking === 'string',
       pinned,
     }
   }
@@ -323,6 +326,39 @@ export class DomainApi {
     }
     if (on && !existing) await agent.follow(did)
     else if (!on && existing) await agent.deleteFollow(existing)
+    return { did, on }
+  }
+
+  /** Set muted to `on`, idempotently. Muting is private to the account and leaves no record. */
+  async mute(agent: Agent, did: string, on: boolean): Promise<MuteBlockResult | undefined> {
+    let muted: boolean
+    try {
+      muted = (await agent.getProfile({ actor: did })).data.viewer?.muted === true
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+    if (on && !muted) await agent.mute(did)
+    else if (!on && muted) await agent.unmute(did)
+    return { did, on }
+  }
+
+  /** Set blocking to `on`, idempotently. A block is a public record; the Mac never holds its URI. */
+  async block(agent: Agent, did: string, on: boolean): Promise<MuteBlockResult | undefined> {
+    let existing: string | undefined
+    try {
+      existing = (await agent.getProfile({ actor: did })).data.viewer?.blocking
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+    const repo = (agent as unknown as { accountDid: string }).accountDid
+    if (on && !existing) {
+      await agent.app.bsky.graph.block.create({ repo }, { subject: did, createdAt: new Date().toISOString() })
+    } else if (!on && existing) {
+      const rkey = existing.split('/').pop() ?? ''
+      if (rkey) await agent.app.bsky.graph.block.delete({ repo, rkey })
+    }
     return { did, on }
   }
 
