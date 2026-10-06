@@ -60,6 +60,31 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
 wf_status platinum_bridge_set_muted_word(platinum_bridge_client *client,
                                          const char *utf8_word, int on);
 
+/* Who may reply to a new post. Index 0 is the default and sends nothing. */
+#define PLATINUM_REPLY_GATE_COUNT 5
+/* The bridge's name for gate `index` ("everyone", "nobody", "mentioned",
+ * "following", "followers"); NULL out of range. */
+const char *platinum_bridge_reply_gate_name(int index);
+/* What the writer reads: "Everyone", "Nobody", "People you mention", ... */
+const char *platinum_bridge_reply_gate_label(int index);
+
+/* 1 when a POST /v1/post reply says the post landed but its reply gate did
+ * not ("replyGateApplied":false); 0 for anything else, including a body that
+ * does not parse. */
+int platinum_bridge_reply_gate_failed(const char *response_body);
+
+/*
+ * As platinum_bridge_post_body, plus an optional quote ("quote":{uri,cid}, both
+ * or neither, else NULL is returned) and a reply gate index (0 omits it; a
+ * gate on a reply is refused with NULL, as the bridge refuses it too).
+ */
+char *platinum_bridge_post_body_ex(const char *utf8_text,
+                                   const char *reply_uri,
+                                   const char *reply_cid,
+                                   const char *quote_uri,
+                                   const char *quote_cid,
+                                   int reply_gate);
+
 /*
  * Build the JSON body for POST /v1/post: {"text":"..."}, plus
  * "replyTo":{"uri":"...","cid":"..."} when both reply arguments are non-empty.

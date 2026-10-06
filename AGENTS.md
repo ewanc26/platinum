@@ -122,6 +122,7 @@ platinum/
 │   ├── bridge_client.h
 │   ├── compose.c
 │   ├── compose.h
+│   ├── compose_model.c
 │   ├── config.c
 │   ├── notifications.c
 │   ├── notifications_feed.c
