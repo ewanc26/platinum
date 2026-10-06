@@ -18,6 +18,9 @@ export type BridgeErrorCode =
   | 'invalid_seen_at'
   | 'invalid_actor'
   | 'actor_not_found'
+  | 'invalid_query'
+  | 'invalid_uri'
+  | 'not_found'
 
 export class BridgeError extends Error {
   constructor(

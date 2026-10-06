@@ -61,6 +61,12 @@ POST /v1/follow
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
+GET /v1/search/actors?q=...
+GET /v1/search/posts?q=...
+GET /v1/feeds
+GET /v1/feed?uri=...
+GET /v1/lists
+GET /v1/list?uri=...
 GET /v1/post/likes?uri=...&cursor=...
 GET /v1/post/reposts?uri=...&cursor=...
 POST /v1/post
@@ -178,6 +184,20 @@ not an `app.bsky.feed.post` AT URI; `404 post_not_found` when the post is gone.
 ```json
 { "posts": [ { "uri": "at://...", "depth": -1, "text": "..." } ], "truncated": false }
 ```
+
+### Search, feeds and lists
+
+`GET /v1/search/actors?q=` returns the account list shape; `GET
+/v1/search/posts?q=` returns the timeline shape. Both take `limit` and `cursor`.
+`q` is 1 to 100 characters with no control characters (`400 invalid_query`).
+
+`GET /v1/feeds` lists the account's saved custom feeds as
+`{"items":[{"uri","name"}]}` (at most 25; the home timeline and lists are left
+out). `GET /v1/feed?uri=` returns the timeline shape for one of them.
+`GET /v1/lists` lists the account's own lists the same way and `GET
+/v1/list?uri=` returns a list's members as an account list. A `uri` must be an
+AT URI of the right collection (`400 invalid_uri`); a missing feed or list is
+`404 not_found`.
 
 ### Who liked or reposted
 

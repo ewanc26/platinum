@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validActor, validPostRef, validSeenAt } from './domain/api.js'
+import { DomainApi, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
@@ -329,6 +329,30 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const kind = url.pathname === '/v1/post/likes' ? 'likes' : 'reposts'
     const result = await domain.engagement(agent, kind, ref.uri, limit(url.searchParams.get('limit')), url.searchParams.get('cursor') ?? undefined)
     if (!result) return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
+    return json(res, 200, result)
+  }
+
+  if (req.method === 'GET' && (url.pathname === '/v1/search/actors' || url.pathname === '/v1/search/posts')) {
+    const q = validQuery(url.searchParams.get('q'))
+    if (!q) return json(res, 400, errorBody('invalid_query', 'q must be 1 to 100 characters.'))
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    const count = limit(url.searchParams.get('limit'))
+    return json(res, 200, url.pathname === '/v1/search/actors'
+      ? await domain.searchActors(agent, q, count, cursor)
+      : await domain.searchPosts(agent, q, count, cursor))
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/feeds') return json(res, 200, await domain.savedFeeds(agent))
+  if (req.method === 'GET' && url.pathname === '/v1/lists') return json(res, 200, await domain.lists(agent))
+
+  if (req.method === 'GET' && (url.pathname === '/v1/feed' || url.pathname === '/v1/list')) {
+    const isFeed = url.pathname === '/v1/feed'
+    const uri = validCollectionUri(url.searchParams.get('uri'), isFeed ? 'app.bsky.feed.generator' : 'app.bsky.graph.list')
+    if (!uri) return json(res, 400, errorBody('invalid_uri', 'uri must be an AT URI of a feed or a list.'))
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    const count = limit(url.searchParams.get('limit'))
+    const result = isFeed ? await domain.feed(agent, uri, count, cursor) : await domain.listMembers(agent, uri, count, cursor)
+    if (!result) return json(res, 404, errorBody('not_found', 'No such feed or list.'))
     return json(res, 200, result)
   }
 
