@@ -54,6 +54,9 @@ macos9/profile_feed.c              platform  # view model of a bridge profile, n
 macos9/profile.h                   platform
 macos9/scrollbar.c                 platform
 macos9/scrollbar.h                 platform
+macos9/search.c                    platform  # the Search window
+macos9/search.h                    platform
+macos9/search_query.c              platform  # trims and converts a typed query, no Toolbox so it links on a host
 macos9/session.c                   platform  # stored token and revocation
 macos9/session.h                   platform
 macos9/text_codec.c                platform  # MacRoman; Wolfram has no text-encoding module (#39)

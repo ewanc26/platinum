@@ -51,6 +51,7 @@ static void platinum_application_more_people(platinum_application *app);
 static void platinum_application_open_person(platinum_application *app);
 static void platinum_application_more_posts(platinum_application *app);
 static void platinum_application_show_posts(platinum_application *app);
+static void platinum_application_run_search(platinum_application *app);
 static void platinum_application_show_named(platinum_application *app,
                                             int kind);
 static void platinum_application_follow(platinum_application *app);
@@ -157,6 +158,12 @@ static unsigned char kLoadOlder[] = {
     16, 'L', 'o', 'a', 'd', ' ', 'O', 'l', 'd', 'e', 'r', ' ', 'P', 'o', 's',
     't', 's'
 };
+static unsigned char kSearchAccounts[] = {
+    18, 'S', 'e', 'a', 'r', 'c', 'h', ' ', 'A', 'c', 'c', 'o', 'u', 'n', 't', 's', '.', '.', '.'
+};
+static unsigned char kSearchPosts[] = {
+    15, 'S', 'e', 'a', 'r', 'c', 'h', ' ', 'P', 'o', 's', 't', 's', '.', '.', '.'
+};
 static unsigned char kShowThread[] = {
     11, 'S', 'h', 'o', 'w', ' ', 'T', 'h', 'r', 'e', 'a', 'd'
 };
@@ -198,6 +205,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_notifications_init(&app->notifications);
     platinum_thread_init(&app->thread);
     platinum_people_init(&app->people);
+    platinum_search_init(&app->search);
     platinum_preferences_init(&app->preferences);
     memset(&app->pairing, 0, sizeof(app->pairing));
 
@@ -288,6 +296,7 @@ void platinum_application_dispose(platinum_application *app)
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
+    platinum_search_close(&app->search);
     platinum_profile_close(&app->profile);
     platinum_compose_close(&app->compose);
     platinum_session_close(&app->session);
@@ -348,6 +357,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_people_close(&app->people);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->search.window != NULL &&
+                           window == app->search.window) {
+                    platinum_search_close(&app->search);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->pairing.window != NULL &&
                            window == app->pairing.window) {
                     platinum_pairing_close(&app->pairing);
@@ -379,6 +393,16 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                }
+            } else if (app->search.window != NULL &&
+                       window == app->search.window) {
+                action = platinum_search_handle_event(&app->search, event);
+                if (action == PLATINUM_SEARCH_CANCEL) {
+                    platinum_search_close(&app->search);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_SEARCH_RUN) {
+                    platinum_application_run_search(app);
                 }
             } else if (app->people.window != NULL &&
                        window == app->people.window) {
@@ -514,6 +538,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->search.window != NULL &&
+                window == app->search.window) {
+                platinum_search_handle_event(&app->search, event);
             } else if (app->people.window != NULL &&
                 window == app->people.window) {
                 platinum_people_handle_event(&app->people, event);
@@ -545,6 +572,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->search.window != NULL &&
+                window == app->search.window) {
+                platinum_search_handle_event(&app->search, event);
             } else if (app->people.window != NULL &&
                 window == app->people.window) {
                 platinum_people_handle_event(&app->people, event);
@@ -589,6 +619,16 @@ static void platinum_application_handle_event(platinum_application *app,
                 } else if (action == PLATINUM_PREFERENCES_PAIR) {
                     platinum_preferences_close(&app->preferences);
                     platinum_application_open_pairing(app);
+                }
+            } else if (app->search.window != NULL &&
+                FrontWindow() == app->search.window) {
+                action = platinum_search_handle_event(&app->search, event);
+                if (action == PLATINUM_SEARCH_CANCEL) {
+                    platinum_search_close(&app->search);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_SEARCH_RUN) {
+                    platinum_application_run_search(app);
                 }
             } else if (app->people.window != NULL &&
                 FrontWindow() == app->people.window) {
@@ -822,6 +862,50 @@ static void platinum_application_more_people(platinum_application *app)
     }
     if (app->people.window != NULL)
         InvalRect(&app->people.window->portRect);
+}
+
+/* Run the query typed in the Search window and show the results. */
+static void platinum_application_run_search(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    char query[PLATINUM_SEARCH_MAX * 4 + 1];
+    int posts;
+    wf_status status;
+
+    if (app == NULL || app->search.window == NULL ||
+        !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    if (platinum_search_query(&app->search, query, sizeof(query)) < 0) {
+        platinum_search_set_status(&app->search,
+                                   "Type something to search for (100 characters at most).");
+        return;
+    }
+
+    posts = app->search.mode == PLATINUM_SEARCH_POSTS;
+    platinum_search_close(&app->search);
+
+    if (posts) {
+        if (platinum_thread_open(&app->thread) != noErr)
+            return;
+        status = platinum_thread_load_list(&app->thread, bridge,
+                                           "/v1/search/posts", "q", query,
+                                           "Posts matching your search");
+        platinum_application_recover_auth(app, status);
+        if (app->thread.window != NULL)
+            InvalRect(&app->thread.window->portRect);
+    } else {
+        if (platinum_people_open(&app->people) != noErr)
+            return;
+        status = platinum_people_load(&app->people, bridge,
+                                      "/v1/search/actors", "q", query,
+                                      "Accounts matching your search (click one)");
+        platinum_application_recover_auth(app, status);
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+    }
 }
 
 /* The author's own posts, in the posts list. */
@@ -1182,6 +1266,9 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     SetItemCmd(app->view_menu, 4, 't');
     AppendMenu(app->view_menu, kFeedsItem);
     AppendMenu(app->view_menu, kListsItem);
+    AppendMenu(app->view_menu, kSearchAccounts);
+    AppendMenu(app->view_menu, kSearchPosts);
+    SetItemCmd(app->view_menu, 8, 'f');
     SetItemCmd(app->view_menu, 1, 'r');
 
     AppendMenu(app->post_menu, kLikeItem);
@@ -1306,6 +1393,9 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_show_named(app, PLATINUM_PEOPLE_FEEDS);
         } else if (item == 6) {
             platinum_application_show_named(app, PLATINUM_PEOPLE_LISTS);
+        } else if (item == 7 || item == 8) {
+            if (platinum_search_open(&app->search, item == 8 ? PLATINUM_SEARCH_POSTS : PLATINUM_SEARCH_ACCOUNTS) == noErr)
+                SelectWindow(app->search.window);
         }
     } else if (menu_id == kPostMenuID) {
         if (item == 10)
@@ -1548,6 +1638,7 @@ static void platinum_application_sign_out(
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
+    platinum_search_close(&app->search);
     platinum_timeline_init(&app->timeline);
     app->ui.selected_post = 0;
     app->ui.scroll_row = 0;
@@ -1586,6 +1677,7 @@ static void platinum_application_recover_auth(platinum_application *app,
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
+    platinum_search_close(&app->search);
     platinum_timeline_init(&app->timeline);
     app->ui.selected_post = 0;
     app->ui.scroll_row = 0;
@@ -1672,6 +1764,7 @@ static void platinum_application_attempt_pair(
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
+    platinum_search_close(&app->search);
     platinum_timeline_init(&app->timeline);
     platinum_pairing_close(&app->pairing);
     SelectWindow(app->window);
