@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Delete My Post (Post menu) deletes the selected post if it's yours. Choose it twice: the first time it only asks. The bridge refuses anyone else's post too. [#97](https://github.com/ewanc26/platinum/pull/97)
 - File > Sign In with App Password... signs you in with a handle and an app password, if the bridge allows it. The password is typed into a masked box, wiped as soon as it's used, and the window warns when the bridge address is plain http. [#96](https://github.com/ewanc26/platinum/pull/96)
 - Quote Post... (Post menu) opens the compose window as a quote of the selected post, and new posts and quotes have a "Who can reply" button that steps through Everyone, Nobody, People you mention, People you follow and Your followers. If the limit can't be set the post still goes out and I say so. [#95](https://github.com/ewanc26/platinum/pull/95)
 - The bridge can post a quote of another post, and set who may reply to a new post (everyone, nobody, people you mention, follow, or who follow you). The Mac compose window can't ask for either yet. [#93](https://github.com/ewanc26/platinum/pull/94)

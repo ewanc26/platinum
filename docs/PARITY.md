@@ -49,10 +49,11 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Mute and block | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Muted words | no | yes | implemented (`macos9/application.c`) |
 | Who liked or reposted | yes | no | implemented (`bridge/src/domain/api.ts`) |
+| Delete your own post | yes | no | implemented (`macos9/bridge_client.c`) |
 | Diagnostics window | yes | no | [#37](https://github.com/ewanc26/platinum/issues/37) |
 | Post drafts | no | yes | [#37](https://github.com/ewanc26/platinum/issues/37) |
 | Auto-update (bridge, from GitHub releases) | no | no | implemented (`bridge/src/update/install.ts`) |
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-31 implemented, 9 tracked by an open issue, 1 not possible.
+32 implemented, 9 tracked by an open issue, 1 not possible.
