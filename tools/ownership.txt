@@ -50,6 +50,14 @@ macos9/people.c                    platform  # the People window
 macos9/people.h                    platform
 macos9/people_feed.c               platform  # view model of a bridge account list, no QuickDraw so it links on a host
 macos9/preferences.c               platform
+macos9/prefs_file.c               platform  # small files in the Preferences folder; one place does the folder lookup and file I/O
+macos9/prefs_file.h               platform
+macos9/draft.c                    platform  # the unsent post, kept in the Preferences folder
+macos9/draft.h                    platform
+macos9/diag.c                     platform  # the Connection Status model; Wolfram has no status-to-text, so platinum_status_text lives here
+macos9/diag.h                     platform
+macos9/diagwin.c                  platform  # the Connection Status window
+macos9/diagwin.h                  platform
 macos9/preferences.h               platform
 macos9/profile.c                   platform  # the Profile window
 macos9/profile_feed.c              platform  # view model of a bridge profile, no QuickDraw so it links on a host

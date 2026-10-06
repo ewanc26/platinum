@@ -131,6 +131,10 @@ platinum/
 │   ├── notifications_feed.c
 │   ├── notifications.h
 │   ├── preferences.c
+│   ├── prefs_file.c
+│   ├── draft.c
+│   ├── diag.c
+│   ├── diagwin.c
 │   ├── preferences.h
 │   ├── people.c
 │   ├── people_feed.c

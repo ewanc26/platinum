@@ -102,6 +102,9 @@ jobs:
           set -euo pipefail
           for f in \
             macos9/application.c \
+            macos9/diag.c \
+            macos9/diagwin.c \
+            macos9/draft.c \
             macos9/apppw.c \
             macos9/apppw_input.c \
             macos9/bridge_client.c \
@@ -116,6 +119,7 @@ jobs:
             macos9/people.c \
             macos9/people_feed.c \
             macos9/preferences.c \
+            macos9/prefs_file.c \
             macos9/profile.c \
             macos9/profile_feed.c \
             macos9/scrollbar.c \
@@ -131,10 +135,12 @@ jobs:
             macos9/ui.c \
             macos9/test/test_apppw.c \
             macos9/test/test_bridge_client.c \
+            macos9/test/test_diag.c \
             macos9/test/test_compose.c \
             macos9/test/test_json_min.c \
             macos9/test/test_notifications.c \
             macos9/test/test_people.c \
+            macos9/test/test_prefs.c \
             macos9/test/test_profile.c \
             macos9/test/test_search.c \
             macos9/test/test_secret.c \
@@ -215,6 +221,16 @@ jobs:
             macos9/compose_model.c macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_compose.c
           /tmp/test_compose
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_diag \
+            macos9/diag.c macos9/bridge_client.c macos9/json_min.c \
+            macos9/test/wolfram_stub.c macos9/test/test_diag.c
+          /tmp/test_diag
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_prefs \
+            macos9/prefs_file.c macos9/config.c macos9/draft.c \
+            macos9/test/test_prefs.c
+          /tmp/test_prefs
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_profile \
             macos9/profile_feed.c macos9/timeline.c macos9/text_codec.c \

@@ -45,8 +45,8 @@ direct-messages|Direct messages|no|no|issue|#98
 post-thread|Post a thread (multi-post compose)|no|no|issue|#98
 external-embeds|Video poster and external-media embeds|no|no|issue|#98
 qr-links|Open links by QR code|no|no|issue|#98
-diagnostics|Diagnostics window|yes|no|issue|#37
-drafts|Post drafts|no|yes|issue|#37
+diagnostics|Diagnostics window|yes|no|implemented|macos9/diag.c::/health
+drafts|Post drafts|no|yes|implemented|macos9/draft.c::platinum_draft_save
 auto-update-bridge|Auto-update (bridge, from GitHub releases)|no|no|implemented|bridge/src/update/install.ts::applyUpdate
 auto-update-client|Auto-update (client, bridge-served, user-confirmed)|no|no|issue|#48
 push|Push notifications|no|no|impossible|No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9.

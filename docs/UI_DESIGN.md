@@ -154,8 +154,13 @@ Search Accounts and Search Posts open a small Search window with a one-line fiel
 
 - About Platinum
 - Platinum Help
+- Connection Status
 
 Help remains the final application menu.
+
+Connection Status opens a small window with six lines: the bridge address, whether you are signed in (a token is held or not; the token itself is never shown), the bridge's `/health` answer (OK with its name and version, or why not), the last bridge failure the application noticed, free memory in KB, and whether the snapshot has been taken. Check Again takes a new one. It is there mainly so a hardware pass can see what failed without a debugger.
+
+Drafts: closing the New Post window without sending keeps its text, and the next New Post puts it back with "Restored the post you did not send." Sending clears it. A reply or a quote is not kept, so it can't come back as a plain post. The text is a plain file in the Preferences folder.
 
 Keyboard equivalents should be provided for frequently used commands, including Command-N, Command-R, Command-W and Command-Q.
 

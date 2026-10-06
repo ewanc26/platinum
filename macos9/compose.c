@@ -86,6 +86,15 @@ OSErr platinum_compose_open(platinum_compose *compose)
     return noErr;
 }
 
+void platinum_compose_set_text(platinum_compose *compose, const char *text)
+{
+    if (compose == NULL || compose->text == NULL || text == NULL)
+        return;
+    platinum_textfield_set(compose->text, text);
+    if (compose->window != NULL)
+        InvalRect(&compose->window->portRect);
+}
+
 void platinum_compose_close(platinum_compose *compose)
 {
     if (compose == NULL)
