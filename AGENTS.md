@@ -732,6 +732,13 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
   enhancement, documentation, refactor, test, chore, question) and at least one
   `area:` label. Live metadata is applied by the owner and only warned about
   until `enforce_live` is true.
+- The SDK stubs must match the real Toolbox. `macos9/test/sdk-stubs/signatures.tsv`
+  (from the Multiversal Interfaces, regenerated with `tools/gen-signatures.py`)
+  is the reference and `tools/check-stubs.py` fails on a stub that differs. A
+  difference is allowed only in `known-mismatches.txt`, which tracks #82 and
+  only shrinks. When a source calls a stub that is listed there, fix the stub and
+  the source against the real signature; never edit the table to fit the code.
+  The table is not Apple's Universal Interfaces; say so when you rely on it.
 - Shared logic belongs in Wolfram. `tools/check-flow.sh duplication` enforces it:
   no AT Protocol method string (NSID) anywhere under `macos9/` (the Mac speaks
   only the bridge protocol); a raw NSID under `bridge/src/` only in a file owned

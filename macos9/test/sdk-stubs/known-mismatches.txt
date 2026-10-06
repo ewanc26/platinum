@@ -1,0 +1,65 @@
+# Stub functions that differ from the real Toolbox, or that Multiversal does not
+# describe. tools/check-stubs.py fails on any difference not listed here and on
+# any line here that no longer applies, so this file only shrinks. Every line is
+# tracked by #82. Format: <name>  # what differs.
+Alert  # takes 2 arguments, the stub declares 4
+BlockCopy  # not in the Multiversal table
+BlockZero  # not in the Multiversal table
+CopyBits  # argument kinds differ: real ['ptr', 'ptr', 'ptr', 'ptr', 'i16', 'ptr'], stub ['ptr', 'ptr', 'ptr', 'ptr', 'ptr', 'i16']
+DisableControl  # not in the Multiversal table
+Draw1Control  # takes 1 arguments, the stub declares 2
+DrawControl  # not in the Multiversal table
+EnableControl  # not in the Multiversal table
+FSDelete  # takes 2 arguments, the stub declares 1
+FSWritErr  # not in the Multiversal table
+FSpClose  # not in the Multiversal table
+FindFolder  # not in the Multiversal table
+FlushEvents  # argument kinds differ: real ['i16', 'i16'], stub ['i16', 'i32']
+GetControlBits  # not in the Multiversal table
+GetControlBounds  # not in the Multiversal table
+GetCtlMax  # not in the Multiversal table
+GetCtlMin  # not in the Multiversal table
+GetCtlValue  # not in the Multiversal table
+GetDefaultFont  # not in the Multiversal table
+GetFontFamily  # not in the Multiversal table
+GetFontMetrics  # not in the Multiversal table
+GetFontName  # argument kinds differ: real ['i16', 'ptr'], stub ['i32', 'ptr']
+HSetState  # argument kinds differ: real ['ptr', 'i8'], stub ['ptr', 'i16']
+HiliteMenu  # argument kinds differ: real ['i16'], stub ['i32']
+InitControls  # not in the Multiversal table
+MemMove  # not in the Multiversal table
+MemPtrSize  # not in the Multiversal table
+NewControl  # argument kinds differ: real ['ptr', 'ptr', 'ptr', 'bool', 'i16', 'i16', 'i16', 'i16', 'i32'], stub ['ptr', 'ptr', 'ptr', 'bool', 'i16', 'i16', 'i16', 'ptr', 'i32']
+NewHandle  # takes 3 arguments, the stub declares 1
+NewPtr  # takes 3 arguments, the stub declares 1
+PBClose  # takes 2 arguments, the stub declares 1
+PBCreate  # takes 2 arguments, the stub declares 3
+PBGetFSSpec  # not in the Multiversal table
+PBGetWParam  # not in the Multiversal table
+PBOpen  # takes 2 arguments, the stub declares 3
+PeekEvent  # not in the Multiversal table
+RGBBack  # not in the Multiversal table
+RGBFore  # not in the Multiversal table
+ReceiveEvent  # not in the Multiversal table
+ScriptPutString  # not in the Multiversal table
+SetControlBounds  # not in the Multiversal table
+SetCtlMax  # not in the Multiversal table
+SetCtlMin  # not in the Multiversal table
+SetCtlValue  # not in the Multiversal table
+SetItemCmdChar  # not in the Multiversal table
+SetPtr  # not in the Multiversal table
+SetRectRgn  # takes 5 arguments, the stub declares 2
+TEAutoView  # argument kinds differ: real ['bool', 'ptr'], stub ['ptr', 'i16']
+TEClick  # takes 3 arguments, the stub declares 5
+TECopy  # takes 1 arguments, the stub declares 2
+TEForceRedraw  # not in the Multiversal table
+TEGetSelection  # not in the Multiversal table
+TEKey  # argument kinds differ: real ['i16', 'ptr'], stub ['KeyMap', 'ptr']
+TENew  # takes 2 arguments, the stub declares 9
+TEPaste  # takes 1 arguments, the stub declares 2
+TESetCaret  # not in the Multiversal table
+TESetSelection  # not in the Multiversal table
+TESetText  # takes 3 arguments, the stub declares 2
+TextAlign  # not in the Multiversal table
+TextFont  # argument kinds differ: real ['i16'], stub ['i32']
+scrollBarProc  # not in the Multiversal table

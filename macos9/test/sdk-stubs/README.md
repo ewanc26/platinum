@@ -50,3 +50,13 @@ Watch for name collisions with real SDK macros. `cmdKey`, `optionKey` and
 `shiftKey` are genuine Classic Mac macros, so a stub parameter must not be
 called `cmdKey` or the declaration silently becomes `short 0x0100`. That
 happened once while writing these.
+
+## Signatures are checked against Multiversal
+
+A stub that compiles proves nothing if its signature is invented. `signatures.tsv`
+holds the real argument lists, taken from the Multiversal Interfaces (autc04's
+API definitions for Retro68, generated from the headers Executor 2000 shipped;
+not Apple's Universal Interfaces, and not Inside Macintosh). `tools/check-stubs.py`
+fails CI when a stub's argument count or argument kinds differ.
+`known-mismatches.txt` lists the stubs that currently differ (tracked in #82); it
+may only shrink. Regenerate the table with `tools/gen-signatures.py`.
