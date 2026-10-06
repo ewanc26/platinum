@@ -20,18 +20,6 @@ long platinum_text_utf8_to_macroman(const char *input,
                                     long capacity,
                                     long *lossy);
 
-/*
- * Pack a key event into the KeyMap that the TextEdit control expects.
- *
- * TEKey does not take a character. It takes a KeyMap, which is four longs
- * holding the key code, the modifier state and a repeat of each. Passing a
- * character code instead makes the control read whatever follows it in memory
- * as the key state, so every call site has to go through this.
- */
-void platinum_text_key_map(KeyMap key_map,
-                           short key_code,
-                           unsigned long modifiers);
-
 #ifdef __cplusplus
 }
 #endif
