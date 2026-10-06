@@ -38,7 +38,9 @@ enum {
     PLATINUM_UI_ACTION_LIKE = 7,
     PLATINUM_UI_ACTION_REPOST = 8,
     PLATINUM_UI_ACTION_REPLY = 9,
-    PLATINUM_UI_ACTION_THREAD = 10
+    PLATINUM_UI_ACTION_THREAD = 10,
+    PLATINUM_UI_ACTION_AUTHOR = 11,
+    PLATINUM_UI_ACTION_FOLLOW = 12
 };
 
 void platinum_ui_state_init(platinum_ui_state *state);

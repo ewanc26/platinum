@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Show Author's Profile (Post menu, Command-I) opens someone else's profile with their counts, whether you follow each other and their pinned post, and Follow or Unfollow (Command-Y) acts on it. [#78](https://github.com/ewanc26/platinum/pull/78)
 - Show Thread (View menu, Command-T) opens the conversation around the selected post: what it replied to above, and the replies below, indented. I keep forty posts at most and say when some are left out. [#77](https://github.com/ewanc26/platinum/pull/77)
 - The bridge can show anyone's profile (with whether you follow them, and their pinned post), list who someone follows and who follows them, return their own posts, and follow or unfollow, all idempotently. The Mac side isn't wired up yet. [#73](https://github.com/ewanc26/platinum/pull/74)
 - Reply to the selected post from the Post menu (Command-J). The compose window says who you're replying to. [#71](https://github.com/ewanc26/platinum/pull/72)
