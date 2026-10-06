@@ -323,6 +323,15 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, result)
   }
 
+  if (req.method === 'GET' && (url.pathname === '/v1/post/likes' || url.pathname === '/v1/post/reposts')) {
+    const ref = validPostRef(url.searchParams.get('uri'), 'x')
+    if (!ref) return json(res, 400, errorBody('invalid_post_ref', 'uri must be an app.bsky.feed.post AT URI.'))
+    const kind = url.pathname === '/v1/post/likes' ? 'likes' : 'reposts'
+    const result = await domain.engagement(agent, kind, ref.uri, limit(url.searchParams.get('limit')), url.searchParams.get('cursor') ?? undefined)
+    if (!result) return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
+    return json(res, 200, result)
+  }
+
   if (req.method === 'GET' && url.pathname === '/v1/thread') {
     const ref = validPostRef(url.searchParams.get('uri'), 'x')
     if (!ref) return json(res, 400, errorBody('invalid_post_ref', 'uri must be an app.bsky.feed.post AT URI.'))
