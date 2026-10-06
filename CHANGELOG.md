@@ -35,6 +35,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Fixed
 
+- The compose and pairing windows now call TextEdit the way the Toolbox defines it. They had been written against calls that don't exist (a nine-argument `TENew`, a `TEKey` that took a key map), so the 300-character and six-character limits couldn't have worked and the text read back included whatever sat after it in the handle. The limits are now enforced when you type. [#85](https://github.com/ewanc26/platinum/pull/85)
 - Saving and loading the preferences file passed `FSWrite` and `FSRead` the buffer and the byte count the wrong way round, which on a real Mac would have used the count as the buffer. The Control Manager calls use the real names, and the stand-in constants for window parts, permissions and folder types now match the real ones. [#84](https://github.com/ewanc26/platinum/pull/84)
 - Windows hilite and dim properly when they gain and lose focus, text fields stop blinking in background windows, and clicking a background window brings it forward instead of pressing whatever was under the pointer. [#53](https://github.com/ewanc26/platinum/pull/53)
 - The application state no longer lives on the stack, which on a Classic Mac is small and fixed at launch. [#59](https://github.com/ewanc26/platinum/pull/59)

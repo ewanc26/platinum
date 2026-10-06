@@ -1,4 +1,6 @@
-/* sdk-stubs/TextEdit.h -- see MacTypes.h. */
+/* sdk-stubs/TextEdit.h -- see MacTypes.h. Signatures follow TextEdit as
+ * described by the Multiversal Interfaces (signatures.tsv). The record holds only
+ * the fields the sources read, with their real names; its layout is not real. */
 #ifndef PLATINUM_STUB_TEXTEDIT_H
 #define PLATINUM_STUB_TEXTEDIT_H
 
@@ -8,33 +10,28 @@
 
 typedef struct StubTextEditRecord {
     Rect viewRect;
-    long selStart;
-    long selLength;
-} TextEditRecord;
+    short selStart;
+    short selEnd;
+    short teLength;
+} TERec;
 
-typedef TextEditRecord *TEHandle;
-typedef TEHandle *TEPtr;
+typedef TERec *TEPtr;
+typedef TEPtr *TEHandle;
+typedef Handle CharsHandle;
 
-/* The Classic Mac OS signature. Nine parameters, in this order. */
-TEHandle TENew(const Rect *boundsRect, const Rect *viewRect, Boolean grow,
-               short textMaxLength, short textStorageSize, long fontID,
-               WindowPtr window, TEHandle dest, Ptr callBack);
-void TEDispose(TEHandle te);
+TEHandle TENew(const Rect *destRect, const Rect *viewRect);
+void TEDispose(TEHandle hTE);
 
-void TEKey(KeyMap keyMap, TEHandle te);
 void TEInit(void);
-void TEActivate(TEHandle te);
-void TEDeactivate(TEHandle te);
-void TEClick(Point where, Boolean extendSelection,
-             short count, short wordCount, TEHandle te);
-void TEAutoView(TEHandle te, short maxSize);
-void TESetSelection(TEHandle te, long selStart, long selLength);
-void TEInsert(const Ptr text, long insertLength, TEHandle te);
-void TECopy(TEHandle te, StringPtr dest);
-void TEPaste(TEHandle te, Handle textHandle);
-void TEUpdate(const Rect *updateRect, TEHandle te);
-Handle TEGetText(TEHandle te);
-void TESetText(TEHandle te, Handle textHandle);
+void TEKey(short key, TEHandle hTE);
+void TEClick(Point pt, Boolean fExtend, TEHandle hTE);
+void TEActivate(TEHandle hTE);
+void TEDeactivate(TEHandle hTE);
+void TEAutoView(Boolean fAuto, TEHandle hTE);
+void TESetSelect(long selStart, long selEnd, TEHandle hTE);
+void TESetText(const void *text, long length, TEHandle hTE);
+void TEUpdate(const Rect *rUpdate, TEHandle hTE);
+CharsHandle TEGetText(TEHandle hTE);
 
 void TextSize(short size);
 void TextFont(short font);

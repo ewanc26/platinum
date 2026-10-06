@@ -1,5 +1,6 @@
 #include "compose.h"
 #include "text_codec.h"
+#include "textfield.h"
 
 #include <Memory.h>
 #include <Quickdraw.h>
@@ -15,38 +16,6 @@ static unsigned char kPost[] = {
     4, 'P', 'o', 's', 't'
 };
 static const char kPosting[] = "Posting...";
-static char *compose_copy_handle(TEHandle text, char *buffer, long capacity)
-{
-    Handle handle;
-    Size length;
-    long copy_length;
-    SignedByte state;
-
-    if (text == NULL || buffer == NULL || capacity <= 0)
-        return NULL;
-
-    handle = TEGetText(text);
-    if (handle == NULL)
-        return NULL;
-
-    length = GetHandleSize(handle);
-    if (length < 0)
-        return NULL;
-
-    copy_length = (long)length;
-    if (copy_length >= capacity)
-        copy_length = capacity - 1;
-
-    state = HGetState(handle);
-    HLock(handle);
-    if (copy_length > 0)
-        memcpy(buffer, *handle, (size_t)copy_length);
-    HSetState(handle, state);
-
-    buffer[copy_length] = '\0';
-    return buffer;
-}
-
 static void platinum_compose_button(const Rect *bounds, StringPtr title)
 {
     long width;
@@ -90,23 +59,13 @@ OSErr platinum_compose_open(platinum_compose *compose)
     text_rect.right = bounds.right - bounds.left - 14;
     text_rect.bottom = bounds.bottom - bounds.top - 58;
 
-    compose->text = TENew(&text_rect,
-                         &text_rect,
-                         0,
-                         PLATINUM_COMPOSE_MAX_TEXT,
-                         0,
-                         0,
-                         compose->window,
-                         NULL,
-                         NULL);
+    compose->text = platinum_textfield_new(compose->window, &text_rect);
     if (compose->text == NULL) {
         DisposeWindow(compose->window);
         compose->window = NULL;
         return memFullErr;
     }
 
-    TEAutoView(compose->text, 0);
-    TESetSelection(compose->text, 0, 0);
     compose->status[0] = '\0';
 
     SetPort((GrafPtr)compose->window);
@@ -187,7 +146,7 @@ void platinum_compose_draw(platinum_compose *compose)
 
     EraseRect(&compose->window->portRect);
 
-    text_frame = compose->text->viewRect;
+    text_frame = (*compose->text)->viewRect;
     FrameRect(&text_frame);
     TEUpdate(&compose->window->portRect, compose->text);
 
@@ -225,7 +184,7 @@ static int compose_point_in_text(Point where, TEHandle text)
     if (text == NULL)
         return 0;
 
-    rect = text->viewRect;
+    rect = (*text)->viewRect;
     return PtInRect(where, &rect) != 0;
 }
 
@@ -235,7 +194,6 @@ int platinum_compose_handle_event(platinum_compose *compose,
     Point where;
     Rect cancel_rect;
     Rect post_rect;
-    KeyMap key_map;
 
     if (compose == NULL || event == NULL || compose->window == NULL)
         return PLATINUM_COMPOSE_NONE;
@@ -284,8 +242,6 @@ int platinum_compose_handle_event(platinum_compose *compose,
 
             if (compose_point_in_text(where, compose->text))
                 TEClick(where, (event->modifiers & shiftKey) != 0,
-                            0,
-                            0,
                         compose->text);
             return PLATINUM_COMPOSE_NONE;
 
@@ -299,10 +255,8 @@ int platinum_compose_handle_event(platinum_compose *compose,
                  (event->message & charCodeMask) == 'W'))
                 return PLATINUM_COMPOSE_CANCEL;
 
-            platinum_text_key_map(key_map,
-                                  (short)(event->message & charCodeMask),
-                                  event->modifiers);
-            TEKey(key_map, compose->text);
+            (void)platinum_textfield_key(compose->text, event,
+                                         PLATINUM_COMPOSE_MAX_TEXT, 0);
             return PLATINUM_COMPOSE_NONE;
 
         default:
@@ -322,15 +276,14 @@ OSErr platinum_compose_get_text(const platinum_compose *compose,
         buffer == NULL || capacity <= 0)
         return paramErr;
 
-    if (compose_copy_handle(compose->text, buffer, capacity) == NULL)
-        return memFullErr;
-
-    length = (long)strlen(buffer);
+    length = platinum_textfield_length(compose->text);
     if (length == 0)
         return paramErr;
-
-    if (length > PLATINUM_COMPOSE_MAX_TEXT)
+    if (length > PLATINUM_COMPOSE_MAX_TEXT || length >= capacity)
         return overrunErr;
+
+    if (platinum_textfield_copy(compose->text, buffer, capacity) < 0)
+        return memFullErr;
 
     return noErr;
 }
