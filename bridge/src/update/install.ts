@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdir, readlink, rename, rm, symlink, writeFile, readFile, lstat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { MAX_ARTIFACT_BYTES, parseManifest, type Asset, type Manifest } from './manifest.js'
+import { DEFAULT_MAX_SIZE, parseManifest, type Asset, type Manifest } from './manifest.js'
 import { compareVersions } from './version.js'
 
 const execFileAsync = promisify(execFile)
@@ -39,7 +39,10 @@ export interface UpdateCheck {
 
 export async function checkForUpdate(current: string, fetcher: Fetcher = httpsFetcher, manifestUrl = MANIFEST_URL): Promise<UpdateCheck> {
   const body = await fetcher(manifestUrl, 64 * 1024)
-  const manifest = parseManifest(body.toString('utf8'), { app: APP, urlPrefix: RELEASE_PREFIX })
+  const manifest = parseManifest(body.toString('utf8'), { app: APP, urlPrefix: `${RELEASE_PREFIX}download/` })
+  // Wolfram's parser only flags a signature; nothing here can verify one yet
+  // (#49), so a signed manifest is refused rather than trusted unchecked.
+  if (manifest.hasSignature) throw new Error('manifest is signed, and this updater cannot verify signatures yet')
   return { current, latest: manifest.version, available: compareVersions(manifest.version, current) > 0, manifest }
 }
 
@@ -104,7 +107,7 @@ export async function applyUpdate(check: UpdateCheck, root: string, fetcher: Fet
   const lay = layout(root)
   await mkdir(lay.releases, { recursive: true })
 
-  const archive = await fetcher(artifact.url, Math.min(artifact.size, MAX_ARTIFACT_BYTES))
+  const archive = await fetcher(artifact.url, Math.min(artifact.size, DEFAULT_MAX_SIZE))
   if (archive.length !== artifact.size) throw new Error('archive size does not match the manifest')
   if (sha256Hex(archive) !== artifact.sha256) throw new Error('archive SHA-256 does not match the manifest; nothing was installed')
 

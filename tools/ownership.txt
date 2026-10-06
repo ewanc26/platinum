@@ -25,8 +25,8 @@ bridge/src/storage/file.ts         bridge    # file-backed state
 bridge/src/storage/interfaces.ts   bridge    # storage contract
 bridge/src/update/cli.ts           bridge    # operator CLI
 bridge/src/update/install.ts       bridge    # fetch, unpack, swap; platform-specific by nature
-bridge/src/update/manifest.ts      port      # update.json; follows wolfram#106 / update.h, tested against shared vectors
-bridge/src/update/version.ts       port      # semver precedence; follows wolfram#106 / update.h
+bridge/src/update/manifest.ts      port      # port of wf_update_parse_manifest (update.h), tested against Wolfram's vectors
+bridge/src/update/version.ts       port      # port of wf_update_compare_versions (update.h), tested against Wolfram's vectors
 macos9/application.c               platform  # event loop and window routing
 macos9/application.h               platform
 macos9/bridge_client.c             protocol  # client for the bridge protocol over Wolfram's transport
