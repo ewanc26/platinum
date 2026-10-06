@@ -10,6 +10,10 @@ pull request.
 
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
+### Changed
+
+- CI builds the Mac OS 9 sources against Wolfram v0.28.0 and checks the bridge's vectors against it (was v0.26.0).
+
 ### Added
 
 - The Mac client can ask the bridge for an image, check the bitmap it gets back against the contract and turn it into a QuickDraw PixMap. No window draws one yet, and none of it has run on a Mac. [#102](https://github.com/ewanc26/platinum/pull/102)
