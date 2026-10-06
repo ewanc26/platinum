@@ -1,5 +1,6 @@
 #include "pairing.h"
 #include "text_codec.h"
+#include "textfield.h"
 
 #include <Quickdraw.h>
 #include <Memory.h>
@@ -17,51 +18,6 @@ static unsigned char kPairingTitle[] = {
 };
 static unsigned char kCancel[] = { 6, 'C', 'a', 'n', 'c', 'e', 'l' };
 static unsigned char kPair[] = { 4, 'P', 'a', 'i', 'r' };
-
-static char *pairing_copy_handle(TEHandle text, char *buffer, long capacity)
-{
-    Handle handle;
-    Size length;
-    long copy_length;
-    SignedByte state;
-
-    if (text == NULL || buffer == NULL || capacity <= 0)
-        return NULL;
-
-    handle = TEGetText(text);
-    if (handle == NULL)
-        return NULL;
-
-    length = GetHandleSize(handle);
-    if (length < 0)
-        return NULL;
-
-    copy_length = (long)length;
-    if (copy_length >= capacity)
-        copy_length = capacity - 1;
-
-    state = HGetState(handle);
-    HLock(handle);
-    if (copy_length > 0)
-        memcpy(buffer, *handle, (size_t)copy_length);
-    HSetState(handle, state);
-
-    buffer[copy_length] = '\0';
-    return buffer;
-}
-
-static void pairing_set_text(TEHandle text, const char *value)
-{
-    long length;
-
-    if (text == NULL || value == NULL)
-        return;
-
-    length = (long)strlen(value);
-    if (length > 0)
-        TEInsert((Ptr)value, length, text);
-    TESetSelection(text, length, length);
-}
 
 static void pairing_text(const char *text, short x, short y)
 {
@@ -108,40 +64,21 @@ OSErr platinum_pairing_open(platinum_pairing *pairing,
         return memFullErr;
 
     SetRect(&url_rect, 18, 50, bounds.right - bounds.left - 18, 72);
-    pairing->bridge_url = TENew(&url_rect,
-                                &url_rect,
-                                0,
-                                PLATINUM_PAIRING_URL_MAX,
-                                0,
-                                0,
-                                pairing->window,
-                                NULL,
-                                NULL);
+    pairing->bridge_url = platinum_textfield_new(pairing->window, &url_rect);
     if (pairing->bridge_url == NULL) {
         platinum_pairing_close(pairing);
         return memFullErr;
     }
 
     SetRect(&code_rect, 18, 164, 150, 188);
-    pairing->code = TENew(&code_rect,
-                           &code_rect,
-                           0,
-                           PLATINUM_PAIRING_CODE_MAX,
-                           0,
-                           0,
-                           pairing->window,
-                           NULL,
-                           NULL);
+    pairing->code = platinum_textfield_new(pairing->window, &code_rect);
     if (pairing->code == NULL) {
         platinum_pairing_close(pairing);
         return memFullErr;
     }
 
-    TEAutoView(pairing->bridge_url, 0);
-    TEAutoView(pairing->code, 0);
-
     if (bridge_url != NULL)
-        pairing_set_text(pairing->bridge_url, bridge_url);
+        platinum_textfield_set(pairing->bridge_url, bridge_url);
 
     pairing->active_field = 0;
     platinum_pairing_set_status(pairing,
@@ -200,11 +137,11 @@ void platinum_pairing_draw(platinum_pairing *pairing)
     pairing_text(kInstructions2, 18, 112);
     pairing_text(kCodeLabel, 18, 140);
 
-    url_frame = pairing->bridge_url->viewRect;
+    url_frame = (*pairing->bridge_url)->viewRect;
     FrameRect(&url_frame);
     TEUpdate(&url_frame, pairing->bridge_url);
 
-    code_frame = pairing->code->viewRect;
+    code_frame = (*pairing->code)->viewRect;
     FrameRect(&code_frame);
     TEUpdate(&code_frame, pairing->code);
 
@@ -233,7 +170,7 @@ static int pairing_point_in_field(Point where, TEHandle text)
     if (text == NULL)
         return 0;
 
-    rect = text->viewRect;
+    rect = (*text)->viewRect;
     return PtInRect(where, &rect) != 0;
 }
 
@@ -245,7 +182,6 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
     Rect pair_rect;
     TEHandle target;
     unsigned char key;
-    KeyMap key_map;
 
     if (pairing == NULL || event == NULL || pairing->window == NULL)
         return PLATINUM_PAIRING_NONE;
@@ -295,14 +231,10 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
             if (pairing_point_in_field(where, pairing->bridge_url)) {
                 pairing->active_field = 0;
                 TEClick(where, (event->modifiers & shiftKey) != 0,
-                            0,
-                            0,
                         pairing->bridge_url);
             } else if (pairing_point_in_field(where, pairing->code)) {
                 pairing->active_field = 1;
                 TEClick(where, (event->modifiers & shiftKey) != 0,
-                            0,
-                            0,
                         pairing->code);
             }
             return PLATINUM_PAIRING_NONE;
@@ -317,12 +249,12 @@ int platinum_pairing_handle_event(platinum_pairing *pairing,
 
             target = pairing->active_field == 0 ?
                 pairing->bridge_url : pairing->code;
-            if (target != NULL) {
-                platinum_text_key_map(key_map,
-                                      (short)(event->message & charCodeMask),
-                                      event->modifiers);
-                TEKey(key_map, target);
-            }
+            if (target != NULL)
+                (void)platinum_textfield_key(
+                    target, event,
+                    pairing->active_field == 0 ? PLATINUM_PAIRING_URL_MAX
+                                               : PLATINUM_PAIRING_CODE_MAX,
+                    1);
             return PLATINUM_PAIRING_NONE;
 
         default:
@@ -340,7 +272,7 @@ OSErr platinum_pairing_get_bridge_url(const platinum_pairing *pairing,
         buffer == NULL || capacity <= 0)
         return paramErr;
 
-    if (pairing_copy_handle(pairing->bridge_url, buffer, capacity) == NULL)
+    if (platinum_textfield_copy(pairing->bridge_url, buffer, capacity) < 0)
         return memFullErr;
 
     if (buffer[0] == '\0')
@@ -363,7 +295,7 @@ OSErr platinum_pairing_get_code(const platinum_pairing *pairing,
         buffer == NULL || capacity <= 0)
         return paramErr;
 
-    if (pairing_copy_handle(pairing->code, raw, sizeof(raw)) == NULL)
+    if (platinum_textfield_copy(pairing->code, raw, sizeof(raw)) < 0)
         return memFullErr;
 
     input = (long)strlen(raw);
