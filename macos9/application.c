@@ -45,6 +45,9 @@ static void platinum_application_engage(platinum_application *app,
 static void platinum_application_reply(platinum_application *app);
 static void platinum_application_show_thread(platinum_application *app);
 static void platinum_application_show_author(platinum_application *app);
+static void platinum_application_show_people(platinum_application *app,
+                                             int menu_item);
+static void platinum_application_more_people(platinum_application *app);
 static void platinum_application_follow(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
@@ -91,6 +94,18 @@ static unsigned char kAuthorItem[] = {
 };
 static unsigned char kFollowItem[] = {
     18, 'F', 'o', 'l', 'l', 'o', 'w', ' ', 'o', 'r', ' ', 'U', 'n', 'f', 'o', 'l', 'l', 'o', 'w'
+};
+static unsigned char kLikersItem[] = {
+    14, 'W', 'h', 'o', ' ', 'L', 'i', 'k', 'e', 'd', ' ', 'T', 'h', 'i', 's'
+};
+static unsigned char kRepostersItem[] = {
+    17, 'W', 'h', 'o', ' ', 'R', 'e', 'p', 'o', 's', 't', 'e', 'd', ' ', 'T', 'h', 'i', 's'
+};
+static unsigned char kFollowersItem[] = {
+    14, 'S', 'h', 'o', 'w', ' ', 'F', 'o', 'l', 'l', 'o', 'w', 'e', 'r', 's'
+};
+static unsigned char kFollowingItem[] = {
+    14, 'S', 'h', 'o', 'w', ' ', 'F', 'o', 'l', 'l', 'o', 'w', 'i', 'n', 'g'
 };
 static unsigned char kReplyItem[] = {
     8, 'R', 'e', 'p', 'l', 'y', '.', '.', '.'
@@ -167,6 +182,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_profile_init(&app->profile);
     platinum_notifications_init(&app->notifications);
     platinum_thread_init(&app->thread);
+    platinum_people_init(&app->people);
     platinum_preferences_init(&app->preferences);
     memset(&app->pairing, 0, sizeof(app->pairing));
 
@@ -256,6 +272,7 @@ void platinum_application_dispose(platinum_application *app)
     platinum_preferences_close(&app->preferences);
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
+    platinum_people_close(&app->people);
     platinum_profile_close(&app->profile);
     platinum_compose_close(&app->compose);
     platinum_session_close(&app->session);
@@ -311,6 +328,11 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_thread_close(&app->thread);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (app->people.window != NULL &&
+                           window == app->people.window) {
+                    platinum_people_close(&app->people);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
                 } else if (app->pairing.window != NULL &&
                            window == app->pairing.window) {
                     platinum_pairing_close(&app->pairing);
@@ -342,6 +364,16 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_profile_close(&app->profile);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                }
+            } else if (app->people.window != NULL &&
+                       window == app->people.window) {
+                action = platinum_people_handle_event(&app->people, event);
+                if (action == PLATINUM_PEOPLE_CLOSE) {
+                    platinum_people_close(&app->people);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
+                    platinum_application_more_people(app);
                 }
             } else if (app->thread.window != NULL &&
                        window == app->thread.window) {
@@ -463,6 +495,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->people.window != NULL &&
+                window == app->people.window) {
+                platinum_people_handle_event(&app->people, event);
             } else if (app->thread.window != NULL &&
                 window == app->thread.window) {
                 platinum_thread_handle_event(&app->thread, event);
@@ -491,6 +526,9 @@ static void platinum_application_handle_event(platinum_application *app,
                 window == app->preferences.window) {
                 platinum_preferences_handle_event(&app->preferences,
                                                   event);
+            } else if (app->people.window != NULL &&
+                window == app->people.window) {
+                platinum_people_handle_event(&app->people, event);
             } else if (app->thread.window != NULL &&
                 window == app->thread.window) {
                 platinum_thread_handle_event(&app->thread, event);
@@ -532,6 +570,16 @@ static void platinum_application_handle_event(platinum_application *app,
                 } else if (action == PLATINUM_PREFERENCES_PAIR) {
                     platinum_preferences_close(&app->preferences);
                     platinum_application_open_pairing(app);
+                }
+            } else if (app->people.window != NULL &&
+                FrontWindow() == app->people.window) {
+                action = platinum_people_handle_event(&app->people, event);
+                if (action == PLATINUM_PEOPLE_CLOSE) {
+                    platinum_people_close(&app->people);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
+                    platinum_application_more_people(app);
                 }
             } else if (app->thread.window != NULL &&
                 FrontWindow() == app->thread.window) {
@@ -682,6 +730,75 @@ static void platinum_application_show_author(platinum_application *app)
     platinum_application_recover_auth(app, status);
     if (app->profile.window != NULL)
         InvalRect(&app->profile.window->portRect);
+}
+
+/* Likers, reposters (of the selected post) or followers, following (of the
+ * account in the Profile window), in the shared People window. */
+static void platinum_application_show_people(platinum_application *app,
+                                             int menu_item)
+{
+    platinum_bridge_client *bridge;
+    const char *route;
+    const char *key;
+    const char *value;
+    const char *heading;
+    wf_status status;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    if (menu_item == 6 || menu_item == 7) {
+        index = app->ui.selected_post;
+        if (index < 0 || index >= (short)app->timeline.count)
+            return;
+        key = "uri";
+        value = app->timeline.posts[index].uri;
+        route = menu_item == 6 ? "/v1/post/likes" : "/v1/post/reposts";
+        heading = menu_item == 6 ? "Liked by" : "Reposted by";
+    } else {
+        /* The DID read exactly from the profile, not the clipped display copy. */
+        if (app->profile.window == NULL || app->profile.target_did[0] == '\0')
+            return;
+        key = "actor";
+        value = app->profile.target_did;
+        route = menu_item == 8 ? "/v1/followers" : "/v1/follows";
+        heading = menu_item == 8 ? "Followers of this account" : "Followed by this account";
+    }
+
+    if (platinum_people_open(&app->people) != noErr)
+        return;
+    status = platinum_people_load(&app->people, bridge, route, key, value,
+                                  heading);
+    platinum_application_recover_auth(app, status);
+    if (app->people.window != NULL)
+        InvalRect(&app->people.window->portRect);
+}
+
+static void platinum_application_more_people(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    status = platinum_people_load_more(&app->people, bridge, &dropped);
+    platinum_application_recover_auth(app, status);
+    if (status == WF_OK) {
+        app->people.scroll_row -= (short)dropped;
+        if (app->people.scroll_row < 0)
+            app->people.scroll_row = 0;
+        ++app->people.scroll_row;
+    }
+    if (app->people.window != NULL)
+        InvalRect(&app->people.window->portRect);
 }
 
 /* Follow or unfollow the account in the Profile window. */
@@ -928,6 +1045,10 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kReplyItem);
     AppendMenu(app->post_menu, kAuthorItem);
     AppendMenu(app->post_menu, kFollowItem);
+    AppendMenu(app->post_menu, kLikersItem);
+    AppendMenu(app->post_menu, kRepostersItem);
+    AppendMenu(app->post_menu, kFollowersItem);
+    AppendMenu(app->post_menu, kFollowingItem);
     SetItemCmdChar(app->post_menu, 1, 'l');
     SetItemCmdChar(app->post_menu, 2, 'e');
     SetItemCmdChar(app->post_menu, 3, 'j');
@@ -1038,7 +1159,9 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_show_thread(app);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 4)
+        if (item >= 6 && item <= 9)
+            platinum_application_show_people(app, item);
+        else if (item == 4)
             platinum_application_show_author(app);
         else if (item == 5)
             platinum_application_follow(app);
@@ -1273,6 +1396,7 @@ static void platinum_application_sign_out(
     platinum_profile_close(&app->profile);
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
+    platinum_people_close(&app->people);
     platinum_timeline_init(&app->timeline);
     app->ui.selected_post = 0;
     app->ui.scroll_row = 0;
@@ -1310,6 +1434,7 @@ static void platinum_application_recover_auth(platinum_application *app,
     platinum_profile_close(&app->profile);
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
+    platinum_people_close(&app->people);
     platinum_timeline_init(&app->timeline);
     app->ui.selected_post = 0;
     app->ui.scroll_row = 0;
@@ -1395,6 +1520,7 @@ static void platinum_application_attempt_pair(
     platinum_profile_close(&app->profile);
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
+    platinum_people_close(&app->people);
     platinum_timeline_init(&app->timeline);
     platinum_pairing_close(&app->pairing);
     SelectWindow(app->window);

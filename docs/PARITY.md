@@ -33,7 +33,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Own profile | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Other people's profiles | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Follow and unfollow | yes | yes | implemented (`macos9/profile_feed.c`) |
-| Followers and following lists | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
+| Followers and following lists | yes | yes | implemented (`macos9/people_feed.c`) |
 | Profile posts tab | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
 | Pinned post | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Avatars | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
@@ -48,11 +48,11 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Lists | yes | yes | [#34](https://github.com/ewanc26/platinum/issues/34) |
 | Mute and block | yes | yes | [#35](https://github.com/ewanc26/platinum/issues/35) |
 | Muted words | no | yes | [#35](https://github.com/ewanc26/platinum/issues/35) |
-| Who liked or reposted | yes | no | [#36](https://github.com/ewanc26/platinum/issues/36) |
+| Who liked or reposted | yes | no | implemented (`bridge/src/domain/api.ts`) |
 | Diagnostics window | yes | no | [#37](https://github.com/ewanc26/platinum/issues/37) |
 | Post drafts | no | yes | [#37](https://github.com/ewanc26/platinum/issues/37) |
 | Auto-update (bridge, from GitHub releases) | no | no | implemented (`bridge/src/update/install.ts`) |
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-19 implemented, 21 tracked by an open issue, 1 not possible.
+21 implemented, 19 tracked by an open issue, 1 not possible.
