@@ -86,8 +86,20 @@ test('failure limiter blocks after the limit and recovers after the window', () 
   assert.equal(l.blocked('ip'), false)
 })
 
+async function freePort(): Promise<number> {
+  const { createServer } = await import('node:net')
+  return new Promise((resolve, reject) => {
+    const s = createServer().listen(0, '127.0.0.1', () => {
+      const port = (s.address() as { port: number }).port
+      s.close(() => resolve(port))
+    }).on('error', reject)
+  })
+}
+
 async function runServer(env: Record<string, string>): Promise<{ port: number; stop: () => string }> {
-  const port = 20000 + Math.floor(Math.random() * 20000)
+  // An OS-assigned port, not a random guess, and a generous start-up wait:
+  // under a loaded runner tsx can take several seconds to compile the server.
+  const port = await freePort()
   const dir = mkdtempSync(join(tmpdir(), 'plat-srv-'))
   const child = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], {
     cwd: new URL('..', import.meta.url).pathname,
@@ -96,7 +108,7 @@ async function runServer(env: Record<string, string>): Promise<{ port: number; s
   let out = ''
   child.stdout.on('data', d => { out += d })
   child.stderr.on('data', d => { out += d })
-  for (let i = 0; i < 100 && !out.includes('listening'); i++) await new Promise(r => setTimeout(r, 100))
+  for (let i = 0; i < 300 && !out.includes('listening'); i++) await new Promise(r => setTimeout(r, 100))
   assert.ok(out.includes('listening'), `server did not start: ${out}`)
   return { port, stop: () => { child.kill(); return out + readdirSync(dir).map(f => readFileSync(join(dir, f), 'utf8')).join('') } }
 }
