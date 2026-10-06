@@ -9,6 +9,7 @@ import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidSer
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
 import { DomainApi, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
+import { validMutedWord } from './domain/muted.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
@@ -343,6 +344,27 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/feeds') return json(res, 200, await domain.savedFeeds(agent))
+  if (req.method === 'GET' && url.pathname === '/v1/muted-words') {
+    return json(res, 200, { words: await domain.mutedWords.list(agent) })
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/muted-words') {
+    let input: { value?: unknown; on?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const value = validMutedWord(input.value)
+    if (!value || typeof input.on !== 'boolean') {
+      return json(res, 400, errorBody('invalid_word', 'A word of 1 to 100 characters and a boolean "on" are required.'))
+    }
+    return json(res, 200, await domain.mutedWords.set(agent, value, input.on))
+  }
+
   if (req.method === 'GET' && url.pathname === '/v1/lists') return json(res, 200, await domain.lists(agent))
 
   if (req.method === 'GET' && (url.pathname === '/v1/feed' || url.pathname === '/v1/list')) {
