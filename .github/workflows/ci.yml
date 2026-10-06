@@ -34,6 +34,7 @@ jobs:
         run: |
           diff -ru .wolfram-canon/test/vectors/update bridge/test/vectors/update
           diff -u .wolfram-canon/test/vectors/oauth_pairing.json bridge/test/vectors/oauth_pairing.json
+          diff -u .wolfram-canon/test/vectors/ed25519.json bridge/test/vectors/ed25519.json
       - run: tools/check-flow.sh duplication
       - name: SDK stubs match the real Toolbox signatures
         run: tools/check-stubs.py
