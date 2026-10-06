@@ -29,6 +29,8 @@ bridge/src/storage/file.ts         bridge    # file-backed state
 bridge/src/storage/interfaces.ts   bridge    # storage contract
 bridge/src/update/cli.ts           bridge    # operator CLI
 bridge/src/update/install.ts       bridge    # fetch, unpack, swap; platform-specific by nature
+bridge/src/update/signature.ts     port      # port of wf_update_verify_signature (update.h), uses Node's crypto.verify; tested against Wolfram's ed25519 vectors
+bridge/src/update/update_key.ts     bridge    # Platinum's own release public key; nothing to share
 bridge/src/update/manifest.ts      port      # port of wf_update_parse_manifest (update.h), tested against Wolfram's vectors
 bridge/src/update/version.ts       port      # port of wf_update_compare_versions (update.h), tested against Wolfram's vectors
 macos9/application.c               platform  # event loop and window routing
