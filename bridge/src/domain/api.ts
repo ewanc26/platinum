@@ -227,6 +227,21 @@ export class DomainApi {
     return { actors: r.data.followers.map(authorFrom), cursor: r.data.cursor }
   }
 
+  /** Who liked or reposted a post: the same bounded author shape as follow lists. */
+  async engagement(agent: Agent, kind: 'likes' | 'reposts', uri: string, limit: number, cursor?: string): Promise<ActorList | undefined> {
+    try {
+      if (kind === 'likes') {
+        const r = await agent.getLikes({ uri, limit, cursor })
+        return { actors: r.data.likes.map(l => authorFrom(l.actor)), cursor: r.data.cursor }
+      }
+      const r = await agent.getRepostedBy({ uri, limit, cursor })
+      return { actors: r.data.repostedBy.map(authorFrom), cursor: r.data.cursor }
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+  }
+
   async authorFeed(agent: Agent, actor: string, limit: number, cursor?: string): Promise<Timeline> {
     const r = await agent.getAuthorFeed({ actor, limit, cursor, filter: 'posts_no_replies' })
     return { posts: r.data.feed.map(normalizeTimelinePost), cursor: r.data.cursor }
