@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The Mac client can ask the bridge for an image, check the bitmap it gets back against the contract and turn it into a QuickDraw PixMap. No window draws one yet, and none of it has run on a Mac. [#102](https://github.com/ewanc26/platinum/pull/102)
 - The bridge can turn an image into a small indexed-colour bitmap for the Mac to draw: `GET /v1/image`, JPEG and PNG in, at most 320 pixels wide, 16 or 256 colours, with the format written up in docs/IMAGES.md and pinned by test vectors. Nothing on the Mac draws one yet. [#100](https://github.com/ewanc26/platinum/pull/101)
 - Help > Connection Status shows the bridge address, whether you're signed in, the bridge's health answer, the last failure and free memory. Closing New Post without sending keeps its text as a draft, and the next New Post puts it back. [#99](https://github.com/ewanc26/platinum/pull/99)
 - Delete My Post (Post menu) deletes the selected post if it's yours. Choose it twice: the first time it only asks. The bridge refuses anyone else's post too. [#97](https://github.com/ewanc26/platinum/pull/97)

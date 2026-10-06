@@ -6,6 +6,7 @@
 #include <Quickdraw.h>
 
 typedef struct StubWindow {
+    BitMap portBits; /* in a colour window this aliases portPixMap and portVersion */
     Rect portRect;
     Rect strucRect;
     short wRefCon;
