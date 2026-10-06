@@ -15,7 +15,8 @@ bridge/src/server.ts               bridge    # HTTP routing
 bridge/src/atproto/client.ts       bridge    # picks the session kind per installation
 bridge/src/atproto/errors.ts       bridge    # upstream error mapping to bridge errors
 bridge/src/auth/app-password.ts    bridge    # @atproto/api login; app-password is not in Wolfram's pairing contract
-bridge/src/auth/pairing.ts         port      # pairing codes; follows wolfram#101 / oauth_pairing.h once Platinum adopts it
+bridge/src/auth/pairing.ts         bridge    # the Mac-to-bridge pairing code: Platinum-specific, the Mac cannot do TLS, outside Wolfram's contract
+bridge/src/auth/oauth-node-pairing.ts port   # port of oauth_pairing.h (wolfram#101), runs Wolfram's vectors; not wired in yet, see #75
 bridge/src/auth/tokens.ts          bridge    # bridge tokens are Platinum's own credential
 bridge/src/domain/api.ts           port      # post and notification shaping; Wolfram post_display.h owns the model (#39)
 bridge/src/domain/types.ts         protocol  # wire types of docs/BRIDGE_PROTOCOL.md

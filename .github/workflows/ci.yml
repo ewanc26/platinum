@@ -20,18 +20,20 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
-      # Wolfram's update vectors, which the bridge's port must run unchanged.
+      # Wolfram's update and pairing vectors, which the bridge's ports must run unchanged.
       # The pin is a commit, bumped deliberately, like the transport ref below.
       # Labels, metadata, conventions and style are checked by flow.yml.
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
-          ref: 4ba931a37b0913e660fd54a8a569728c325ecc6e
+          ref: aabb55e66ee5c8b971385c8bd9925d79f31eea54
           path: .wolfram-canon
           sparse-checkout: |
-            test/vectors/update
-      - name: The bridge's update vectors are Wolfram's, unchanged
-        run: diff -ru .wolfram-canon/test/vectors/update bridge/test/vectors/update
+            test/vectors
+      - name: The bridge's vectors are Wolfram's, unchanged
+        run: |
+          diff -ru .wolfram-canon/test/vectors/update bridge/test/vectors/update
+          diff -u .wolfram-canon/test/vectors/oauth_pairing.json bridge/test/vectors/oauth_pairing.json
       - run: tools/check-flow.sh duplication
       - name: Logo and icon are generated from one shape
         run: tools/gen-art.py --check
