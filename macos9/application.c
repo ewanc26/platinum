@@ -1152,10 +1152,10 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->file_menu, kPairAccount);
     AppendMenu(app->file_menu, kCloseWindow);
     AppendMenu(app->file_menu, kQuit);
-    SetItemCmdChar(app->file_menu, 1, 'n');
-    SetItemCmdChar(app->file_menu, 2, 'k');
-    SetItemCmdChar(app->file_menu, 3, 'w');
-    SetItemCmdChar(app->file_menu, 4, 'q');
+    SetItemCmd(app->file_menu, 1, 'n');
+    SetItemCmd(app->file_menu, 2, 'k');
+    SetItemCmd(app->file_menu, 3, 'w');
+    SetItemCmd(app->file_menu, 4, 'q');
 
     AppendMenu(app->edit_menu, kUndo);
     AppendMenu(app->edit_menu, kCut);
@@ -1163,12 +1163,12 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->edit_menu, kPaste);
     AppendMenu(app->edit_menu, kSelectAll);
     AppendMenu(app->edit_menu, kPreferences);
-    SetItemCmdChar(app->edit_menu, 1, 'z');
-    SetItemCmdChar(app->edit_menu, 2, 'x');
-    SetItemCmdChar(app->edit_menu, 3, 'c');
-    SetItemCmdChar(app->edit_menu, 4, 'v');
-    SetItemCmdChar(app->edit_menu, 5, 'a');
-    SetItemCmdChar(app->edit_menu, 6, ',');
+    SetItemCmd(app->edit_menu, 1, 'z');
+    SetItemCmd(app->edit_menu, 2, 'x');
+    SetItemCmd(app->edit_menu, 3, 'c');
+    SetItemCmd(app->edit_menu, 4, 'v');
+    SetItemCmd(app->edit_menu, 5, 'a');
+    SetItemCmd(app->edit_menu, 6, ',');
     DisableItem(app->edit_menu, 1);
     DisableItem(app->edit_menu, 2);
     DisableItem(app->edit_menu, 3);
@@ -1179,10 +1179,10 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->view_menu, kShowDetail);
     AppendMenu(app->view_menu, kLoadOlder);
     AppendMenu(app->view_menu, kShowThread);
-    SetItemCmdChar(app->view_menu, 4, 't');
+    SetItemCmd(app->view_menu, 4, 't');
     AppendMenu(app->view_menu, kFeedsItem);
     AppendMenu(app->view_menu, kListsItem);
-    SetItemCmdChar(app->view_menu, 1, 'r');
+    SetItemCmd(app->view_menu, 1, 'r');
 
     AppendMenu(app->post_menu, kLikeItem);
     AppendMenu(app->post_menu, kRepostItem);
@@ -1194,11 +1194,11 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kFollowersItem);
     AppendMenu(app->post_menu, kFollowingItem);
     AppendMenu(app->post_menu, kAuthorPostsItem);
-    SetItemCmdChar(app->post_menu, 1, 'l');
-    SetItemCmdChar(app->post_menu, 2, 'e');
-    SetItemCmdChar(app->post_menu, 3, 'j');
-    SetItemCmdChar(app->post_menu, 4, 'i');
-    SetItemCmdChar(app->post_menu, 5, 'y');
+    SetItemCmd(app->post_menu, 1, 'l');
+    SetItemCmd(app->post_menu, 2, 'e');
+    SetItemCmd(app->post_menu, 3, 'j');
+    SetItemCmd(app->post_menu, 4, 'i');
+    SetItemCmd(app->post_menu, 5, 'y');
 
     AppendMenu(app->window_menu, kTimelineWindow);
     AppendMenu(app->window_menu, kNotificationsWindow);
