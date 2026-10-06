@@ -38,7 +38,7 @@ search-posts|Post search|yes|yes|implemented|macos9/application.c::/v1/search/po
 feeds|Custom feeds|yes|yes|implemented|macos9/application.c::/v1/feeds
 lists|Lists|yes|yes|implemented|macos9/application.c::/v1/lists
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
-muted-words|Muted words|no|yes|issue|#35
+muted-words|Muted words|no|yes|implemented|macos9/application.c::/v1/muted-words
 engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
 diagnostics|Diagnostics window|yes|no|issue|#37
 drafts|Post drafts|no|yes|issue|#37
