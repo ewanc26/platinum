@@ -31,6 +31,17 @@ export interface TimelinePost {
   reposted: boolean
 }
 
+/** A post in a thread, flattened. depth < 0 is an ancestor, 0 the post asked for, > 0 a reply. */
+export interface ThreadPost extends TimelinePost {
+  depth: number
+}
+
+export interface Thread {
+  posts: ThreadPost[]
+  /** True when replies were left out to stay within the bound. */
+  truncated: boolean
+}
+
 export interface Timeline {
   posts: TimelinePost[]
   cursor?: string
