@@ -1,8 +1,6 @@
 #include "config.h"
+#include "prefs_file.h"
 
-#include <Files.h>
-#include <Folders.h>
-#include <Script.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,24 +10,6 @@
 static const unsigned char kConfigFileName[] = {
     20, 'P','l','a','t','i','n','u','m',' ','P','r','e','f','e','r','e','n','c','e','s'
 };
-
-static OSErr platinum_config_spec(FSSpec *spec)
-{
-    short vRefNum;
-    long dirID;
-    OSErr err;
-
-    if (spec == NULL)
-        return paramErr;
-
-    err = FindFolder(kOnSystemDisk, kPreferencesFolderType, kCreateFolder,
-                     &vRefNum, &dirID);
-    if (err != noErr)
-        return err;
-
-    return FSMakeFSSpec(vRefNum, dirID,
-                        (ConstStr255Param)kConfigFileName, spec);
-}
 
 static int platinum_copy_string(char *dst, long capacity, const char *value)
 {
@@ -139,18 +119,12 @@ static int platinum_append_line(char *buffer, long capacity, long *length,
 
 OSErr platinum_config_save(const platinum_config *config)
 {
-    FSSpec spec;
-    short refNum;
     long length;
     OSErr err;
     char *buffer;
 
     if (config == NULL)
         return paramErr;
-
-    err = platinum_config_spec(&spec);
-    if (err != noErr)
-        return err;
 
     buffer = (char *)malloc(PLATINUM_CONFIG_MAX_FILE);
     if (buffer == NULL)
@@ -173,20 +147,9 @@ OSErr platinum_config_save(const platinum_config *config)
         return paramErr;
     }
 
-    err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
-    if (err == fnfErr) {
-        err = FSpCreate(&spec, 'PTLM', 'PREF', smSystemScript);
-        if (err == noErr)
-            err = FSpOpenDF(&spec, fsRdWrPerm, &refNum);
-    }
-
-    if (err == noErr) {
-        err = SetEOF(refNum, 0);
-        if (err == noErr)
-            err = FSWrite(refNum, &length, buffer);
-        FSClose(refNum);
-    }
-
+    err = platinum_prefs_write(kConfigFileName, 'PTLM', 'PREF', buffer, length);
+    /* The buffer held the token: do not leave it in the heap. */
+    memset(buffer, 0, PLATINUM_CONFIG_MAX_FILE);
     free(buffer);
     return err;
 }
@@ -278,9 +241,6 @@ static OSErr platinum_config_parse_line(platinum_config *config,
 
 OSErr platinum_config_load(platinum_config *config)
 {
-    FSSpec spec;
-    short refNum;
-    long file_size;
     long bytes_read;
     long line_start;
     long i;
@@ -293,44 +253,17 @@ OSErr platinum_config_load(platinum_config *config)
 
     platinum_config_init(config);
 
-    err = platinum_config_spec(&spec);
-    if (err != noErr)
-        return err;
-
-    err = FSpOpenDF(&spec, fsRdPerm, &refNum);
-    if (err != noErr)
-        return err;
-
-    err = GetEOF(refNum, &file_size);
-    if (err != noErr) {
-        FSClose(refNum);
-        return err;
-    }
-
-    if (file_size < 0 || file_size >= PLATINUM_CONFIG_MAX_FILE) {
-        FSClose(refNum);
-        return paramErr;
-    }
-
-    buffer = (char *)malloc((size_t)file_size + 1);
-    if (buffer == NULL) {
-        FSClose(refNum);
+    buffer = (char *)malloc(PLATINUM_CONFIG_MAX_FILE);
+    if (buffer == NULL)
         return memFullErr;
-    }
 
-    bytes_read = file_size;
-    err = FSRead(refNum, &bytes_read, buffer);
-    FSClose(refNum);
+    err = platinum_prefs_read(kConfigFileName, buffer, PLATINUM_CONFIG_MAX_FILE,
+                              &bytes_read);
     if (err != noErr) {
         free(buffer);
         return err;
     }
-    if (bytes_read != file_size) {
-        free(buffer);
-        return eofErr;
-    }
 
-    buffer[bytes_read] = '\0';
     version_seen = 0;
     line_start = 0;
 
@@ -345,6 +278,7 @@ OSErr platinum_config_load(platinum_config *config)
                                              line_end - line_start,
                                              &version_seen);
             if (err != noErr) {
+                memset(buffer, 0, PLATINUM_CONFIG_MAX_FILE);
                 free(buffer);
                 return err;
             }
@@ -353,6 +287,7 @@ OSErr platinum_config_load(platinum_config *config)
         }
     }
 
+    memset(buffer, 0, PLATINUM_CONFIG_MAX_FILE);
     free(buffer);
 
     if (!version_seen)
@@ -363,15 +298,5 @@ OSErr platinum_config_load(platinum_config *config)
 
 OSErr platinum_config_clear(void)
 {
-    FSSpec spec;
-    OSErr err;
-
-    err = platinum_config_spec(&spec);
-    if (err != noErr)
-        return err;
-
-    err = FSpDelete(&spec);
-    if (err == fnfErr)
-        return noErr;
-    return err;
+    return platinum_prefs_delete(kConfigFileName);
 }
