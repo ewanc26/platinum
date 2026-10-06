@@ -5,17 +5,42 @@ import { mkdtempSync, mkdirSync, readFileSync, readlinkSync, writeFileSync, exis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { compareVersions } from '../src/update/version.js'
-import { parseManifest } from '../src/update/manifest.js'
+import { ManifestError, parseManifest } from '../src/update/manifest.js'
 import { applyUpdate, assertSafeMembers, checkForUpdate, rollback, sha256Hex, APP, RELEASE_PREFIX, type Fetcher } from '../src/update/install.js'
 
-const vectors = JSON.parse(readFileSync(new URL('./update-vectors.json', import.meta.url), 'utf8')) as {
-  compare: [string, string, number][]
-  invalid: string[]
-}
+// Wolfram's own vectors (test/vectors/update/), copied verbatim at the commit
+// pinned in ci.yml; CI fails if the copies drift.
+const vec = (name: string) => JSON.parse(readFileSync(new URL(`./vectors/update/${name}.json`, import.meta.url), 'utf8'))
+const versions = vec('versions') as { compare: { a: string; b: string; sign: number }[]; invalid: string[] }
+const sha256s = vec('sha256') as { vectors: { name: string; input_hex?: string; repeat?: { byte_hex: string; count: number }; sha256: string }[] }
+const manifests = vec('manifest') as { vectors: { name: string; manifest: unknown; expect: string; has_signature?: boolean; policy?: { max_size?: number; app?: string; url_prefix?: string } }[] }
 
-test('version comparison matches the shared vectors', () => {
-  for (const [a, b, want] of vectors.compare) assert.equal(Math.sign(compareVersions(a, b)), want, `${a} vs ${b}`)
-  for (const bad of vectors.invalid) assert.throws(() => compareVersions(bad, '1.0.0'), undefined, bad)
+test('version comparison matches Wolfram\'s vectors', () => {
+  for (const { a, b, sign } of versions.compare) assert.equal(Math.sign(compareVersions(a, b)), sign, `${a} vs ${b}`)
+  for (const bad of versions.invalid) {
+    assert.throws(() => compareVersions(bad, '1.0.0'), undefined, JSON.stringify(bad))
+    assert.throws(() => compareVersions('1.0.0', bad), undefined, JSON.stringify(bad))
+  }
+})
+
+test('SHA-256 matches Wolfram\'s known answers', () => {
+  for (const v of sha256s.vectors) {
+    const input = v.repeat ? Buffer.alloc(v.repeat.count, Number.parseInt(v.repeat.byte_hex, 16)) : Buffer.from(v.input_hex ?? '', 'hex')
+    assert.equal(sha256Hex(input), v.sha256, v.name)
+  }
+})
+
+test('manifest parsing matches Wolfram\'s vectors', () => {
+  for (const v of manifests.vectors) {
+    const policy = { maxSize: v.policy?.max_size, app: v.policy?.app, urlPrefix: v.policy?.url_prefix }
+    const run = () => parseManifest(JSON.stringify(v.manifest), policy)
+    if (v.expect === 'ok') {
+      const m = run()
+      assert.equal(m.hasSignature, v.has_signature ?? false, v.name)
+    } else {
+      assert.throws(run, (e: unknown) => e instanceof ManifestError && e.kind === (v.expect === 'parse_error' ? 'parse' : 'validation'), v.name)
+    }
+  }
 })
 
 function makeArchive(version: string, extra?: string): { data: Buffer; dir: string } {
@@ -51,8 +76,6 @@ test('manifest rejects wrong product, schema, host and hashes', () => {
   assert.throws(() => parseManifest(mutate(m => { m.asset.url = 'https://evil.example/a.tgz' }), opts))
   assert.throws(() => parseManifest(mutate(m => { m.asset.url = RELEASE_PREFIX.replace('https', 'http') + 'x' }), opts))
   assert.throws(() => parseManifest(mutate(m => { m.asset.sha256 = 'ABC' }), opts))
-  assert.throws(() => parseManifest(mutate(m => { m.asset.name = '../x' }), opts))
-  assert.throws(() => parseManifest(mutate(m => { m.signature = 'AAAA' }), opts))
   assert.throws(() => parseManifest(mutate(m => { m.asset.size = 0 }), opts))
   assert.throws(() => parseManifest('not json', opts))
 })
