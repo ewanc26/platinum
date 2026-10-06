@@ -5,12 +5,15 @@ import { mkdir, readlink, rename, rm, symlink, writeFile, readFile, lstat } from
 import { join } from 'node:path'
 import { DEFAULT_MAX_SIZE, parseManifest, type Asset, type Manifest } from './manifest.js'
 import { compareVersions } from './version.js'
+import { verifyManifestSignature } from './signature.js'
+import { UPDATE_PUBLIC_KEY_HEX } from './update_key.js'
 
 const execFileAsync = promisify(execFile)
 
 export const APP = 'platinum-bridge'
 export const RELEASE_PREFIX = 'https://github.com/ewanc26/platinum/releases/'
 export const MANIFEST_URL = `${RELEASE_PREFIX}latest/download/update.json`
+export const SIGNATURE_URL = `${RELEASE_PREFIX}latest/download/update.json.sig`
 
 export type Fetcher = (url: string, maxBytes: number) => Promise<Buffer>
 
@@ -37,12 +40,29 @@ export interface UpdateCheck {
   manifest: Manifest
 }
 
-export async function checkForUpdate(current: string, fetcher: Fetcher = httpsFetcher, manifestUrl = MANIFEST_URL): Promise<UpdateCheck> {
+export async function checkForUpdate(
+  current: string,
+  fetcher: Fetcher = httpsFetcher,
+  manifestUrl = MANIFEST_URL,
+  signatureUrl = SIGNATURE_URL,
+  publicKeyHex = UPDATE_PUBLIC_KEY_HEX,
+): Promise<UpdateCheck> {
   const body = await fetcher(manifestUrl, 64 * 1024)
+  // Authenticity first, on the bytes as downloaded and before anything is
+  // parsed: a release with no signature, or one signed by another key, is
+  // refused here, not trusted on its SHA-256.
+  let sig: Buffer
+  try {
+    sig = await fetcher(signatureUrl, 256)
+  } catch {
+    throw new Error('the latest release is not signed, so it was refused')
+  }
+  verifyManifestSignature(body, sig.toString('utf8'), publicKeyHex)
   const manifest = parseManifest(body.toString('utf8'), { app: APP, urlPrefix: `${RELEASE_PREFIX}download/` })
-  // Wolfram's parser only flags a signature; nothing here can verify one yet
-  // (#49), so a signed manifest is refused rather than trusted unchecked.
-  if (manifest.hasSignature) throw new Error('manifest is signed, and this updater cannot verify signatures yet')
+  // The manifest's own `signature` member stays reserved (Wolfram's docs/update.md):
+  // the signature that counts is the detached one above, so a manifest that
+  // claims another is refused rather than trusted unchecked.
+  if (manifest.hasSignature) throw new Error('manifest carries an inline signature, which is not part of the contract')
   return { current, latest: manifest.version, available: compareVersions(manifest.version, current) > 0, manifest }
 }
 
