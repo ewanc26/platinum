@@ -76,6 +76,8 @@ static OSErr platinum_application_open_pairing(
     platinum_application *app);
 static void platinum_application_attempt_pair(
     platinum_application *app);
+static void platinum_application_open_apppw(platinum_application *app);
+static void platinum_application_attempt_apppw(platinum_application *app);
 static short platinum_application_timeline_visible_rows(
     const platinum_application *app);
 
@@ -161,6 +163,10 @@ static unsigned char kPairAccount[] = {
 static unsigned char kNewPost[] = {
     11, 'N', 'e', 'w', ' ', 'P', 'o', 's', 't', '.', '.', '.'
 };
+static unsigned char kAppPassword[] = {
+    29, 'S', 'i', 'g', 'n', ' ', 'I', 'n', ' ', 'w', 'i', 't', 'h', ' ', 'A',
+    'p', 'p', ' ', 'P', 'a', 's', 's', 'w', 'o', 'r', 'd', '.', '.', '.'
+};
 static unsigned char kCloseWindow[] = {
     12, 'C', 'l', 'o', 's', 'e', ' ', 'W', 'i', 'n', 'd', 'o', 'w'
 };
@@ -228,6 +234,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_thread_init(&app->thread);
     platinum_people_init(&app->people);
     platinum_search_init(&app->search);
+    platinum_apppw_init(&app->apppw);
     platinum_preferences_init(&app->preferences);
     memset(&app->pairing, 0, sizeof(app->pairing));
 
@@ -314,6 +321,7 @@ void platinum_application_dispose(platinum_application *app)
     }
 
     platinum_pairing_close(&app->pairing);
+    platinum_apppw_close(&app->apppw);
     platinum_preferences_close(&app->preferences);
     platinum_notifications_close(&app->notifications);
     platinum_thread_close(&app->thread);
@@ -382,6 +390,11 @@ static void platinum_application_handle_event(platinum_application *app,
                 } else if (app->search.window != NULL &&
                            window == app->search.window) {
                     platinum_search_close(&app->search);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (app->apppw.window != NULL &&
+                           window == app->apppw.window) {
+                    platinum_apppw_close(&app->apppw);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
                 } else if (app->pairing.window != NULL &&
@@ -460,6 +473,16 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_refresh_notifications(app);
                 } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
                     platinum_application_older_notifications(app);
+                }
+            } else if (app->apppw.window != NULL &&
+                       window == app->apppw.window) {
+                action = platinum_apppw_handle_event(&app->apppw, event);
+                if (action == PLATINUM_APPPW_CANCEL) {
+                    platinum_apppw_close(&app->apppw);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_APPPW_SIGN_IN) {
+                    platinum_application_attempt_apppw(app);
                 }
             } else if (app->pairing.window != NULL &&
                        window == app->pairing.window) {
@@ -553,7 +576,10 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case updateEvt:
             window = (WindowPtr)(long)event->message;
-            if (app->pairing.window != NULL &&
+            if (app->apppw.window != NULL &&
+                window == app->apppw.window) {
+                platinum_apppw_handle_event(&app->apppw, event);
+            } else if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
             } else if (app->preferences.window != NULL &&
@@ -587,7 +613,10 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)(long)event->message;
-            if (app->pairing.window != NULL &&
+            if (app->apppw.window != NULL &&
+                window == app->apppw.window) {
+                platinum_apppw_handle_event(&app->apppw, event);
+            } else if (app->pairing.window != NULL &&
                 window == app->pairing.window) {
                 platinum_pairing_handle_event(&app->pairing, event);
             } else if (app->preferences.window != NULL &&
@@ -618,7 +647,17 @@ static void platinum_application_handle_event(platinum_application *app,
 
         case keyDown:
         case autoKey:
-            if (app->pairing.window != NULL &&
+            if (app->apppw.window != NULL &&
+                FrontWindow() == app->apppw.window) {
+                action = platinum_apppw_handle_event(&app->apppw, event);
+                if (action == PLATINUM_APPPW_CANCEL) {
+                    platinum_apppw_close(&app->apppw);
+                    SelectWindow(app->window);
+                    platinum_application_invalidate(app);
+                } else if (action == PLATINUM_APPPW_SIGN_IN) {
+                    platinum_application_attempt_apppw(app);
+                }
+            } else if (app->pairing.window != NULL &&
                 FrontWindow() == app->pairing.window) {
                 action = platinum_pairing_handle_event(&app->pairing, event);
                 if (action == PLATINUM_PAIRING_CANCEL) {
@@ -1391,12 +1430,13 @@ static OSErr platinum_application_create_menus(platinum_application *app)
 
     AppendMenu(app->file_menu, kNewPost);
     AppendMenu(app->file_menu, kPairAccount);
+    AppendMenu(app->file_menu, kAppPassword);
     AppendMenu(app->file_menu, kCloseWindow);
     AppendMenu(app->file_menu, kQuit);
     SetItemCmd(app->file_menu, 1, 'n');
     SetItemCmd(app->file_menu, 2, 'k');
-    SetItemCmd(app->file_menu, 3, 'w');
-    SetItemCmd(app->file_menu, 4, 'q');
+    SetItemCmd(app->file_menu, 4, 'w');
+    SetItemCmd(app->file_menu, 5, 'q');
 
     AppendMenu(app->edit_menu, kUndo);
     AppendMenu(app->edit_menu, kCut);
@@ -1531,7 +1571,11 @@ static void platinum_application_handle_menu(platinum_application *app,
             if (platinum_application_open_pairing(app) == noErr)
                 SelectWindow(app->pairing.window);
         } else if (item == 3) {
-            if (app->pairing.window != NULL)
+            platinum_application_open_apppw(app);
+        } else if (item == 4) {
+            if (app->apppw.window != NULL)
+                platinum_apppw_close(&app->apppw);
+            else if (app->pairing.window != NULL)
                 platinum_pairing_close(&app->pairing);
             else if (app->preferences.window != NULL)
                 platinum_preferences_close(&app->preferences);
@@ -1539,7 +1583,7 @@ static void platinum_application_handle_menu(platinum_application *app,
                 platinum_compose_close(&app->compose);
             else
                 app->running = 0;
-        } else if (item == 4) {
+        } else if (item == 5) {
             app->running = 0;
         }
     } else if (menu_id == kEditMenuID) {
@@ -1829,6 +1873,7 @@ static void platinum_application_sign_out(
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
     platinum_search_close(&app->search);
+    platinum_apppw_close(&app->apppw);
     platinum_timeline_init(&app->timeline);
     app->ui.selected_post = 0;
     app->ui.scroll_row = 0;
@@ -1908,6 +1953,102 @@ static void platinum_application_show_pairing_error(
 
     platinum_pairing_set_status(&app->pairing, message);
     SelectWindow(app->pairing.window);
+}
+
+/* The window for signing in with an app password. */
+static void platinum_application_open_apppw(platinum_application *app)
+{
+    const platinum_config *config;
+
+    if (app == NULL)
+        return;
+    config = platinum_session_config(&app->session);
+    if (platinum_apppw_open(&app->apppw,
+                            config != NULL ? config->bridge_url : NULL) == noErr)
+        SelectWindow(app->apppw.window);
+}
+
+/*
+ * Sign in with the handle and password in the window. Plain http asks twice:
+ * the first request only warns. However it ends, the password is wiped from the
+ * entry buffer and from the local copy, and the window shows only bullets.
+ */
+static void platinum_application_attempt_apppw(platinum_application *app)
+{
+    char bridge_url[PLATINUM_APPPW_URL_MAX + 1];
+    char handle[PLATINUM_APPPW_HANDLE_MAX * 4 + 1];
+    char password[PLATINUM_SECRET_MAX * 4 + 1];
+    wf_status status;
+    int reason;
+
+    if (app == NULL || app->apppw.window == NULL)
+        return;
+
+    if (platinum_apppw_get_bridge_url(&app->apppw, bridge_url,
+                                      sizeof(bridge_url)) != noErr) {
+        platinum_apppw_set_status(&app->apppw, "Enter a bridge URL.");
+        return;
+    }
+    if (platinum_apppw_get_handle(&app->apppw, handle, sizeof(handle)) != noErr) {
+        platinum_apppw_set_status(&app->apppw, "Enter your handle.");
+        return;
+    }
+    if (platinum_secret_utf8(&app->apppw.password, password,
+                             sizeof(password)) < 0) {
+        platinum_bridge_wipe(password, sizeof(password));
+        platinum_apppw_set_status(&app->apppw, "Enter the app password.");
+        return;
+    }
+
+    if (platinum_apppw_is_plain_http(bridge_url) && !app->apppw.http_armed) {
+        app->apppw.http_armed = 1;
+        platinum_bridge_wipe(password, sizeof(password));
+        platinum_apppw_set_status(
+            &app->apppw,
+            "That address is plain http. Choose Sign In again to send it anyway.");
+        return;
+    }
+
+    if (platinum_session_set_bridge_url(&app->session, bridge_url) != noErr) {
+        platinum_bridge_wipe(password, sizeof(password));
+        platinum_apppw_set_status(&app->apppw,
+                                  "The bridge URL could not be saved.");
+        return;
+    }
+
+    reason = PLATINUM_LOGIN_OTHER;
+    status = platinum_session_sign_in_app_password(&app->session, handle,
+                                                   password, &reason);
+    platinum_bridge_wipe(password, sizeof(password));
+    platinum_secret_wipe(&app->apppw.password);
+    app->apppw.http_armed = 0;
+
+    if (status != WF_OK) {
+        platinum_apppw_set_status(
+            &app->apppw,
+            reason == PLATINUM_LOGIN_DISABLED
+                ? "This bridge does not allow app-password sign-in."
+            : reason == PLATINUM_LOGIN_INVALID
+                ? "The handle or app password is not valid."
+            : reason == PLATINUM_LOGIN_TOO_MANY
+                ? "Too many failed attempts. Try again later."
+            : reason == PLATINUM_LOGIN_BAD_SERVICE
+                ? "The bridge does not accept that account service."
+                : "Sign-in failed. Check the bridge address and try again.");
+        return;
+    }
+
+    platinum_profile_close(&app->profile);
+    platinum_notifications_close(&app->notifications);
+    platinum_thread_close(&app->thread);
+    platinum_people_close(&app->people);
+    platinum_search_close(&app->search);
+    platinum_pairing_close(&app->pairing);
+    platinum_timeline_init(&app->timeline);
+    platinum_apppw_close(&app->apppw);
+    SelectWindow(app->window);
+    platinum_application_refresh_timeline(app);
+    platinum_application_invalidate(app);
 }
 
 static void platinum_application_attempt_pair(

@@ -120,6 +120,9 @@ platinum/
 │   ├── application.h
 │   ├── bridge_client.c
 │   ├── bridge_client.h
+│   ├── apppw.c
+│   ├── apppw.h
+│   ├── apppw_input.c
 │   ├── compose.c
 │   ├── compose.h
 │   ├── compose_model.c
@@ -138,6 +141,8 @@ platinum/
 │   ├── main.c
 │   ├── search.c
 │   ├── search_query.c
+│   ├── secret.c
+│   ├── secret.h
 │   ├── session.c
 │   ├── session.h
 │   ├── scrollbar.c

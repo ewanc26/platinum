@@ -294,5 +294,7 @@ The native Preferences surface is a modeless document window showing the paired 
 
 Pairing is a reusable modeless window rather than a first-run-only dialog. It opens automatically when no account is configured and can also be invoked from File > Pair Account or Account Preferences after sign-out. OAuth remains in the modern browser; the Classic Mac window only collects the bridge URL and six-character pairing code.
 
+File > Sign In with App Password... is the other way in, for when the bridge's operator has allowed it. It asks for the bridge URL, your handle and an app password (not your account password; make one in Bluesky's settings). The password is typed into a masked box that shows only bullets: it never goes through TextEdit, so it is not in a TextEdit record or the scrap, and paste is not supported in that box. The window wipes it when you press Sign In (whatever the result), Cancel or close. If the bridge address starts http:// the window warns that the password would cross the network unencrypted, and the first Sign In only repeats the warning; the second goes ahead. The window says why a refusal happened (not allowed on this bridge, wrong handle or password, too many attempts) in a fixed sentence and never repeats what you typed.
+
 
 The Timeline and Notifications lists use native Control Manager scroll bars. The scroll thumb is part of the Classic Mac window chrome rather than a custom-drawn web-style widget and shares state with keyboard/page scrolling.
