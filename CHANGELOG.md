@@ -32,6 +32,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Repository
 
+- Pull requests are checked by Wolfram's shared flow workflow (conventions, house style, drift), and the PR template and the agent flow rules are Wolfram's, byte for byte. The README's licence badge says licence. [#69](https://github.com/ewanc26/platinum/pull/69)
 - The bridge's updater runs Wolfram's own version, checksum and manifest test vectors, and follows Wolfram's manifest rules exactly: notes are optional, upper-case hashes are accepted, and versions may carry build metadata. [#68](https://github.com/ewanc26/platinum/pull/68)
 - The contribution flow is enforced in CI: conventional commits, a single `CI gate`, rebase-only merges, and a check that every Mac source is compiled. [#24](https://github.com/ewanc26/platinum/pull/24), [#54](https://github.com/ewanc26/platinum/pull/54)
 - A parity table against Cobalt and Indigo, built from the code and checked in CI. [#44](https://github.com/ewanc26/platinum/pull/44)
