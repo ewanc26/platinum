@@ -105,6 +105,7 @@ typedef struct StubParamStructRec { long stub; } ParamStructRec;
 #define inGoAway 6
 #define paramErr -50
 #define fnfErr -43
+#define ioErr -36
 #define memFullErr -108
 #define dirFErr -64
 #define eofErr -39

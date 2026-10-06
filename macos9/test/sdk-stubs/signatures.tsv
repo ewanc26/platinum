@@ -33,6 +33,7 @@ FindWindow|INTEGER|Point;WindowPtr*
 FlushEvents|void|INTEGER;INTEGER
 FrameRect|void|const Rect*
 FrameRgn|void|RgnHandle
+FreeMem|int32_t|
 FrontWindow|WindowPtr|
 GetControlMaximum|INTEGER|ControlHandle
 GetControlMinimum|INTEGER|ControlHandle

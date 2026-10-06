@@ -8,5 +8,8 @@
 void DisposePtr(Ptr p);
 void DisposeHandle(Handle h);
 SInt32 GetHandleSize(Handle h);
+/* Free bytes in the application heap. The Multiversal definition's only
+ * argument is a trap-word bit that selects the FreeMemSys variant. */
+SInt32 FreeMem(void);
 
 #endif

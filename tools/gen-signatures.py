@@ -32,7 +32,12 @@ for d in DEFS:
     for e in yaml.safe_load(text) or []:
         if isinstance(e, dict) and "function" in e:
             fn = e["function"]
-            sigs[fn["name"]] = (fn.get("return", "void"), [a["type"] for a in fn.get("args", [])])
+            # Arguments passed as trap-word bits (register: TrapBit<...>) are what
+            # the variants (FreeMem, FreeMemSys) set; the C function has no such
+            # parameter.
+            args = [a["type"] for a in fn.get("args", [])
+                    if not str(a.get("register", "")).startswith("TrapBit<")]
+            sigs[fn["name"]] = (fn.get("return", "void"), args)
 
 declared = set()
 for h in sorted(glob.glob(str(STUBS / "*.h"))):
