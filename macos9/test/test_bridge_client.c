@@ -389,6 +389,34 @@ static void test_mark_seen(void)
     platinum_bridge_client_free(client);
 }
 
+static void test_muted_word(void)
+{
+    platinum_bridge_client *client;
+    static char longer[500];
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    reset_fake(200, "{\"value\":\"x\",\"on\":true}", WF_OK);
+    check_status(platinum_bridge_set_muted_word(client, "spoil\"ers", 1), WF_OK,
+                 "adding a muted word succeeds");
+    check(last_method == 2, "a muted word is a POST");
+    check_str(last_url, "https://bridge.example/v1/muted-words", "muted word path");
+    check_str(last_body, "{\"value\":\"spoil\\\"ers\",\"on\":true}",
+              "the word is escaped and on is true");
+    reset_fake(200, "{}", WF_OK);
+    platinum_bridge_set_muted_word(client, "x", 0);
+    check_str(last_body, "{\"value\":\"x\",\"on\":false}", "removal sends on false");
+
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_set_muted_word(client, "", 1), WF_ERR_INVALID_ARG,
+                 "an empty word is refused");
+    memset(longer, 'a', 450);
+    longer[450] = '\0';
+    check_status(platinum_bridge_set_muted_word(client, longer, 1), WF_ERR_INVALID_ARG,
+                 "an over-long word is refused");
+    check(last_method == 0, "a refused word makes no request");
+    platinum_bridge_client_free(client);
+}
+
 static void test_post_body(void)
 {
     char *body;
@@ -429,6 +457,7 @@ int main(void)
 {
     test_post_body();
     test_mark_seen();
+    test_muted_word();
     test_pair_success();
     test_pair_escapes_code();
     test_pair_rejects_bad_input();

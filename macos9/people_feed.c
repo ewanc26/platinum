@@ -22,6 +22,12 @@ static void people_status(platinum_people *people, const char *status)
     people->status[length] = '\0';
 }
 
+void platinum_people_set_status(platinum_people *people, const char *status)
+{
+    if (people != NULL)
+        people_status(people, status);
+}
+
 void platinum_people_init(platinum_people *people)
 {
     if (people == NULL)
@@ -52,6 +58,18 @@ static int people_parse(platinum_person *person, platinum_json item, int kind)
     char did[PLATINUM_PEOPLE_NAME_MAX];
 
     memset(person, 0, sizeof(*person));
+    if (kind == PLATINUM_PEOPLE_WORDS) {
+        /* A muted word is shown as MacRoman and kept exactly as UTF-8. A word
+         * that cannot be shown cannot be picked, so it is left out. */
+        people_copy(person->name, sizeof(person->name), item, "value");
+        if (person->name[0] == '\0' ||
+            platinum_json_string(item, "value", person->uri, sizeof(person->uri))
+                != WF_OK) {
+            person->uri[0] = '\0';
+            return 0;
+        }
+        return 1;
+    }
     if (kind != PLATINUM_PEOPLE_ACCOUNTS) {
         people_copy(person->name, sizeof(person->name), item, "name");
         if (person->name[0] == '\0' ||
@@ -135,7 +153,9 @@ static wf_status people_fetch(platinum_people *people,
     if (platinum_json_open(&root, response.body != NULL ? response.body : "")
             != WF_OK ||
         platinum_json_member(root, people->kind == PLATINUM_PEOPLE_ACCOUNTS
-                                        ? "actors" : "items", &actors) != WF_OK ||
+                                        ? "actors"
+                                        : people->kind == PLATINUM_PEOPLE_WORDS
+                                              ? "words" : "items", &actors) != WF_OK ||
         platinum_json_count(actors, &available) != WF_OK) {
         people->loading = 0;
         people_status(people, "The bridge returned an invalid list.");
@@ -173,7 +193,10 @@ static wf_status people_fetch(platinum_people *people,
     wf_response_free(&response);
 
     people->loading = 0;
-    people_status(people, people->count == 0 ? "Nobody to show." : NULL);
+    people_status(people, people->count == 0
+                              ? (people->kind == PLATINUM_PEOPLE_WORDS
+                                     ? "No muted words." : "Nobody to show.")
+                              : NULL);
     return WF_OK;
 }
 
@@ -191,7 +214,7 @@ wf_status platinum_people_load_kind(platinum_people *people,
         return WF_ERR_INVALID_ARG;
     if (key != NULL && (value == NULL || value[0] == '\0'))
         return WF_ERR_INVALID_ARG;
-    if (kind < PLATINUM_PEOPLE_ACCOUNTS || kind > PLATINUM_PEOPLE_LISTS)
+    if (kind < PLATINUM_PEOPLE_ACCOUNTS || kind > PLATINUM_PEOPLE_WORDS)
         return WF_ERR_INVALID_ARG;
 
     strcpy(people->path, route);

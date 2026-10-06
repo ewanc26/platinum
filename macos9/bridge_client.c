@@ -435,6 +435,30 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
     return status;
 }
 
+wf_status platinum_bridge_set_muted_word(platinum_bridge_client *client,
+                                         const char *utf8_word, int on)
+{
+    char escaped[PLATINUM_MUTED_WORD_BYTES * 2 + 8];
+    char body[PLATINUM_MUTED_WORD_BYTES * 2 + 48];
+    wf_response response;
+    wf_status status;
+
+    if (client == NULL || utf8_word == NULL || utf8_word[0] == '\0' ||
+        strlen(utf8_word) > PLATINUM_MUTED_WORD_BYTES)
+        return WF_ERR_INVALID_ARG;
+    if (platinum_json_escape(escaped, sizeof(escaped), utf8_word) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+
+    strcpy(body, "{\"value\":\"");
+    strcat(body, escaped);
+    strcat(body, on ? "\",\"on\":true}" : "\",\"on\":false}");
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_post(client, "/v1/muted-words", body, &response);
+    wf_response_free(&response);
+    return status;
+}
+
 char *platinum_bridge_post_body(const char *utf8_text,
                                 const char *reply_uri,
                                 const char *reply_cid)

@@ -48,7 +48,8 @@ typedef struct platinum_people {
 enum {
     PLATINUM_PEOPLE_ACCOUNTS = 0,
     PLATINUM_PEOPLE_FEEDS = 1,
-    PLATINUM_PEOPLE_LISTS = 2
+    PLATINUM_PEOPLE_LISTS = 2,
+    PLATINUM_PEOPLE_WORDS = 3 /* your muted words; the row uri is the word */
 };
 
 enum {
@@ -96,6 +97,8 @@ wf_status platinum_people_load_more(platinum_people *people,
                                     platinum_bridge_client *bridge,
                                     unsigned short *dropped);
 int platinum_people_has_more(const platinum_people *people);
+/* Set the status line without touching any window. */
+void platinum_people_set_status(platinum_people *people, const char *status);
 
 /* The window; none of this runs on a host. */
 OSErr platinum_people_open(platinum_people *people);
