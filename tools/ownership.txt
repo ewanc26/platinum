@@ -44,6 +44,9 @@ macos9/notifications.h             platform
 macos9/notifications_feed.c        platform  # view model of a bridge response, no QuickDraw so it links on a host
 macos9/pairing.c                   platform
 macos9/pairing.h                   platform
+macos9/people.c                    platform  # the People window
+macos9/people.h                    platform
+macos9/people_feed.c               platform  # view model of a bridge account list, no QuickDraw so it links on a host
 macos9/preferences.c               platform
 macos9/preferences.h               platform
 macos9/profile.c                   platform  # the Profile window
