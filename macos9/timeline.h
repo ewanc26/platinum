@@ -2,6 +2,7 @@
 #define PLATINUM_TIMELINE_H
 
 #include "bridge_client.h"
+#include "json_min.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,11 @@ typedef struct platinum_timeline {
     char status[PLATINUM_TIMELINE_STATUS_MAX + 1];
     int loading;
 } platinum_timeline;
+
+/* Read one bridge post object (the timeline and thread item shape) into a
+ * preview. Returns 0 for a post missing uri, cid or author.did. */
+int platinum_timeline_parse_post(platinum_post_preview *post,
+                                 platinum_json item);
 
 void platinum_timeline_init(platinum_timeline *timeline);
 wf_status platinum_timeline_refresh(platinum_timeline *timeline,

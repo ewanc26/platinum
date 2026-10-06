@@ -117,8 +117,11 @@ Standard Undo, Cut, Copy, Paste and Select All commands as applicable, followed 
 - Refresh
 - Show Detail
 - Load Older Posts
+- Show Thread (Command-T)
 
 Load Older Posts fetches the next page of the timeline. Pressing Down Arrow on the last row does the same; the fetch is never started by scrolling, so it cannot begin in the middle of scroll-bar tracking. The list keeps at most forty posts: loading past that drops the newest ones from the top, and the selection stays on the post it was on.
+
+Show Thread opens a modeless Thread window around the selected post: earlier posts above it, the post itself marked "This post", and replies below, indented by depth up to six levels. It reads `GET /v1/thread`, which is bounded at forty posts, and says in words when replies were left out. It scrolls like Notifications and closes with Command-W.
 
 ### Post
 

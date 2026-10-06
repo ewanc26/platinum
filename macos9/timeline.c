@@ -107,8 +107,8 @@ static void timeline_copy_wrapped_text(platinum_post_preview *post,
     }
 }
 
-static int timeline_parse_post(platinum_post_preview *post,
-                               platinum_json item)
+int platinum_timeline_parse_post(platinum_post_preview *post,
+                                 platinum_json item)
 {
     platinum_json author;
     char did[128];
@@ -296,7 +296,7 @@ static wf_status timeline_fetch(platinum_timeline *timeline,
                     timeline->count < PLATINUM_TIMELINE_MAX_POSTS; ++index) {
         if (platinum_json_element(posts, index, &item) != WF_OK)
             continue;
-        if (timeline_parse_post(&timeline->posts[timeline->count], item))
+        if (platinum_timeline_parse_post(&timeline->posts[timeline->count], item))
             ++timeline->count;
     }
 
