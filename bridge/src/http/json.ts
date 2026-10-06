@@ -8,6 +8,15 @@ export function json(res: ServerResponse, status: number, value: unknown): void 
   res.end(JSON.stringify(value))
 }
 
+export function binary(res: ServerResponse, status: number, contentType: string, body: Uint8Array): void {
+  res.writeHead(status, {
+    'content-type': contentType,
+    'content-length': String(body.length),
+    'cache-control': 'private, max-age=3600',
+  })
+  res.end(body)
+}
+
 export function html(res: ServerResponse, status: number, value: string): void {
   res.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',

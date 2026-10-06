@@ -9,10 +9,12 @@ import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidSer
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
 import { DomainApi, validReplyGate, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
+import { ImageService, parseImageParams, validImageRef } from './image/fetch.js'
+import { ImageError } from './image/convert.js'
 import { validMutedWord } from './domain/muted.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
-import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
+import { binary, html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
 import { FileStorage } from './storage/file.js'
 
 const config = loadConfig()
@@ -42,6 +44,7 @@ const appPassword = new AppPasswordService(storage.appPasswordSessions())
 const loginFailures = new FailureLimiter()
 const atproto = new AtprotoClient(oauth, appPassword)
 const domain = new DomainApi()
+const images = new ImageService()
 
 await migrateLegacyTokens()
 
@@ -344,6 +347,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/feeds') return json(res, 200, await domain.savedFeeds(agent))
+  if (req.method === 'GET' && url.pathname === '/v1/image') {
+    const ref = validImageRef(url.searchParams.get('ref'))
+    const params = parseImageParams(url.searchParams.get('w'), url.searchParams.get('depth'))
+    if (!ref || !params) {
+      return json(res, 400, errorBody('invalid_image', 'ref must be an image reference the bridge gave you; w is 16 to 320; depth is 4 or 8.'))
+    }
+    try {
+      const out = await images.get({ ref, ...params })
+      return binary(res, 200, 'application/x-platinum-image', out.blob)
+    } catch (error) {
+      if (error instanceof ImageError) {
+        return json(res, error.code === 'too_large' ? 413 : 502, errorBody('image_unavailable', 'The image could not be prepared.'))
+      }
+      return json(res, 502, errorBody('image_unavailable', 'The image could not be fetched.'))
+    }
+  }
+
   if (req.method === 'GET' && url.pathname === '/v1/muted-words') {
     return json(res, 200, { words: await domain.mutedWords.list(agent) })
   }
