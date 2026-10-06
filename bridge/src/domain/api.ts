@@ -5,6 +5,7 @@ import type {
   Notifications,
   PostResult,
   ActorList,
+  NamedList,
   FollowResult,
   Thread,
   ThreadPost,
@@ -157,6 +158,26 @@ export function validActor(value: unknown): string | undefined {
   return undefined
 }
 
+/**
+ * A search query from a client: 1 to 100 characters, no control characters.
+ * Trimmed; an empty query is refused rather than searched.
+ */
+export function validQuery(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const q = value.trim()
+  if (q.length === 0 || Array.from(q).length > 100 || /[\u0000-\u001f\u007f]/.test(q)) return undefined
+  return q
+}
+
+/** An at:// URI of one collection, for feeds and lists. */
+export function validCollectionUri(value: unknown, collection: 'app.bsky.feed.generator' | 'app.bsky.graph.list'): string | undefined {
+  if (typeof value !== 'string' || value.length > 512) return undefined
+  const prefix = /^at:\/\/did:[a-z]+:[A-Za-z0-9._:%-]+\//
+  if (!prefix.test(value)) return undefined
+  const rest = value.replace(prefix, '')
+  return new RegExp(`^${collection.replace(/\./g, '\\.')}/[A-Za-z0-9._~:-]+$`).test(rest) ? value : undefined
+}
+
 export type ToggleKind = 'like' | 'repost'
 
 /** A post reference from a client. Bounded and shaped, never trusted further. */
@@ -236,6 +257,50 @@ export class DomainApi {
       }
       const r = await agent.getRepostedBy({ uri, limit, cursor })
       return { actors: r.data.repostedBy.map(authorFrom), cursor: r.data.cursor }
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+  }
+
+  async searchActors(agent: Agent, q: string, limit: number, cursor?: string): Promise<ActorList> {
+    const r = await agent.searchActors({ q, limit, cursor })
+    return { actors: r.data.actors.map(authorFrom), cursor: r.data.cursor }
+  }
+
+  async searchPosts(agent: Agent, q: string, limit: number, cursor?: string): Promise<Timeline> {
+    const r = await agent.app.bsky.feed.searchPosts({ q, limit, cursor })
+    return { posts: r.data.posts.map(post => normalizeTimelinePost({ post })), cursor: r.data.cursor }
+  }
+
+  /** The account's saved custom feeds, named. Lists and the home timeline are left out. */
+  async savedFeeds(agent: Agent): Promise<NamedList> {
+    const prefs = await agent.getPreferences()
+    const uris = prefs.savedFeeds.filter(f => f.type === 'feed').map(f => f.value).slice(0, 25)
+    if (uris.length === 0) return { items: [] }
+    const r = await agent.app.bsky.feed.getFeedGenerators({ feeds: uris })
+    return { items: r.data.feeds.map(f => ({ uri: clipped(f.uri, 512), name: clipped(f.displayName, MAX_DISPLAY_NAME_LENGTH) })) }
+  }
+
+  async feed(agent: Agent, uri: string, limit: number, cursor?: string): Promise<Timeline | undefined> {
+    try {
+      const r = await agent.app.bsky.feed.getFeed({ feed: uri, limit, cursor })
+      return { posts: r.data.feed.map(normalizeTimelinePost), cursor: r.data.cursor }
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return undefined
+      throw error
+    }
+  }
+
+  async lists(agent: Agent): Promise<NamedList> {
+    const r = await agent.app.bsky.graph.getLists({ actor: agent.accountDid!, limit: 50 })
+    return { items: r.data.lists.map(l => ({ uri: clipped(l.uri, 512), name: clipped(l.name, MAX_DISPLAY_NAME_LENGTH) })) }
+  }
+
+  async listMembers(agent: Agent, uri: string, limit: number, cursor?: string): Promise<ActorList | undefined> {
+    try {
+      const r = await agent.app.bsky.graph.getList({ list: uri, limit, cursor })
+      return { actors: r.data.items.map(i => authorFrom(i.subject)), cursor: r.data.cursor }
     } catch (error) {
       if ((error as { status?: number }).status === 400) return undefined
       throw error

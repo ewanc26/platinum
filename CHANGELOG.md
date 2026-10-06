@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge can search accounts and posts, list your saved feeds and lists, and return a feed's posts or a list's members. The Mac side isn't wired up yet. [#80](https://github.com/ewanc26/platinum/pull/80)
 - Who Liked This, Who Reposted This, Show Followers and Show Following (Post menu) open a People window listing the accounts, forty at a time. The bridge can list who liked or reposted a post. [#79](https://github.com/ewanc26/platinum/pull/79)
 - Show Author's Profile (Post menu, Command-I) opens someone else's profile with their counts, whether you follow each other and their pinned post, and Follow or Unfollow (Command-Y) acts on it. [#78](https://github.com/ewanc26/platinum/pull/78)
 - Show Thread (View menu, Command-T) opens the conversation around the selected post: what it replied to above, and the replies below, indented. I keep forty posts at most and say when some are left out. [#77](https://github.com/ewanc26/platinum/pull/77)
