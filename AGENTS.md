@@ -129,6 +129,7 @@ platinum/
 │   ├── preferences.c
 │   ├── preferences.h
 │   ├── profile.c
+│   ├── profile_feed.c
 │   ├── profile.h
 │   ├── config.h
 │   ├── main.c
@@ -837,6 +838,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - interactive navigation and timeline selection;
 - bounded timeline and notification paging (forty rows kept each);
 - like and repost with undo (Post menu, `POST /v1/like` and `/v1/repost`);
+- other people's profiles with follow state and the pinned post, and follow or unfollow;
 - thread window around the selected post (`GET /v1/thread`, forty posts);
 - reply to the selected post (Post menu, `replyTo` on `POST /v1/post`);
 - notifications marked seen on view, by the newest item's own timestamp;

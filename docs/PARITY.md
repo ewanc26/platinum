@@ -30,12 +30,12 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Reply gates | yes | no | [#29](https://github.com/ewanc26/platinum/issues/29) |
 | Like and unlike | yes | yes | implemented (`macos9/timeline.c`) |
 | Repost and undo | yes | yes | implemented (`bridge/src/domain/api.ts`) |
-| Own profile | yes | yes | implemented (`macos9/profile.c`) |
-| Other people's profiles | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
-| Follow and unfollow | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
+| Own profile | yes | yes | implemented (`macos9/profile_feed.c`) |
+| Other people's profiles | yes | yes | implemented (`macos9/profile_feed.c`) |
+| Follow and unfollow | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Followers and following lists | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
 | Profile posts tab | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
-| Pinned post | yes | yes | [#31](https://github.com/ewanc26/platinum/issues/31) |
+| Pinned post | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Avatars | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Post images | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Image alt text | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
@@ -55,4 +55,4 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-16 implemented, 24 tracked by an open issue, 1 not possible.
+19 implemented, 21 tracked by an open issue, 1 not possible.
