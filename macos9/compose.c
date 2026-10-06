@@ -116,6 +116,42 @@ OSErr platinum_compose_open(platinum_compose *compose)
     return noErr;
 }
 
+int platinum_compose_set_reply(platinum_compose *compose,
+                               const char *uri,
+                               const char *cid,
+                               const char *handle)
+{
+    size_t length;
+
+    if (compose == NULL)
+        return 0;
+    compose->reply_uri[0] = '\0';
+    compose->reply_cid[0] = '\0';
+    compose->reply_to[0] = '\0';
+    if (uri == NULL || cid == NULL || uri[0] == '\0' || cid[0] == '\0' ||
+        strlen(uri) >= sizeof(compose->reply_uri) ||
+        strlen(cid) >= sizeof(compose->reply_cid))
+        return 0;
+
+    strcpy(compose->reply_uri, uri);
+    strcpy(compose->reply_cid, cid);
+    strcpy(compose->reply_to, "Replying to ");
+    if (handle != NULL && handle[0] != '\0') {
+        length = strlen(compose->reply_to);
+        if (handle[0] != '@')
+            compose->reply_to[length++] = '@';
+        strncpy(compose->reply_to + length, handle,
+                sizeof(compose->reply_to) - length - 1);
+        compose->reply_to[sizeof(compose->reply_to) - 1] = '\0';
+    } else {
+        strcpy(compose->reply_to, "Replying to a post");
+    }
+
+    if (compose->window != NULL)
+        InvalRect(&compose->window->portRect);
+    return 1;
+}
+
 void platinum_compose_close(platinum_compose *compose)
 {
     if (compose == NULL)
@@ -170,6 +206,10 @@ void platinum_compose_draw(platinum_compose *compose)
     post_rect.left = cancel_rect.right + 8;
     post_rect.right = post_rect.left + 58;
     platinum_compose_button(&post_rect, kPost);
+
+    if (compose->reply_to[0] != '\0')
+        platinum_compose_text(compose->reply_to, 14,
+                              compose->window->portRect.bottom - 14);
 
     if (compose->posting) {
         platinum_compose_text(kPosting, 14, 28);

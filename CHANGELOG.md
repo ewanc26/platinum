@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- Reply to the selected post from the Post menu (Command-J). The compose window says who you're replying to. [#71](https://github.com/ewanc26/platinum/pull/72)
 - The bridge can return a post's thread as one flat list and post a reply to a specific post, working out the thread root itself. The Mac side isn't wired up yet. [#70](https://github.com/ewanc26/platinum/pull/70)
 - The bridge can update itself from this repository's releases, when you ask it to: it checks the SHA-256 first, keeps the previous version for rollback, and never restarts itself. [#50](https://github.com/ewanc26/platinum/pull/50)
 - You can sign in to the bridge with an app password instead of the browser, if the operator turns it on. Off by default, and the password is never stored or logged. [#55](https://github.com/ewanc26/platinum/pull/55)

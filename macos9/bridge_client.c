@@ -434,3 +434,63 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
     wf_response_free(&response);
     return status;
 }
+
+char *platinum_bridge_post_body(const char *utf8_text,
+                                const char *reply_uri,
+                                const char *reply_cid)
+{
+    size_t text_cap;
+    size_t id_cap;
+    size_t body_cap;
+    char *text_esc;
+    char *uri_esc;
+    char *cid_esc;
+    char *body;
+    int has_uri;
+    int has_cid;
+
+    if (utf8_text == NULL)
+        return NULL;
+    has_uri = reply_uri != NULL && reply_uri[0] != '\0';
+    has_cid = reply_cid != NULL && reply_cid[0] != '\0';
+    if (has_uri != has_cid)
+        return NULL;
+
+    text_cap = strlen(utf8_text) * 6 + 1;
+    id_cap = has_uri ? (strlen(reply_uri) + strlen(reply_cid)) * 6 + 2 : 1;
+    body_cap = text_cap + id_cap + 64;
+    text_esc = (char *)malloc(text_cap);
+    uri_esc = (char *)malloc(id_cap);
+    cid_esc = (char *)malloc(id_cap);
+    body = (char *)malloc(body_cap);
+    if (text_esc == NULL || uri_esc == NULL || cid_esc == NULL || body == NULL)
+        goto fail;
+
+    if (platinum_json_escape(text_esc, text_cap, utf8_text) != WF_OK)
+        goto fail;
+    strcpy(body, "{\"text\":\"");
+    strcat(body, text_esc);
+    strcat(body, "\"");
+    if (has_uri) {
+        if (platinum_json_escape(uri_esc, id_cap, reply_uri) != WF_OK ||
+            platinum_json_escape(cid_esc, id_cap, reply_cid) != WF_OK)
+            goto fail;
+        strcat(body, ",\"replyTo\":{\"uri\":\"");
+        strcat(body, uri_esc);
+        strcat(body, "\",\"cid\":\"");
+        strcat(body, cid_esc);
+        strcat(body, "\"}");
+    }
+    strcat(body, "}");
+    free(text_esc);
+    free(uri_esc);
+    free(cid_esc);
+    return body;
+
+fail:
+    free(text_esc);
+    free(uri_esc);
+    free(cid_esc);
+    free(body);
+    return NULL;
+}

@@ -16,7 +16,7 @@ notifications-paging|Notifications paging|yes|yes|implemented|macos9/notificatio
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|issue|#27
 post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
-reply|Reply|yes|yes|issue|#27
+reply|Reply|yes|yes|implemented|macos9/compose.c::platinum_compose_set_reply
 quote|Quote post|yes|yes|issue|#29
 reply-gate|Reply gates|yes|no|issue|#29
 like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement

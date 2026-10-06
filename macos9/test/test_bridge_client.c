@@ -389,8 +389,45 @@ static void test_mark_seen(void)
     platinum_bridge_client_free(client);
 }
 
+static void test_post_body(void)
+{
+    char *body;
+
+    body = platinum_bridge_post_body("hello", NULL, NULL);
+    check(body != NULL, "plain body built");
+    check_str(body, "{\"text\":\"hello\"}", "plain post body is just text");
+    free(body);
+
+    body = platinum_bridge_post_body("say \"hi\"\n\\", "", "");
+    check_str(body, "{\"text\":\"say \\\"hi\\\"\\n\\\\\"}",
+              "text is escaped; empty reply fields mean a plain post");
+    free(body);
+
+    body = platinum_bridge_post_body("yes", "at://did:plc:a/app.bsky.feed.post/3k",
+                                     "bafyabc");
+    check_str(body,
+              "{\"text\":\"yes\",\"replyTo\":{\"uri\":"
+              "\"at://did:plc:a/app.bsky.feed.post/3k\",\"cid\":\"bafyabc\"}}",
+              "reply body names the parent");
+    free(body);
+
+    body = platinum_bridge_post_body("yes", "at://x\"y", "c\\d");
+    check_str(body,
+              "{\"text\":\"yes\",\"replyTo\":{\"uri\":\"at://x\\\"y\","
+              "\"cid\":\"c\\\\d\"}}",
+              "reply identifiers are escaped too");
+    free(body);
+
+    check(platinum_bridge_post_body("yes", "at://x", NULL) == NULL,
+          "a reply with only a uri is refused, not sent as a plain post");
+    check(platinum_bridge_post_body("yes", NULL, "cid") == NULL,
+          "a reply with only a cid is refused");
+    check(platinum_bridge_post_body(NULL, NULL, NULL) == NULL, "NULL text refused");
+}
+
 int main(void)
 {
+    test_post_body();
     test_mark_seen();
     test_pair_success();
     test_pair_escapes_code();

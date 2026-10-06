@@ -42,6 +42,7 @@ static void platinum_application_refresh_timeline(platinum_application *app);
 static void platinum_application_load_older(platinum_application *app);
 static void platinum_application_engage(platinum_application *app,
                                         int repost);
+static void platinum_application_reply(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
 static void platinum_application_refresh_notifications(
@@ -80,6 +81,9 @@ static unsigned char kViewMenu[] = { 4, 'V', 'i', 'e', 'w' };
 static unsigned char kPostMenu[] = { 4, 'P', 'o', 's', 't' };
 static unsigned char kLikeItem[] = {
     14, 'L', 'i', 'k', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'l', 'i', 'k', 'e'
+};
+static unsigned char kReplyItem[] = {
+    8, 'R', 'e', 'p', 'l', 'y', '.', '.', '.'
 };
 static unsigned char kRepostItem[] = {
     21, 'R', 'e', 'p', 'o', 's', 't', ' ', 'o', 'r', ' ', 'U', 'n', 'd', 'o',
@@ -409,6 +413,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_engage(app, 0);
                 } else if (action == PLATINUM_UI_ACTION_REPOST) {
                     platinum_application_engage(app, 1);
+                } else if (action == PLATINUM_UI_ACTION_REPLY) {
+                    platinum_application_reply(app);
                 }
                 platinum_application_invalidate(app);
             }
@@ -605,6 +611,31 @@ static void platinum_application_refresh_timeline(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/* Open a compose window that answers the selected post. */
+static void platinum_application_reply(platinum_application *app)
+{
+    const platinum_post_preview *post;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    if (app->compose.window != NULL) {
+        SelectWindow(app->compose.window);
+        return;
+    }
+
+    post = &app->timeline.posts[index];
+    if (platinum_compose_open(&app->compose) != noErr)
+        return;
+    (void)platinum_compose_set_reply(&app->compose, post->uri, post->cid,
+                                     post->handle);
+    SelectWindow(app->compose.window);
+    platinum_application_invalidate(app);
+}
+
 /* Like or repost the selected post, or undo it if the row says it is done. */
 static void platinum_application_engage(platinum_application *app, int repost)
 {
@@ -770,8 +801,10 @@ static OSErr platinum_application_create_menus(platinum_application *app)
 
     AppendMenu(app->post_menu, kLikeItem);
     AppendMenu(app->post_menu, kRepostItem);
+    AppendMenu(app->post_menu, kReplyItem);
     SetItemCmdChar(app->post_menu, 1, 'l');
     SetItemCmdChar(app->post_menu, 2, 'e');
+    SetItemCmdChar(app->post_menu, 3, 'j');
 
     AppendMenu(app->window_menu, kTimelineWindow);
     AppendMenu(app->window_menu, kNotificationsWindow);
@@ -875,7 +908,10 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_load_older(app);
         }
     } else if (menu_id == kPostMenuID) {
-        platinum_application_engage(app, item == 2);
+        if (item == 3)
+            platinum_application_reply(app);
+        else
+            platinum_application_engage(app, item == 2);
     } else if (menu_id == kWindowMenuID) {
         if (item == 2)
             platinum_application_open_notifications(app);
@@ -906,52 +942,6 @@ static void platinum_application_post_status(platinum_application *app,
     else
         platinum_compose_set_status(&app->compose,
                                     "The post could not be sent.");
-}
-
-/*
- * Wrap a post body as {"text":"..."}.
- *
- * Written out by hand rather than built through a JSON library, because
- * snprintf is not available on this target and the shape is a single member.
- * The escape is the part that matters: the text is what the user typed, so it
- * is the one thing in this request that can contain a quote or a backslash.
- *
- * Sizes the buffers from the escaped length rather than assuming one. Every
- * byte of the encoded text could in principle need a six-byte \u00XX form, so
- * the worst case is six out for each one in.
- */
-static char *platinum_application_post_body(const char *utf8_text)
-{
-    static const char kPrefix[] = "{\"text\":\"";
-    static const char kSuffix[] = "\"}";
-    size_t escaped_cap;
-    size_t body_cap;
-    char *escaped;
-    char *body;
-
-    escaped_cap = strlen(utf8_text) * 6 + 1;
-    body_cap = escaped_cap + sizeof(kPrefix) + sizeof(kSuffix);
-    escaped = (char *)malloc(escaped_cap);
-    body = (char *)malloc(body_cap);
-    if (escaped == NULL || body == NULL) {
-        free(escaped);
-        free(body);
-        return NULL;
-    }
-
-    if (platinum_json_escape(escaped, escaped_cap, utf8_text) != WF_OK) {
-        free(escaped);
-        free(body);
-        return NULL;
-    }
-
-    body[0] = '\0';
-    strcpy(body, kPrefix);
-    strcat(body, escaped);
-    strcat(body, kSuffix);
-    free(escaped);
-
-    return body;
 }
 
 static void platinum_application_submit_post(platinum_application *app)
@@ -989,7 +979,9 @@ static void platinum_application_submit_post(platinum_application *app)
         return;
     }
 
-    body = platinum_application_post_body(utf8_text);
+    body = platinum_bridge_post_body(utf8_text,
+                                     app->compose.reply_uri,
+                                     app->compose.reply_cid);
     if (body == NULL) {
         platinum_compose_set_status(&app->compose,
                                     "Not enough memory to prepare the post.");
