@@ -697,6 +697,13 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
   file and string that exist in the code; otherwise it names an open issue. When
   you ship or file a feature, edit the row in the same PR. CI fails on a stale
   `PARITY.md`, a missing evidence string, or a closed issue still cited.
+- Pairing has two halves. The Mac-to-bridge pairing (`/v1/pair`, `bridge/src/auth/pairing.ts`)
+  is Platinum-specific because the Mac cannot do TLS; it is outside Wolfram's
+  contract and stays. The bridge's own upstream sign-in is meant to go through a
+  Wolfram OAuth node: `bridge/src/auth/oauth-node-pairing.ts` ports
+  `oauth_pairing.h` and runs Wolfram's `oauth_pairing.json` vectors from
+  `bridge/test/vectors/`, byte-identical to Wolfram's at the pinned commit (CI
+  diffs them). It is not wired in yet (#75). Change behaviour in Wolfram first.
 - Updates: the bridge self-updates from this repository's GitHub releases via
   `bridge/src/update/` (`npm run update`). It is opt-in and confirmed, verifies
   the SHA-256 in `update.json` before unpacking, keeps `previous` for rollback,
