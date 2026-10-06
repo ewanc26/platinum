@@ -48,6 +48,11 @@ static void platinum_application_show_author(platinum_application *app);
 static void platinum_application_show_people(platinum_application *app,
                                              int menu_item);
 static void platinum_application_more_people(platinum_application *app);
+static void platinum_application_open_person(platinum_application *app);
+static void platinum_application_more_posts(platinum_application *app);
+static void platinum_application_show_posts(platinum_application *app);
+static void platinum_application_show_named(platinum_application *app,
+                                            int kind);
 static void platinum_application_follow(platinum_application *app);
 static void platinum_application_open_profile(platinum_application *app);
 static void platinum_application_open_notifications(platinum_application *app);
@@ -94,6 +99,16 @@ static unsigned char kAuthorItem[] = {
 };
 static unsigned char kFollowItem[] = {
     18, 'F', 'o', 'l', 'l', 'o', 'w', ' ', 'o', 'r', ' ', 'U', 'n', 'f', 'o', 'l', 'l', 'o', 'w'
+};
+static unsigned char kAuthorPostsItem[] = {
+    19, 'S', 'h', 'o', 'w', ' ', 'A', 'u', 't', 'h', 'o', 'r', '\'', 's', ' ',
+    'P', 'o', 's', 't', 's'
+};
+static unsigned char kFeedsItem[] = {
+    11, 'S', 'a', 'v', 'e', 'd', ' ', 'F', 'e', 'e', 'd', 's'
+};
+static unsigned char kListsItem[] = {
+    8, 'M', 'y', ' ', 'L', 'i', 's', 't', 's'
 };
 static unsigned char kLikersItem[] = {
     14, 'W', 'h', 'o', ' ', 'L', 'i', 'k', 'e', 'd', ' ', 'T', 'h', 'i', 's'
@@ -374,6 +389,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
                     platinum_application_more_people(app);
+                } else if (action == PLATINUM_PEOPLE_OPEN) {
+                    platinum_application_open_person(app);
                 }
             } else if (app->thread.window != NULL &&
                        window == app->thread.window) {
@@ -382,6 +399,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_thread_close(&app->thread);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (action == PLATINUM_THREAD_LOAD_MORE) {
+                    platinum_application_more_posts(app);
                 }
             } else if (app->notifications.window != NULL &&
                        window == app->notifications.window) {
@@ -580,6 +599,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_application_invalidate(app);
                 } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
                     platinum_application_more_people(app);
+                } else if (action == PLATINUM_PEOPLE_OPEN) {
+                    platinum_application_open_person(app);
                 }
             } else if (app->thread.window != NULL &&
                 FrontWindow() == app->thread.window) {
@@ -588,6 +609,8 @@ static void platinum_application_handle_event(platinum_application *app,
                     platinum_thread_close(&app->thread);
                     SelectWindow(app->window);
                     platinum_application_invalidate(app);
+                } else if (action == PLATINUM_THREAD_LOAD_MORE) {
+                    platinum_application_more_posts(app);
                 }
             } else if (app->notifications.window != NULL &&
                 FrontWindow() == app->notifications.window) {
@@ -799,6 +822,125 @@ static void platinum_application_more_people(platinum_application *app)
     }
     if (app->people.window != NULL)
         InvalRect(&app->people.window->portRect);
+}
+
+/* The author's own posts, in the posts list. */
+static void platinum_application_show_posts(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const char *handle;
+    wf_status status;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    handle = app->timeline.posts[index].handle;
+    if (handle[0] == '@')
+        ++handle;
+    if (handle[0] == '\0' || platinum_thread_open(&app->thread) != noErr)
+        return;
+
+    status = platinum_thread_load_list(&app->thread, bridge, "/v1/author-feed",
+                                       "actor", handle, "Posts by this author");
+    platinum_application_recover_auth(app, status);
+    if (app->thread.window != NULL)
+        InvalRect(&app->thread.window->portRect);
+}
+
+static void platinum_application_more_posts(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+    status = platinum_thread_load_more(&app->thread, bridge, &dropped);
+    platinum_application_recover_auth(app, status);
+    if (status == WF_OK) {
+        app->thread.scroll_row -= (short)dropped;
+        if (app->thread.scroll_row < 0)
+            app->thread.scroll_row = 0;
+        ++app->thread.scroll_row;
+    }
+    if (app->thread.window != NULL)
+        InvalRect(&app->thread.window->portRect);
+}
+
+/* Saved feeds or the account's lists, as rows to click. */
+static void platinum_application_show_named(platinum_application *app,
+                                            int kind)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL || platinum_people_open(&app->people) != noErr)
+        return;
+    status = platinum_people_load_kind(
+        &app->people, bridge, kind,
+        kind == PLATINUM_PEOPLE_FEEDS ? "/v1/feeds" : "/v1/lists", NULL, NULL,
+        kind == PLATINUM_PEOPLE_FEEDS ? "Saved feeds (click one)"
+                                      : "My lists (click one)");
+    platinum_application_recover_auth(app, status);
+    if (app->people.window != NULL)
+        InvalRect(&app->people.window->portRect);
+}
+
+/* A clicked row in the People window: open the account, feed or list. */
+static void platinum_application_open_person(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const platinum_person *row;
+    wf_status status;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    row = platinum_people_selection(&app->people);
+    bridge = platinum_session_bridge(&app->session);
+    if (row == NULL || row->uri[0] == '\0' || bridge == NULL)
+        return;
+
+    if (app->people.kind == PLATINUM_PEOPLE_FEEDS) {
+        if (platinum_thread_open(&app->thread) != noErr)
+            return;
+        status = platinum_thread_load_list(&app->thread, bridge, "/v1/feed",
+                                           "uri", row->uri, row->name);
+        platinum_application_recover_auth(app, status);
+        if (app->thread.window != NULL)
+            InvalRect(&app->thread.window->portRect);
+    } else if (app->people.kind == PLATINUM_PEOPLE_LISTS) {
+        /* The list replaces what is in the window, so copy the name first. */
+        char name[PLATINUM_PEOPLE_NAME_MAX];
+        char uri[sizeof(row->uri)];
+
+        strcpy(name, row->name);
+        strcpy(uri, row->uri);
+        status = platinum_people_load_kind(&app->people, bridge,
+                                           PLATINUM_PEOPLE_ACCOUNTS, "/v1/list",
+                                           "uri", uri, name);
+        platinum_application_recover_auth(app, status);
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+    } else {
+        if (platinum_profile_open(&app->profile) != noErr)
+            return;
+        status = platinum_profile_load(&app->profile, bridge, row->uri);
+        platinum_application_recover_auth(app, status);
+        if (app->profile.window != NULL)
+            InvalRect(&app->profile.window->portRect);
+    }
 }
 
 /* Follow or unfollow the account in the Profile window. */
@@ -1038,6 +1180,8 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->view_menu, kLoadOlder);
     AppendMenu(app->view_menu, kShowThread);
     SetItemCmdChar(app->view_menu, 4, 't');
+    AppendMenu(app->view_menu, kFeedsItem);
+    AppendMenu(app->view_menu, kListsItem);
     SetItemCmdChar(app->view_menu, 1, 'r');
 
     AppendMenu(app->post_menu, kLikeItem);
@@ -1049,6 +1193,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kRepostersItem);
     AppendMenu(app->post_menu, kFollowersItem);
     AppendMenu(app->post_menu, kFollowingItem);
+    AppendMenu(app->post_menu, kAuthorPostsItem);
     SetItemCmdChar(app->post_menu, 1, 'l');
     SetItemCmdChar(app->post_menu, 2, 'e');
     SetItemCmdChar(app->post_menu, 3, 'j');
@@ -1157,9 +1302,15 @@ static void platinum_application_handle_menu(platinum_application *app,
             platinum_application_load_older(app);
         } else if (item == 4) {
             platinum_application_show_thread(app);
+        } else if (item == 5) {
+            platinum_application_show_named(app, PLATINUM_PEOPLE_FEEDS);
+        } else if (item == 6) {
+            platinum_application_show_named(app, PLATINUM_PEOPLE_LISTS);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item >= 6 && item <= 9)
+        if (item == 10)
+            platinum_application_show_posts(app);
+        else if (item >= 6 && item <= 9)
             platinum_application_show_people(app, item);
         else if (item == 4)
             platinum_application_show_author(app);

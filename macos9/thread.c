@@ -131,9 +131,9 @@ void platinum_thread_draw(platinum_thread *thread)
     SetPort((GrafPtr)thread->window);
     EraseRect(&thread->window->portRect);
 
-    thread_text("Thread", 12, 20);
+    thread_text(thread->heading[0] != '\0' ? thread->heading : "Thread", 12, 20);
     if (thread->status[0] != '\0')
-        thread_text(thread->status, 80, 20);
+        thread_text(thread->status, 220, 20);
 
     visible = thread_visible_rows(thread);
     for (row = 0; row < visible; ++row) {
@@ -211,6 +211,10 @@ int platinum_thread_handle_event(platinum_thread *thread, EventRecord *event)
                         --thread->scroll_row;
                     break;
                 case downArrow:
+                    /* Down at the bottom of a paged list asks for the next page. */
+                    if (thread->scroll_row + visible >= (short)thread->count &&
+                        platinum_thread_has_more(thread))
+                        return PLATINUM_THREAD_LOAD_MORE;
                     if (thread->scroll_row + visible < (short)thread->count)
                         ++thread->scroll_row;
                     break;
