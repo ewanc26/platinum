@@ -1,11 +1,16 @@
-/* sdk-stubs/Files.h -- see MacTypes.h. */
+/* sdk-stubs/Files.h -- see MacTypes.h. Signatures follow the File Manager as
+ * described by the Multiversal Interfaces (signatures.tsv). The FSSpec layout
+ * here is not the real one. */
 #ifndef PLATINUM_STUB_FILES_H
 #define PLATINUM_STUB_FILES_H
 
 #include <MacTypes.h>
 
-#define fsRdWrPerm 1
-#define fsRdPerm 0
+/* Access permissions, as in Files.h: fsCurPerm 0, fsRdPerm 1, fsWrPerm 2, fsRdWrPerm 3. */
+#define fsCurPerm 0
+#define fsRdPerm 1
+#define fsWrPerm 2
+#define fsRdWrPerm 3
 
 typedef struct StubFSSpec {
     short parID;
@@ -13,32 +18,17 @@ typedef struct StubFSSpec {
     SInt8 vRefNum;
 } FSSpec;
 
-typedef struct StubParamRecord {
-    const FSSpec *paramFileSpec;
-    long ioParam;
-} ParmBlkRec;
+OSErr FSpOpenDF(const FSSpec *spec, SInt8 permission, short *refNum);
+OSErr FSpCreate(const FSSpec *spec, OSType creator, OSType fileType,
+                ScriptCode scriptTag);
+OSErr FSpDelete(const FSSpec *spec);
 
-typedef ParmBlkRec *PBRec;
+OSErr FSClose(short refNum);
+OSErr SetEOF(short refNum, long logEOF);
+OSErr GetEOF(short refNum, long *logEOF);
 
-OSStatus PBOpen(const ParmBlkRec *fileParam, SInt16 ioPerm, SInt16 *refNum);
-OSStatus PBClose(SInt16 refNum);
-OSStatus PBCreate(const ParmBlkRec *newParam, SInt16 ioPerm, SInt16 *refNum);
-OSStatus PBGetFSSpec(SInt16 refNum, FSSpec *spec);
-void PBGetWParam(const ParmBlkRec *param, short *refNum, OSType *type,
-                 long *ioParam);
-
-OSStatus FSpOpenDF(const FSSpec *spec, SInt8 ioPerm, short *refNum);
-OSStatus FSpClose(SInt16 refNum);
-OSStatus FSpCreate(const FSSpec *spec, FourCharCode creator, FourCharCode type,
-                   SInt16 script);
-OSStatus FSDelete(const FSSpec *spec);
-OSStatus FSpDelete(const FSSpec *spec);
-
-OSStatus FSClose(SInt16 refNum);
-OSErr SetEOF(SInt16 refNum, long newLength);
-OSErr GetEOF(SInt16 refNum, long *newLength);
-OSErr FSWrite(SInt16 refNum, const void *buffer, long *byteCount);
-OSErr FSWritErr(SInt16 refNum, long newLength);
-OSErr FSRead(SInt16 refNum, void *buffer, long *byteCount);
+/* count is a pointer: bytes asked for in, bytes transferred out. It comes before the buffer. */
+OSErr FSWrite(short refNum, long *count, const void *buffPtr);
+OSErr FSRead(short refNum, long *count, void *buffPtr);
 
 #endif

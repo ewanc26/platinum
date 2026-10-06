@@ -74,9 +74,9 @@ void platinum_scrollbar_set_range(platinum_scrollbar *scrollbar,
     if (value > maximum)
         value = maximum;
 
-    SetCtlMin(scrollbar->control, 0);
-    SetCtlMax(scrollbar->control, maximum);
-    SetCtlValue(scrollbar->control, value);
+    SetControlMinimum(scrollbar->control, 0);
+    SetControlMaximum(scrollbar->control, maximum);
+    SetControlValue(scrollbar->control, value);
 
     if (maximum == 0)
         HideControl(scrollbar->control);
@@ -90,7 +90,7 @@ short platinum_scrollbar_value(
     if (scrollbar == NULL || scrollbar->control == NULL)
         return 0;
 
-    return GetCtlValue(scrollbar->control);
+    return GetControlValue(scrollbar->control);
 }
 
 int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
@@ -121,7 +121,7 @@ int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
                           where,
                           (ControlActionUPP)-1L);
     if (result != 0)
-        *value = GetCtlValue(scrollbar->control);
+        *value = GetControlValue(scrollbar->control);
 
     SetPort(old_port);
     return result != 0;
@@ -132,5 +132,5 @@ void platinum_scrollbar_draw(platinum_scrollbar *scrollbar)
     if (scrollbar == NULL || scrollbar->control == NULL)
         return;
 
-    DrawControl(scrollbar->control);
+    Draw1Control(scrollbar->control);
 }

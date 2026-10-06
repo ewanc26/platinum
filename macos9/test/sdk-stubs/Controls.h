@@ -1,4 +1,5 @@
-/* sdk-stubs/Controls.h -- see MacTypes.h. */
+/* sdk-stubs/Controls.h -- see MacTypes.h. Signatures follow the Control Manager
+ * as described by the Multiversal Interfaces (signatures.tsv). */
 #ifndef PLATINUM_STUB_CONTROLS_H
 #define PLATINUM_STUB_CONTROLS_H
 
@@ -16,45 +17,33 @@ typedef struct StubControl {
 typedef ControlRecord *ControlPtr;
 typedef ControlPtr ControlHandle;
 
-typedef void (*ControlActionProc)(ControlHandle control, short part);
 typedef ProcPtr ControlActionUPP;
 
-/* Standard control procedures live in the real Controls.h. */
-void scrollBarProc(ControlHandle control, short part);
+/* A control definition ID (procID), not a function. 16 is the standard scroll bar. */
+#define scrollBarProc 16
 
-ControlHandle NewControl(WindowPtr inWindow, const Rect *boundsRect,
-                         Str255 title, Boolean isVisible, short procID,
-                         short itemID, short value,
-                         ControlActionProc actionProc, long refCon);
-void DisposeControl(ControlHandle control);
+ControlHandle NewControl(WindowPtr theWindow, const Rect *boundsRect,
+                         ConstStr255Param title, Boolean visible,
+                         short value, short min, short max, short procID,
+                         long refCon);
+void DisposeControl(ControlHandle theControl);
 
-void SetControlTitle(ControlHandle control, Str255 title);
-void GetControlTitle(ControlHandle control, Str255 title);
-void SetControlBounds(ControlHandle control, const Rect *bounds);
-void GetControlBounds(ControlHandle control, Rect *bounds);
-unsigned short GetControlBits(ControlHandle control);
+void ShowControl(ControlHandle theControl);
+void HideControl(ControlHandle theControl);
 
-void EnableControl(ControlHandle control);
-void DisableControl(ControlHandle control);
-void ShowControl(ControlHandle control);
-void HideControl(ControlHandle control);
+void SetControlValue(ControlHandle theControl, short newValue);
+short GetControlValue(ControlHandle theControl);
+void SetControlMinimum(ControlHandle theControl, short newMinimum);
+short GetControlMinimum(ControlHandle theControl);
+void SetControlMaximum(ControlHandle theControl, short newMaximum);
+short GetControlMaximum(ControlHandle theControl);
 
-void SetCtlMin(ControlHandle control, short minValue);
-void SetCtlMax(ControlHandle control, short maxValue);
-void SetCtlValue(ControlHandle control, short value);
-short GetCtlValue(ControlHandle control);
-short GetCtlMin(ControlHandle control);
-short GetCtlMax(ControlHandle control);
-
-short TrackControl(ControlHandle control, Point start,
+short TrackControl(ControlHandle theControl, Point startPt,
                    ControlActionUPP actionProc);
-void Draw1Control(ControlHandle control, short part);
-void DrawControl(ControlHandle control);
-void InitControls(void);
-void InitDialogs(void *templatePtr);
-void FlushEvents(EventMask mask, unsigned long tick);
+void Draw1Control(ControlHandle theControl);
+
+void InitDialogs(ProcPtr resumeProc);
+void FlushEvents(EventMask whichMask, EventMask stopMask);
 void InitCursor(void);
-short Alert(short alertID, void *buttonString, ProcPtr defaultProc,
-            short defaultItem);
 
 #endif

@@ -29,8 +29,6 @@ short FindWindow(Point pt, WindowPtr *window);
 void FillRect(const Rect *r, Pattern *pat);
 void PaintRect(const Rect *r);
 void InvalRect(const Rect *r);
-void CopyBits(const BitMap *src, const BitMap *dst, Rect *srcRect,
-              Rect *dstRect, GrafPtr mode, short copyMode);
 
 void InitGraf(GrafPtr *thePort);
 void InitFonts(void);
@@ -48,12 +46,9 @@ void DrawString(StringPtr s);
 
 short StringWidth(StringPtr s);
 short CharWidth(short c);
-void GetFontMetrics(FontFamily family, FontStyle style, FontMetrics *metrics);
 
 void PenSize(short width, short height);
 void PenPat(Pattern *pat);
-void RGBFore(RGBColor *color);
-void RGBBack(RGBColor *color);
 
 RgnHandle NewRgn(void);
 void DisposeRgn(RgnHandle rgn);
@@ -61,6 +56,5 @@ void EraseRgn(RgnHandle rgn);
 void FillRgn(RgnHandle rgn, Pattern *pat);
 void FrameRgn(RgnHandle rgn);
 void OffsetRgn(RgnHandle rgn, short dx, short dy);
-void SetRectRgn(RgnHandle rgn, const Rect *rect);
 
 #endif

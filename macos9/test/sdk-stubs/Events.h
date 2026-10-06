@@ -64,8 +64,5 @@ typedef EventRecord *EventPtr;
 
 Boolean GetNextEvent(EventMask mask, EventRecord *event);
 Boolean WaitNextEvent(EventMask mask, EventRecord *event, SInt32 tick, ProcPtr idleProc);
-Boolean PeekEvent(EventMask mask, EventRecord *event, Boolean clearOnReturn);
-Boolean ReceiveEvent(EventMask mask, long timeout, EventRecord *event,
-                     Boolean flushOnRtn, Boolean flushLowPriorityOnly);
 
 #endif

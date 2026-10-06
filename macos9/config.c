@@ -183,7 +183,7 @@ OSErr platinum_config_save(const platinum_config *config)
     if (err == noErr) {
         err = SetEOF(refNum, 0);
         if (err == noErr)
-            err = FSWrite(refNum, buffer, &length);
+            err = FSWrite(refNum, &length, buffer);
         FSClose(refNum);
     }
 
@@ -319,7 +319,7 @@ OSErr platinum_config_load(platinum_config *config)
     }
 
     bytes_read = file_size;
-    err = FSRead(refNum, buffer, &bytes_read);
+    err = FSRead(refNum, &bytes_read, buffer);
     FSClose(refNum);
     if (err != noErr) {
         free(buffer);
