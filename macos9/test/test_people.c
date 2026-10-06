@@ -148,8 +148,38 @@ static void test_named(void)
     platinum_bridge_client_free(bridge);
 }
 
+static void test_words(void)
+{
+    static platinum_people people;
+    platinum_bridge_client *bridge;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_people_init(&people);
+    respond(WF_OK, 200, "{\"words\":[{\"value\":\"spoilers\",\"targets\":[\"content\"]},"
+                        "{\"targets\":[]},{\"value\":\"two words\"}]}");
+    check(platinum_people_load_kind(&people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words",
+                                    NULL, NULL, "Muted words") == WF_OK, "muted words load");
+    check(strcmp(last_url, "https://bridge.example/v1/muted-words") == 0, "requested without a parameter");
+    check(people.count == 2 && strcmp(people.items[0].name, "spoilers") == 0 &&
+              strcmp(people.items[1].uri, "two words") == 0,
+          "each row carries its word; a row with no value is skipped");
+    check(!platinum_people_has_more(&people), "words are not paged");
+
+    respond(WF_OK, 200, "{\"words\":[]}");
+    platinum_people_load_kind(&people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words",
+                              NULL, NULL, "Muted words");
+    check(people.count == 0 && strcmp(people.status, "No muted words.") == 0, "empty says so");
+
+    respond(WF_OK, 200, "{\"items\":[]}");
+    check(platinum_people_load_kind(&people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words",
+                                    NULL, NULL, "x") == WF_ERR_PARSE,
+          "a words list must use words, not items");
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
+    test_words();
     test_named();
     test_list();
     if (failures != 0) {

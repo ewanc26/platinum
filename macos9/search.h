@@ -14,7 +14,8 @@ extern "C" {
 
 enum {
     PLATINUM_SEARCH_ACCOUNTS = 0,
-    PLATINUM_SEARCH_POSTS = 1
+    PLATINUM_SEARCH_POSTS = 1,
+    PLATINUM_SEARCH_WORD = 2 /* the same field adds a muted word */
 };
 
 typedef struct platinum_search {

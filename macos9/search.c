@@ -10,8 +10,12 @@ static unsigned char kAccountsTitle[] = {
 static unsigned char kPostsTitle[] = {
     12, 'S', 'e', 'a', 'r', 'c', 'h', ' ', 'P', 'o', 's', 't', 's'
 };
+static unsigned char kWordTitle[] = {
+    15, 'A', 'd', 'd', ' ', 'M', 'u', 't', 'e', 'd', ' ', 'W', 'o', 'r', 'd'
+};
 static unsigned char kCancel[] = { 6, 'C', 'a', 'n', 'c', 'e', 'l' };
 static unsigned char kSearch[] = { 6, 'S', 'e', 'a', 'r', 'c', 'h' };
+static unsigned char kAdd[] = { 3, 'A', 'd', 'd' };
 
 static void search_text(const char *text, short x, short y)
 {
@@ -79,11 +83,14 @@ OSErr platinum_search_open(platinum_search *search, int mode)
 
     memset(search, 0, sizeof(*search));
     search->mode = mode == PLATINUM_SEARCH_POSTS ? PLATINUM_SEARCH_POSTS
-                                                 : PLATINUM_SEARCH_ACCOUNTS;
+                   : mode == PLATINUM_SEARCH_WORD ? PLATINUM_SEARCH_WORD
+                                                  : PLATINUM_SEARCH_ACCOUNTS;
 
     SetRect(&bounds, 136, 110, 576, 250);
-    search->window = NewCWindow(NULL, &bounds, search->mode == PLATINUM_SEARCH_POSTS
-                                                   ? kPostsTitle : kAccountsTitle,
+    search->window = NewCWindow(NULL, &bounds,
+                                search->mode == PLATINUM_SEARCH_POSTS ? kPostsTitle
+                                : search->mode == PLATINUM_SEARCH_WORD ? kWordTitle
+                                                                       : kAccountsTitle,
                                 1, documentProc, (WindowPtr)-1L, 1, 0L);
     if (search->window == NULL)
         return memFullErr;
@@ -132,18 +139,21 @@ void platinum_search_draw(platinum_search *search)
     SetPort((GrafPtr)search->window);
     EraseRect(&search->window->portRect);
 
-    search_text(search->mode == PLATINUM_SEARCH_POSTS
-                    ? "Search posts for:" : "Search accounts for:", 14, 20);
+    search_text(search->mode == PLATINUM_SEARCH_POSTS ? "Search posts for:"
+                : search->mode == PLATINUM_SEARCH_WORD
+                    ? "Hide posts containing this word or phrase:"
+                    : "Search accounts for:", 14, 20);
     frame = (*search->field)->viewRect;
     FrameRect(&frame);
     TEUpdate(&frame, search->field);
-    search_text("Press Return to search.", 14, 80);
+    search_text(search->mode == PLATINUM_SEARCH_WORD ? "Press Return to add it."
+                                                     : "Press Return to search.", 14, 80);
     if (search->status[0] != '\0')
         search_text(search->status, 14, 100);
 
     search_buttons(search, &cancel, &go);
     search_button(&cancel, kCancel);
-    search_button(&go, kSearch);
+    search_button(&go, search->mode == PLATINUM_SEARCH_WORD ? kAdd : kSearch);
     SetPort(old_port);
 }
 

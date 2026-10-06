@@ -50,6 +50,16 @@ wf_status platinum_bridge_post(platinum_bridge_client *client,
 wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
                                     const char *seen_at);
 
+#define PLATINUM_MUTED_WORD_BYTES 400
+
+/*
+ * Add (on) or remove (off) a muted word: POST /v1/muted-words
+ * {"value":"...","on":true}. `utf8_word` is escaped; empty or more than
+ * PLATINUM_MUTED_WORD_BYTES is refused with no request. The bridge applies the filter.
+ */
+wf_status platinum_bridge_set_muted_word(platinum_bridge_client *client,
+                                         const char *utf8_word, int on);
+
 /*
  * Build the JSON body for POST /v1/post: {"text":"..."}, plus
  * "replyTo":{"uri":"...","cid":"..."} when both reply arguments are non-empty.
