@@ -48,19 +48,41 @@ typedef struct StubRGBColor {
     unsigned short blue;
 } RGBColor;
 typedef struct StubPattern { unsigned char pat[8]; } Pattern;
+/* BitMap, PixMap and the colour table: member names, types and order as the
+ * Multiversal Interfaces define them (BitMap 14 bytes, PixMap 50). */
 typedef struct StubBitMap {
+    Ptr baseAddr;
     short rowBytes;
-    short boundsTop;
-    short boundsLeft;
-    short boundsBottom;
-    short boundsRight;
+    Rect bounds;
 } BitMap;
+typedef struct StubColorSpec {
+    short value;
+    RGBColor rgb;
+} ColorSpec;
+typedef struct StubColorTable {
+    long ctSeed;
+    unsigned short ctFlags;
+    short ctSize;
+    ColorSpec ctTable[1];
+} ColorTable;
+typedef ColorTable *CTabPtr;
+typedef CTabPtr *CTabHandle;
 typedef struct StubPixMap {
+    Ptr baseAddr;
     short rowBytes;
-    short boundsTop;
-    short boundsLeft;
-    short boundsBottom;
-    short boundsRight;
+    Rect bounds;
+    short pmVersion;
+    short packType;
+    long packSize;
+    Fixed hRes;
+    Fixed vRes;
+    short pixelType;
+    short pixelSize;
+    short cmpCount;
+    short cmpSize;
+    long planeBytes;
+    CTabHandle pmTable;
+    long pmReserved;
 } PixMap;
 typedef struct StubRgn {
     short boundingTop;

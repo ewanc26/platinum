@@ -1,5 +1,6 @@
 #include "bridge_client.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -543,6 +544,54 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
                                   &response);
     wf_response_free(&response);
     return status;
+}
+
+wf_status platinum_bridge_get_image(platinum_bridge_client *client,
+                                    const char *ref, int width, int depth,
+                                    unsigned char **blob, long *length)
+{
+    char escaped[300 * 3 + 1];
+    char path[300 * 3 + 64];
+    char numbers[24];
+    wf_response response;
+    wf_status status;
+
+    if (blob != NULL)
+        *blob = NULL;
+    if (length != NULL)
+        *length = 0;
+    if (client == NULL || ref == NULL || ref[0] == '\0' || blob == NULL ||
+        length == NULL || strlen(ref) > 300 || width < 16 || width > 320 ||
+        (depth != 4 && depth != 8))
+        return WF_ERR_INVALID_ARG;
+    if (platinum_bridge_query_escape(ref, escaped, (long)sizeof(escaped)) < 0)
+        return WF_ERR_INVALID_ARG;
+
+    strcpy(path, "/v1/image?ref=");
+    strcat(path, escaped);
+    sprintf(numbers, "&w=%d&depth=%d", width, depth);
+    strcat(path, numbers);
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_get(client, path, &response);
+    if (status != WF_OK) {
+        wf_response_free(&response);
+        return status;
+    }
+    if (response.body == NULL || response.body_len == 0 ||
+        (long)response.body_len > PLATINUM_IMAGE_FETCH_MAX) {
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+    *blob = (unsigned char *)malloc(response.body_len);
+    if (*blob == NULL) {
+        wf_response_free(&response);
+        return WF_ERR_ALLOC;
+    }
+    memcpy(*blob, response.body, response.body_len);
+    *length = (long)response.body_len;
+    wf_response_free(&response);
+    return WF_OK;
 }
 
 wf_status platinum_bridge_delete_post(platinum_bridge_client *client,

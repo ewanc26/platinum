@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STUBS = ROOT / "macos9/test/sdk-stubs"
 BASE = "https://raw.githubusercontent.com/autc04/multiversal/master/defs/"
 DEFS = ["TextEdit", "WindowMgr", "FileMgr", "QuickDraw", "EventMgr", "MenuMgr", "ControlMgr",
-        "MemoryMgr", "FontMgr", "ScriptMgr", "DialogMgr", "ToolboxUtil", "ToolboxEvent",
+        "MemoryMgr", "CQuickDraw", "FontMgr", "ScriptMgr", "DialogMgr", "ToolboxUtil", "ToolboxEvent",
         "OSEvent", "ResourceMgr", "Finder", "StdFilePkg"]
 
 sigs = {}

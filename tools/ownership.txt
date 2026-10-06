@@ -40,6 +40,10 @@ macos9/compose.h                   platform
 macos9/compose_model.c            platform  # what a compose window replies to or quotes, and its reply gate; no QuickDraw so it links on a host
 macos9/config.c                    platform  # Preferences file
 macos9/config.h                    platform
+macos9/image_blob.c               platform  # reads docs/IMAGES.md's blob, no Toolbox so it links on a host; the format is Platinum's own
+macos9/image_blob.h               platform
+macos9/image_pix.c                platform  # a parsed image as a QuickDraw PixMap, drawn with CopyBits
+macos9/image_pix.h                platform
 macos9/json_min.c                  protocol  # bounded C89 reader; Wolfram's JSON is cJSON (C99), unusable here (#39)
 macos9/json_min.h                  protocol
 macos9/main.c                      platform

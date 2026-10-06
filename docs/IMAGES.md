@@ -8,8 +8,8 @@ This page is the contract between the two. The test vectors in
 are its examples, and the Mac client's parser will be tested against the same
 bytes.
 
-What exists today is the bridge half: the converter and `GET /v1/image`. Nothing
-on the Mac draws an image yet; the plan is in [PARITY.md](PARITY.md) under
+What exists today is the bridge half (the converter and `GET /v1/image`) and the
+Mac's reader and PixMap builder, which no window uses yet; the plan is in [PARITY.md](PARITY.md) under
 avatars, post images, alt text, the viewer and link cards (#32), and attaching
 images (#33).
 
@@ -85,6 +85,15 @@ so a better quantiser can replace it without breaking the contract.
 
 ## What I have not checked
 
-The PixMap and CopyBits calls the Mac side will make still need checking against
-real headers; I only have the Multiversal Interfaces here. Nothing in this
-repository has drawn one of these blobs on a Mac.
+The PixMap and CopyBits calls are written from the Multiversal Interfaces
+(the struct layouts, `CopyBits`, `GetCTSeed`) and the stub checker compares their
+signatures, but I have not seen Apple's own headers and nothing here has drawn
+one of these blobs on a Mac. Two choices to look at first on hardware:
+
+- The destination of `CopyBits` is `&window->portBits`. In a colour window that
+  field aliases `portPixMap` and `portVersion` (the Multiversal `GrafPort` and
+  `CGrafPort` definitions line up that way), which is how `CopyBits` is told the
+  destination is a colour port. If a window turns out not to be, the alternative
+  is the pixmap handle from `portPixMap`.
+- The colour table gets a fresh seed from `GetCTSeed`, so QuickDraw doesn't reuse
+  a stale inverse table from another image.
