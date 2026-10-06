@@ -96,6 +96,14 @@ static void people_draw_row(const platinum_people *people, short index,
     top = 52 + (row * kPeopleRowHeight);
     people_text(item->name, 12, top);
     people_text(item->handle, 240, top);
+    /* The selected row is framed and marked in words, not only by colour. */
+    if (index == people->selected) {
+        Rect box;
+
+        SetRect(&box, 4, top - 14, people->window->portRect.right - 20, top + 5);
+        FrameRect(&box);
+        people_text("(selected)", 420, top);
+    }
 }
 
 void platinum_people_draw(platinum_people *people)
@@ -170,6 +178,20 @@ int platinum_people_handle_event(platinum_people *people, EventRecord *event)
             }
             where = event->where;
             GlobalToLocal(&where);
+
+            /* A click on a row selects it and asks the application to open it. */
+            if (where.v >= 38 && where.h < people->window->portRect.right - 16) {
+                short row;
+
+                row = (short)(people->scroll_row + (where.v - 38) / kPeopleRowHeight);
+                if ((where.v - 38) / kPeopleRowHeight < people_visible_rows(people) &&
+                    row >= 0 && row < (short)people->count) {
+                    people->selected = row;
+                    InvalRect(&people->window->portRect);
+                    return PLATINUM_PEOPLE_OPEN;
+                }
+            }
+
             close_rect = people->window->portRect;
             close_rect.left = close_rect.right - 78;
             close_rect.right -= 10;
