@@ -140,6 +140,7 @@ platinum/
 │   ├── scrollbar.c
 │   ├── scrollbar.h
 │   ├── text_codec.c
+│   ├── textfield.c
 │   ├── text_codec.h
 │   ├── thread.c
 │   ├── thread_feed.c

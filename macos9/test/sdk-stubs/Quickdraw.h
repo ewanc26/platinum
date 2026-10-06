@@ -17,7 +17,7 @@ typedef struct StubGrafPort {
 extern GrafPort qd;
 
 
-void SetRect(Rect *r, short top, short left, short bottom, short right);
+void SetRect(Rect *r, short left, short top, short right, short bottom);
 void InsetRect(Rect *r, short dx, short dy);
 void OffsetRect(Rect *r, short dx, short dy);
 Boolean EqualRect(const Rect *a, const Rect *b);

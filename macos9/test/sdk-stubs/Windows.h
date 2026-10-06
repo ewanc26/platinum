@@ -34,7 +34,7 @@ void BeginUpdate(WindowPtr window);
 void EndUpdate(WindowPtr window);
 
 void HLock(Handle h);
-unsigned char HGetState(Handle h);
+SignedByte HGetState(Handle h);
 void HSetState(Handle h, SignedByte state);
 SInt32 GetHandleSize(Handle h);
 

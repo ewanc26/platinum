@@ -85,15 +85,13 @@ StringWidth|INTEGER|ConstStringPtr
 TEActivate|void|TEHandle
 TEAutoView|void|Boolean;TEHandle
 TEClick|void|Point;Boolean;TEHandle
-TECopy|void|TEHandle
 TEDeactivate|void|TEHandle
 TEDispose|void|TEHandle
 TEGetText|CharsHandle|TEHandle
 TEInit|void|
-TEInsert|void|Ptr;LONGINT;TEHandle
 TEKey|void|CharParameter;TEHandle
 TENew|TEHandle|const Rect*;const Rect*
-TEPaste|void|TEHandle
+TESetSelect|void|LONGINT;LONGINT;TEHandle
 TESetText|void|Ptr;LONGINT;TEHandle
 TEUpdate|void|const Rect*;TEHandle
 TextFont|void|INTEGER
