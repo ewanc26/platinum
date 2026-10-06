@@ -8,6 +8,20 @@ export interface Profile {
   followersCount?: number
   followsCount?: number
   postsCount?: number
+  /** The signed-in account follows / is followed by this one. Absent for your own profile. */
+  following?: boolean
+  followedBy?: boolean
+  pinned?: TimelinePost
+}
+
+export interface ActorList {
+  actors: Author[]
+  cursor?: string
+}
+
+export interface FollowResult {
+  did: string
+  on: boolean
 }
 
 export interface Author {
