@@ -109,8 +109,48 @@ static void test_list(void)
     platinum_bridge_client_free(bridge);
 }
 
+static void test_named(void)
+{
+    static platinum_people people;
+    platinum_bridge_client *bridge;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_people_init(&people);
+
+    respond(WF_OK, 200, "{\"items\":[{\"uri\":\"at://did:plc:a/app.bsky.feed.generator/g\",\"name\":\"Great\"},"
+                        "{\"name\":\"no uri\"},{\"uri\":\"at://x\"}]}");
+    check(platinum_people_load_kind(&people, bridge, PLATINUM_PEOPLE_FEEDS, "/v1/feeds",
+                                    NULL, NULL, "Saved feeds") == WF_OK, "feeds load");
+    check(strcmp(last_url, "https://bridge.example/v1/feeds") == 0, "no parameter when there is no key");
+    check(people.count == 1 && strcmp(people.items[0].name, "Great") == 0 &&
+              strcmp(people.items[0].uri, "at://did:plc:a/app.bsky.feed.generator/g") == 0,
+          "a feed row carries its name and exact uri; rows missing either are skipped");
+    check(!platinum_people_has_more(&people), "feeds have no more pages");
+    check(platinum_people_selection(&people) == NULL, "nothing selected yet");
+    people.selected = 0;
+    check(platinum_people_selection(&people) == &people.items[0], "selection returns the row");
+    people.selected = 5;
+    check(platinum_people_selection(&people) == NULL, "an out-of-range selection is none");
+
+    respond(WF_OK, 200, "{\"actors\":[]}");
+    check(platinum_people_load_kind(&people, bridge, PLATINUM_PEOPLE_FEEDS, "/v1/feeds",
+                                    NULL, NULL, "x") == WF_ERR_PARSE,
+          "a feeds list must use items, not actors");
+    check(platinum_people_load_kind(&people, bridge, 9, "/v1/feeds", NULL, NULL, "x") ==
+              WF_ERR_INVALID_ARG, "an unknown kind is refused");
+    check(platinum_people_load(&people, bridge, "/v1/follows", NULL, NULL, "x") ==
+              WF_ERR_INVALID_ARG, "the account loader still needs a key");
+
+    respond(WF_OK, 200, make_page(0, 2, NULL));
+    platinum_people_load(&people, bridge, "/v1/follows", "actor", "bob.test", "x");
+    check(strcmp(people.items[1].uri, "did:plc:1") == 0, "an account row carries its exact DID");
+    check(people.selected == -1, "a fresh load clears the selection");
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
+    test_named();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);

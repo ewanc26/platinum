@@ -110,8 +110,79 @@ static void test_bound(void)
     platinum_bridge_client_free(bridge);
 }
 
+static const char *page_of(int first, int n, const char *cursor)
+{
+    static char body[20000];
+    char item[260];
+    int i;
+
+    strcpy(body, "{\"posts\":[");
+    for (i = 0; i < n; ++i) {
+        sprintf(item, "%s{\"uri\":\"at://p/%d\",\"cid\":\"c\",\"author\":{\"did\":\"did:plc:a\"},\"text\":\"t%d\"}",
+                i ? "," : "", first + i, first + i);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static void test_list(void)
+{
+    static platinum_thread thread;
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_thread_init(&thread);
+    check(!platinum_thread_has_more(&thread), "a thread never pages");
+
+    respond(WF_OK, page_of(0, 20, "c1"));
+    check(platinum_thread_load_list(&thread, bridge, "/v1/author-feed", "actor", "bob.test",
+                                    "Posts by this author") == WF_OK, "list loads");
+    check(strstr(last_url, "/v1/author-feed?actor=bob.test") != NULL, "route and parameter");
+    check(thread.count == 20 && thread.items[0].depth == 0 && thread.scroll_row == 0, "20 posts, no depths");
+    check(strcmp(thread.heading, "Posts by this author") == 0, "heading kept");
+    check(platinum_thread_has_more(&thread), "a cursor means more");
+
+    respond(WF_OK, page_of(20, 20, "c2"));
+    check(platinum_thread_load_more(&thread, bridge, &dropped) == WF_OK && thread.count == 40 && dropped == 0,
+          "second page appended");
+    check(strstr(last_url, "actor=bob.test&cursor=c1") != NULL, "cursor in the request");
+
+    respond(WF_OK, page_of(40, 20, NULL));
+    check(platinum_thread_load_more(&thread, bridge, &dropped) == WF_OK && dropped == 20 &&
+              thread.count == 40 && strcmp(thread.items[0].post.uri, "at://p/20") == 0,
+          "cap at 40, first rows dropped");
+    check(!platinum_thread_has_more(&thread), "no cursor ends the list");
+
+    respond(WF_ERR_HTTP, "{}");
+    fake_http_status = 500;
+    check(platinum_thread_load_list(&thread, bridge, "/v1/feed", "uri", "at://x", "Feed") != WF_OK &&
+              strcmp(thread.status, "The posts could not be loaded.") == 0,
+          "failure says so");
+
+    respond(WF_OK, page_of(0, 20, "c9"));
+    platinum_thread_load_list(&thread, bridge, "/v1/feed", "uri", "at://x", "Feed");
+    respond(WF_OK, "{\"posts\":{}}");
+    check(platinum_thread_load_more(&thread, bridge, &dropped) == WF_ERR_PARSE &&
+              thread.count == 20 && dropped == 0,
+          "a malformed page leaves the loaded posts alone");
+
+    last_method = 0;
+    check(platinum_thread_load_list(&thread, bridge, "/v1/feed", "uri", "", "x") == WF_ERR_INVALID_ARG &&
+              last_method == 0, "an empty value makes no request");
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
+    test_list();
     test_load();
     test_bound();
     if (failures != 0) {
