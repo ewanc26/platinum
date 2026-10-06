@@ -31,6 +31,9 @@ jobs:
           sparse-checkout: |
             .github
             tools/repo_sync.py
+            test/vectors/update
+      - name: The bridge's update vectors are Wolfram's, unchanged
+        run: diff -ru .wolfram-canon/test/vectors/update bridge/test/vectors/update
       - name: Labels and repository metadata match the canonical set
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

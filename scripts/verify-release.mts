@@ -10,7 +10,7 @@ const dir = new URL('../release/', import.meta.url)
 const version = process.argv[2]
 const fail = (m: string): never => { console.error(`verify-release: ${m}`); process.exit(1) }
 if (!version) fail('usage: verify-release.mts <version>')
-const manifest = parseManifest(readFileSync(new URL('update.json', dir), 'utf8'), { app: APP, urlPrefix: RELEASE_PREFIX })
+const manifest = parseManifest(readFileSync(new URL('update.json', dir), 'utf8'), { app: APP, urlPrefix: `${RELEASE_PREFIX}download/` })
 if (manifest.version !== version) fail(`manifest version ${manifest.version} != ${version}`)
 const archive = readFileSync(new URL(manifest.asset.name, dir))
 if (archive.length !== manifest.asset.size) fail('archive size does not match the manifest')
