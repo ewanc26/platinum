@@ -53,7 +53,11 @@ GET /login?handle=...
 POST /v1/pair
 POST /v1/login/app-password
 POST /v1/revoke
-GET /v1/profile
+GET /v1/profile?actor=...
+GET /v1/follows?actor=...&cursor=...
+GET /v1/followers?actor=...&cursor=...
+GET /v1/author-feed?actor=...&cursor=...
+POST /v1/follow
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 GET /v1/thread?uri=...
@@ -75,6 +79,24 @@ POST /v1/notifications/seen
   "postsCount": 56
 }
 ```
+
+### Other people's profiles
+
+`GET /v1/profile` with no `actor` is your own account. With `?actor=` (a handle
+or a DID, never a URL) it is that account, and the response gains `following`
+and `followedBy` (booleans, absent for your own profile) and `pinned`, the
+pinned post in the timeline post shape if there is one. `404 actor_not_found`
+for an account that doesn't exist; `400 invalid_actor` for something that is not
+a handle or DID.
+
+`GET /v1/follows` and `GET /v1/followers` take `actor`, `limit` and `cursor`
+and return `{"actors":[{"did","handle","displayName"}],"cursor":"..."}`.
+`GET /v1/author-feed` takes the same and returns the timeline response for that
+account's own posts, replies left out.
+
+`POST /v1/follow` with `{"did":"did:plc:...","on":true}` sets the follow state
+idempotently: the bridge reads the current state first, so the Mac never holds
+a follow record URI. Returns `{"did","on"}`.
 
 ### Timeline response
 

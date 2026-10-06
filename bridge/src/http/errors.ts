@@ -16,6 +16,8 @@ export type BridgeErrorCode =
   | 'invalid_post_ref'
   | 'post_not_found'
   | 'invalid_seen_at'
+  | 'invalid_actor'
+  | 'actor_not_found'
 
 export class BridgeError extends Error {
   constructor(

@@ -12,6 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge can show anyone's profile (with whether you follow them, and their pinned post), list who someone follows and who follows them, return their own posts, and follow or unfollow, all idempotently. The Mac side isn't wired up yet. [#73](https://github.com/ewanc26/platinum/pull/74)
 - Reply to the selected post from the Post menu (Command-J). The compose window says who you're replying to. [#71](https://github.com/ewanc26/platinum/pull/72)
 - The bridge can return a post's thread as one flat list and post a reply to a specific post, working out the thread root itself. The Mac side isn't wired up yet. [#70](https://github.com/ewanc26/platinum/pull/70)
 - The bridge can update itself from this repository's releases, when you ask it to: it checks the SHA-256 first, keeps the previous version for rollback, and never restarts itself. [#50](https://github.com/ewanc26/platinum/pull/50)

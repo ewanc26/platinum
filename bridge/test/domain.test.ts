@@ -147,6 +147,6 @@ test('profile description is clipped by Unicode code point', async () => {
   } as unknown as Agent
 
   const result = await new DomainApi().profile(agent)
-  assert.equal(Array.from(result.description ?? '').length, 511)
-  assert.equal(result.description, 'é'.repeat(511))
+  assert.equal(Array.from(result?.description ?? "").length, 511)
+  assert.equal(result?.description, "é".repeat(511))
 })

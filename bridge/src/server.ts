@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validPostRef, validSeenAt } from './domain/api.js'
+import { DomainApi, validActor, validPostRef, validSeenAt } from './domain/api.js'
 import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
@@ -230,7 +230,15 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/profile') {
-    return json(res, 200, await domain.profile(agent))
+    const asked = url.searchParams.get('actor')
+    let actor: string | undefined
+    if (asked !== null) {
+      actor = validActor(asked)
+      if (!actor) return json(res, 400, errorBody('invalid_actor', 'actor must be a handle or a DID.'))
+    }
+    const profile = await domain.profile(agent, actor)
+    if (!profile) return json(res, 404, errorBody('actor_not_found', 'No such account.'))
+    return json(res, 200, profile)
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/timeline') {
@@ -280,6 +288,39 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 400, errorBody('invalid_seen_at', 'seenAt must be an ISO 8601 timestamp.'))
     }
     return json(res, 200, await domain.markSeen(agent, seenAt))
+  }
+
+  if (req.method === 'GET' && (url.pathname === '/v1/follows' || url.pathname === '/v1/followers' || url.pathname === '/v1/author-feed')) {
+    const actor = validActor(url.searchParams.get('actor'))
+    if (!actor) return json(res, 400, errorBody('invalid_actor', 'actor must be a handle or a DID.'))
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    const count = limit(url.searchParams.get('limit'))
+    try {
+      if (url.pathname === '/v1/author-feed') return json(res, 200, await domain.authorFeed(agent, actor, count, cursor))
+      return json(res, 200, await domain.actors(agent, url.pathname === '/v1/follows' ? 'follows' : 'followers', actor, count, cursor))
+    } catch (error) {
+      if ((error as { status?: number }).status === 400) return json(res, 404, errorBody('actor_not_found', 'No such account.'))
+      throw error
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/follow') {
+    let input: { did?: unknown; on?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const did = typeof input.did === 'string' && input.did.startsWith('did:') ? validActor(input.did) : undefined
+    if (!did || typeof input.on !== 'boolean') {
+      return json(res, 400, errorBody('invalid_actor', 'A DID and a boolean "on" are required.'))
+    }
+    const result = await domain.follow(agent, did, input.on)
+    if (!result) return json(res, 404, errorBody('actor_not_found', 'No such account.'))
+    return json(res, 200, result)
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/thread') {
