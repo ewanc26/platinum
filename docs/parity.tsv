@@ -41,6 +41,10 @@ mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
 muted-words|Muted words|no|yes|implemented|macos9/application.c::/v1/muted-words
 engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
 delete-post|Delete your own post|yes|no|implemented|macos9/bridge_client.c::/v1/post/delete
+direct-messages|Direct messages|no|no|issue|#98
+post-thread|Post a thread (multi-post compose)|no|no|issue|#98
+external-embeds|Video poster and external-media embeds|no|no|issue|#98
+qr-links|Open links by QR code|no|no|issue|#98
 diagnostics|Diagnostics window|yes|no|issue|#37
 drafts|Post drafts|no|yes|issue|#37
 auto-update-bridge|Auto-update (bridge, from GitHub releases)|no|no|implemented|bridge/src/update/install.ts::applyUpdate
