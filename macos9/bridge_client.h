@@ -1,6 +1,8 @@
 #ifndef PLATINUM_BRIDGE_CLIENT_H
 #define PLATINUM_BRIDGE_CLIENT_H
 
+#include <stddef.h>
+
 #include "wolfram/xrpc.h"
 
 #ifdef __cplusplus
@@ -15,6 +17,37 @@ typedef struct platinum_bridge_pairing {
     char *did;
     char *installation_id;
 } platinum_bridge_pairing;
+
+/* Overwrite `size` bytes at `data` in a way the compiler may not drop. */
+void platinum_bridge_wipe(void *data, size_t size);
+
+/* Why an app-password sign-in was refused, from the bridge's error code. */
+enum {
+    PLATINUM_LOGIN_OTHER = 0,
+    PLATINUM_LOGIN_DISABLED = 1,    /* app_password_disabled */
+    PLATINUM_LOGIN_INVALID = 2,     /* invalid_credentials */
+    PLATINUM_LOGIN_TOO_MANY = 3,    /* too_many_attempts */
+    PLATINUM_LOGIN_BAD_SERVICE = 4, /* invalid_service */
+    PLATINUM_LOGIN_BAD_REQUEST = 5  /* invalid_request */
+};
+
+/*
+ * POST /v1/login/app-password with a handle and an app password (both UTF-8,
+ * at most 256 bytes, no control characters), answered exactly like pairing. The
+ * request is built in one static scratch area that is overwritten before this
+ * returns, on every path, so the password is not left in a heap block or on the
+ * stack by this code. `reason` (optional) says why a refusal happened. On
+ * success `out` holds the token as for platinum_bridge_pair. The caller wipes its
+ * own copy of the password. The transport keeps its own copy of the request
+ * while it sends it; that is Wolfram's to clear, not this function's.
+ */
+wf_status platinum_bridge_login_app_password(platinum_bridge_client *client,
+                                             const char *identifier,
+                                             const char *password,
+                                             platinum_bridge_pairing *out,
+                                             int *reason);
+/* 1 if the sign-in scratch area holds only zeros. For tests and diagnostics. */
+int platinum_bridge_login_scratch_clear(void);
 
 platinum_bridge_client *platinum_bridge_client_new(const char *base_url);
 void platinum_bridge_client_free(platinum_bridge_client *client);
