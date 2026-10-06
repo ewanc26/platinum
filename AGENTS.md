@@ -728,9 +728,12 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
   `bridge/src/update/` (`npm run update`). It is opt-in and confirmed, verifies
   the SHA-256 in `update.json` before unpacking, keeps `previous` for rollback,
   never restarts the bridge and never logs or sends a credential. Do not make it
-  silent, do not add a registry publish, and do not generate or commit a signing
-  key (owner task, #49). `bridge/src/update/{manifest,version}.ts` port
-  `wolfram/update.h` and run Wolfram's vectors from `bridge/test/vectors/update/`,
+  silent, do not add a registry publish, and never commit a private key (tests make a
+  throwaway key in memory). The updater verifies `update.json.sig` against
+  `bridge/src/update/update_key.ts` before parsing the manifest and refuses a
+  missing or wrong signature; `.github/workflows/sign-release.yml` signs a
+  published release with the secret `UPDATE_SIGNING_KEY`. `bridge/src/update/{manifest,version}.ts` port
+  `wolfram/update.h` and `signature.ts` is `wf_update_verify_signature`; they run Wolfram's vectors from `bridge/test/vectors/` (`update/`, `ed25519.json`),
   which must stay byte-identical to Wolfram's at the pinned commit (CI diffs
   them). Change behaviour in Wolfram first. `scripts/release.sh` is the
   only way to build the inputs and cut a release. See docs/AUTO_UPDATE.md.

@@ -16,10 +16,15 @@ PLATINUM_BRIDGE_INSTALL_DIR=/srv/platinum npm run update -- rollback
 
 `apply` asks for confirmation (`--yes` in a script) and then:
 
-1. fetches `update.json` from the latest release;
-2. refuses it unless it is for app `platinum-bridge`, schema 1, and the asset
-   URL is under `https://github.com/ewanc26/platinum/releases/download/`. It also
-   refuses a signed manifest: nothing here can verify a signature yet (#49);
+1. fetches `update.json` and its detached signature `update.json.sig` from the
+   latest release, and checks the signature (Ed25519 over the exact bytes of
+   `update.json`) against the public key in `bridge/src/update/update_key.ts`
+   before reading a byte of the manifest. A release with no signature, or one
+   signed by another key, is refused;
+2. refuses the manifest unless it is for app `platinum-bridge`, schema 1, and the
+   asset URL is under `https://github.com/ewanc26/platinum/releases/download/`.
+   The manifest's own `signature` member stays reserved, and one that is set is
+   refused;
 3. downloads the archive with a size cap and checks its size and SHA-256 against
    the manifest before anything is unpacked;
 4. rejects archive members that are absolute or contain `..`, unpacks into
@@ -34,12 +39,18 @@ release assets are public.
 Run the bridge from `$PLATINUM_BRIDGE_INSTALL_DIR/current` to use this layout.
 A git checkout is a development install and is updated with git.
 
-What the checksum is and is not: the manifest and archive both come from GitHub
-over TLS, so the SHA-256 catches corruption and a mismatched upload. It does not
-protect against someone who can publish a release to the repository, because they
-can publish a matching manifest. That needs a signature, and a signing key is
-something only the owner can create. It is filed as a `needs-owner` issue ([#49](https://github.com/ewanc26/platinum/issues/49)) and no
-key is generated or committed here.
+What the checksum and the signature are: the manifest and archive both come
+from GitHub over TLS, so the SHA-256 catches corruption and a mismatched upload,
+but not someone who can publish a release, because they can publish a matching
+manifest. The signature closes that. `.github/workflows/sign-release.yml` signs
+the published `update.json` with an Ed25519 key that exists only as the
+repository secret `UPDATE_SIGNING_KEY` and attaches `update.json.sig`; the public
+half is committed. The manifest carries the archive's SHA-256, so the signature
+covers the download too. Replacing the key means shipping a bridge that carries
+the new one, signed with the old. Verification is Node's `crypto.verify`, run
+against Wolfram's Ed25519 vectors (`bridge/test/vectors/ed25519.json`). No
+release has been cut with this yet (releases are paused, #62), so the signing
+job has not run on a real release.
 
 `scripts/release.sh <version>` produces the updater's inputs (the archive,
 `<archive>.sha256` and `update.json`) and, without `--dry-run`, tags and
