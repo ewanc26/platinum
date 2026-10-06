@@ -545,6 +545,39 @@ wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
     return status;
 }
 
+wf_status platinum_bridge_delete_post(platinum_bridge_client *client,
+                                      const char *uri)
+{
+    char escaped[520 * 6 + 1];
+    char body[520 * 6 + 32];
+    wf_response response;
+    wf_status status;
+
+    if (client == NULL || uri == NULL || uri[0] == '\0' || strlen(uri) > 512)
+        return WF_ERR_INVALID_ARG;
+    if (platinum_json_escape(escaped, sizeof(escaped), uri) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+    strcpy(body, "{\"uri\":\"");
+    strcat(body, escaped);
+    strcat(body, "\"}");
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_post(client, "/v1/post/delete", body, &response);
+    wf_response_free(&response);
+    return status;
+}
+
+int platinum_post_uri_is_in_repo(const char *uri, const char *did)
+{
+    size_t length;
+
+    if (uri == NULL || did == NULL || did[0] == '\0' ||
+        strncmp(uri, "at://", 5) != 0)
+        return 0;
+    length = strlen(did);
+    return strncmp(uri + 5, did, length) == 0 && uri[5 + length] == '/';
+}
+
 wf_status platinum_bridge_set_muted_word(platinum_bridge_client *client,
                                          const char *utf8_word, int on)
 {

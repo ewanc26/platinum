@@ -74,6 +74,7 @@ GET /v1/list?uri=...
 GET /v1/post/likes?uri=...&cursor=...
 GET /v1/post/reposts?uri=...&cursor=...
 POST /v1/post
+POST /v1/post/delete
 POST /v1/like
 POST /v1/repost
 POST /v1/notifications/seen
@@ -253,6 +254,14 @@ record after the post. It is refused (`400 invalid_reply_gate`) on a reply, or
 with any other value. If the post lands and the gate does not, the post stands
 and the reply carries `"replyGateApplied": false`; that field is absent
 otherwise.
+
+### Deleting your own post
+
+`POST /v1/post/delete` with `{"uri":"at://..."}` deletes a post. The bridge
+checks that the post's repo is your account before it makes any request, and
+refuses anyone else's with `403 not_your_post`; `400 invalid_post_ref` for a
+malformed uri. Deleting a post that is already gone is not an error. Returns
+`{"uri","deleted":true}`.
 
 ### Like and repost
 

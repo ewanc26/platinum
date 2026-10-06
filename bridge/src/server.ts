@@ -378,6 +378,24 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, result)
   }
 
+  if (req.method === 'POST' && url.pathname === '/v1/post/delete') {
+    let input: { uri?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const ref = validPostRef(input.uri, 'x')
+    if (!ref) return json(res, 400, errorBody('invalid_post_ref', 'uri must be an app.bsky.feed.post AT URI.'))
+    if (await domain.deletePost(agent, ref.uri) === 'not_yours') {
+      return json(res, 403, errorBody('not_your_post', 'You can only delete your own posts.'))
+    }
+    return json(res, 200, { uri: ref.uri, deleted: true })
+  }
+
   if (req.method === 'GET' && url.pathname === '/v1/thread') {
     const ref = validPostRef(url.searchParams.get('uri'), 'x')
     if (!ref) return json(res, 400, errorBody('invalid_post_ref', 'uri must be an app.bsky.feed.post AT URI.'))

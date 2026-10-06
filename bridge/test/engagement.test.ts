@@ -28,3 +28,15 @@ test('a vanished post is undefined, and other failures propagate', async () => {
   const down = { getLikes: async () => { throw Object.assign(new Error('x'), { status: 500 }) } } as unknown as Agent
   await assert.rejects(new DomainApi().engagement(down, 'likes', URI, 20))
 })
+
+test('you can delete your own post, and only yours', async () => {
+  const calls: string[] = []
+  const agent = { accountDid: 'did:plc:me', deletePost: async (u: string) => { calls.push(u) } } as unknown as Agent
+  const api = new DomainApi()
+  assert.equal(await api.deletePost(agent, 'at://did:plc:me/app.bsky.feed.post/3k'), 'deleted')
+  assert.equal(await api.deletePost(agent, 'at://did:plc:other/app.bsky.feed.post/3k'), 'not_yours')
+  assert.equal(await api.deletePost(agent, 'at://did:plc:me.evil/app.bsky.feed.post/3k'), 'not_yours')
+  assert.equal(await api.deletePost(agent, 'not a uri'), 'not_yours')
+  assert.deepEqual(calls, ['at://did:plc:me/app.bsky.feed.post/3k'], 'nothing else reaches the PDS')
+  assert.equal(await api.deletePost({ deletePost: async () => { throw new Error('no') } } as unknown as Agent, 'at://did:plc:me/app.bsky.feed.post/3k'), 'not_yours', 'no account means no delete')
+})

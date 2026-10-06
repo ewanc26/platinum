@@ -419,6 +419,19 @@ export class DomainApi {
     return { seenAt }
   }
 
+  /**
+   * Delete one of your own posts. A post by anyone else is refused before any
+   * request is made ("not_yours"). Deleting a post that is already gone is not
+   * an error: the state asked for is the state it is in.
+   */
+  async deletePost(agent: Agent, uri: string): Promise<'deleted' | 'not_yours'> {
+    const did = /^at:\/\/([^/]+)\//.exec(uri)?.[1]
+    const me = (agent as unknown as { accountDid?: string }).accountDid
+    if (!did || !me || did !== me) return 'not_yours'
+    await agent.deletePost(uri)
+    return 'deleted'
+  }
+
   async thread(agent: Agent, ref: { uri: string }): Promise<Thread | undefined> {
     const result = await agent.getPostThread({ uri: ref.uri, depth: MAX_THREAD_DEPTH, parentHeight: MAX_ANCESTORS })
     const thread = flattenThread(result.data.thread)

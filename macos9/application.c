@@ -44,6 +44,7 @@ static void platinum_application_engage(platinum_application *app,
                                         int repost);
 static void platinum_application_reply(platinum_application *app);
 static void platinum_application_quote(platinum_application *app);
+static void platinum_application_delete_post(platinum_application *app);
 static void platinum_application_show_thread(platinum_application *app);
 static void platinum_application_show_author(platinum_application *app);
 static void platinum_application_show_people(platinum_application *app,
@@ -118,6 +119,9 @@ static unsigned char kRemoveWordItem[] = {
 };
 static unsigned char kQuoteItem[] = {
     13, 'Q', 'u', 'o', 't', 'e', ' ', 'P', 'o', 's', 't', '.', '.', '.'
+};
+static unsigned char kDeleteItem[] = {
+    14, 'D', 'e', 'l', 'e', 't', 'e', ' ', 'M', 'y', ' ', 'P', 'o', 's', 't'
 };
 static unsigned char kMuteItem[] = {
     14, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e'
@@ -1272,6 +1276,56 @@ static void platinum_application_reply(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/*
+ * Delete the selected post if it is yours. Deleting cannot be undone, so the
+ * first request only asks; the same request again does it, and any other menu
+ * choice cancels. The bridge checks ownership too.
+ */
+static void platinum_application_delete_post(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const platinum_config *config;
+    const platinum_post_preview *post;
+    wf_status status;
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return;
+    bridge = platinum_session_bridge(&app->session);
+    config = platinum_session_config(&app->session);
+    if (bridge == NULL || config == NULL)
+        return;
+
+    post = &app->timeline.posts[index];
+    if (!platinum_post_uri_is_in_repo(post->uri, config->did)) {
+        app->delete_armed = 0;
+        strcpy(app->timeline.status, "That is not your post, so I can't delete it.");
+        platinum_application_invalidate(app);
+        return;
+    }
+    if (!app->delete_armed) {
+        app->delete_armed = 1;
+        strcpy(app->timeline.status,
+               "Choose Delete My Post again to delete this post for good. Any other menu choice cancels.");
+        platinum_application_invalidate(app);
+        return;
+    }
+    app->delete_armed = 0;
+
+    status = platinum_bridge_delete_post(bridge, post->uri);
+    platinum_application_recover_auth(app, status);
+    if (status != WF_OK) {
+        strcpy(app->timeline.status, "The post could not be deleted.");
+        platinum_application_invalidate(app);
+        return;
+    }
+    platinum_application_refresh_timeline(app);
+    platinum_application_invalidate(app);
+}
+
 /* Open compose as a quote of the selected post. */
 static void platinum_application_quote(platinum_application *app)
 {
@@ -1484,6 +1538,7 @@ static OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kMuteItem);
     AppendMenu(app->post_menu, kBlockItem);
     AppendMenu(app->post_menu, kQuoteItem);
+    AppendMenu(app->post_menu, kDeleteItem);
     SetItemCmd(app->post_menu, 1, 'l');
     SetItemCmd(app->post_menu, 2, 'e');
     SetItemCmd(app->post_menu, 3, 'j');
@@ -1562,6 +1617,8 @@ static void platinum_application_handle_menu(platinum_application *app,
 
     if (!(menu_id == kPostMenuID && item == 12))
         app->profile.block_armed = 0;
+    if (!(menu_id == kPostMenuID && item == 14))
+        app->delete_armed = 0;
 
     if (menu_id == kFileMenuID) {
         if (item == 1) {
@@ -1615,7 +1672,9 @@ static void platinum_application_handle_menu(platinum_application *app,
                 SelectWindow(app->search.window);
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 13)
+        if (item == 14)
+            platinum_application_delete_post(app);
+        else if (item == 13)
             platinum_application_quote(app);
         else if (item == 12)
             platinum_application_relate(app, PLATINUM_RELATION_BLOCK);

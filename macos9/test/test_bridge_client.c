@@ -469,6 +469,41 @@ static void test_post_body_ex(void)
           "gate names and labels, bounded");
 }
 
+static void test_delete_post(void)
+{
+    platinum_bridge_client *client;
+    static char longer[600];
+
+    client = platinum_bridge_client_new("https://bridge.example");
+    reset_fake(200, "{\"deleted\":true}", WF_OK);
+    check_status(platinum_bridge_delete_post(client, "at://did:plc:me/app.bsky.feed.post/3k"),
+                 WF_OK, "delete succeeds");
+    check(last_method == 2, "delete is a POST");
+    check_str(last_url, "https://bridge.example/v1/post/delete", "delete path");
+    check_str(last_body, "{\"uri\":\"at://did:plc:me/app.bsky.feed.post/3k\"}", "delete body");
+
+    reset_fake(200, "{}", WF_OK);
+    check_status(platinum_bridge_delete_post(client, ""), WF_ERR_INVALID_ARG, "empty uri refused");
+    memset(longer, 'a', 550);
+    longer[550] = '\0';
+    check_status(platinum_bridge_delete_post(client, longer), WF_ERR_INVALID_ARG, "over-long uri refused");
+    check(last_method == 0, "a refused uri makes no request");
+
+    reset_fake(403, "{\"error\":\"not_your_post\"}", WF_ERR_HTTP);
+    check_status(platinum_bridge_delete_post(client, "at://did:plc:x/app.bsky.feed.post/3k"),
+                 WF_ERR_HTTP, "the bridge refusing someone else's post is reported");
+
+    check(platinum_post_uri_is_in_repo("at://did:plc:me/app.bsky.feed.post/3k", "did:plc:me") == 1 &&
+              platinum_post_uri_is_in_repo("at://did:plc:me.evil/app.bsky.feed.post/3k", "did:plc:me") == 0 &&
+              platinum_post_uri_is_in_repo("at://did:plc:other/app.bsky.feed.post/3k", "did:plc:me") == 0 &&
+              platinum_post_uri_is_in_repo("at://did:plc:me", "did:plc:me") == 0 &&
+              platinum_post_uri_is_in_repo("https://did:plc:me/x", "did:plc:me") == 0 &&
+              platinum_post_uri_is_in_repo("at://did:plc:me/x", "") == 0 &&
+              platinum_post_uri_is_in_repo(NULL, "did:plc:me") == 0,
+          "a post is yours only if the whole repo authority matches");
+    platinum_bridge_client_free(client);
+}
+
 static void test_post_body(void)
 {
     char *body;
@@ -508,6 +543,7 @@ static void test_post_body(void)
 int main(void)
 {
     test_post_body();
+    test_delete_post();
     test_post_body_ex();
     test_mark_seen();
     test_muted_word();

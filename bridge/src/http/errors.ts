@@ -15,6 +15,7 @@ export type BridgeErrorCode =
   | 'invalid_credentials'
   | 'invalid_post_ref'
   | 'post_not_found'
+  | 'not_your_post'
   | 'invalid_seen_at'
   | 'invalid_actor'
   | 'actor_not_found'

@@ -83,6 +83,19 @@ wf_status platinum_bridge_post(platinum_bridge_client *client,
 wf_status platinum_bridge_mark_seen(platinum_bridge_client *client,
                                     const char *seen_at);
 
+/*
+ * Delete one of your own posts: POST /v1/post/delete {"uri":"..."}. `uri` is
+ * escaped; empty or over 512 bytes is refused with no request. The bridge
+ * refuses anyone else's post (403), and deleting one that is gone is not an error.
+ */
+wf_status platinum_bridge_delete_post(platinum_bridge_client *client,
+                                      const char *uri);
+
+/* 1 if the AT URI `uri` names a record in the repo of `did` (an exact
+ * comparison of the authority part), else 0. Used only to decide whether to
+ * offer Delete; the bridge makes the real check. Pure. */
+int platinum_post_uri_is_in_repo(const char *uri, const char *did);
+
 #define PLATINUM_MUTED_WORD_BYTES 400
 
 /*
