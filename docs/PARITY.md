@@ -24,9 +24,9 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Notifications paging | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Mark notifications seen | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Thread view | yes | yes | implemented (`macos9/thread_feed.c`) |
-| Post text | yes | yes | implemented (`macos9/application.c`) |
+| Post text | yes | yes | implemented (`macos9/application_post.c`) |
 | Reply | yes | yes | implemented (`macos9/compose_model.c`) |
-| Quote post | yes | yes | implemented (`macos9/application.c`) |
+| Quote post | yes | yes | implemented (`macos9/application_post.c`) |
 | Reply gates | yes | no | implemented (`macos9/compose_model.c`) |
 | Like and unlike | yes | yes | implemented (`macos9/timeline.c`) |
 | Repost and undo | yes | yes | implemented (`bridge/src/domain/api.ts`) |
@@ -42,12 +42,12 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Full-size image viewer | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Link-card previews | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Attach images to a post | yes | yes | [#33](https://github.com/ewanc26/platinum/issues/33) |
-| Actor search | yes | yes | implemented (`macos9/application.c`) |
-| Post search | yes | yes | implemented (`macos9/application.c`) |
-| Custom feeds | yes | yes | implemented (`macos9/application.c`) |
-| Lists | yes | yes | implemented (`macos9/application.c`) |
+| Actor search | yes | yes | implemented (`macos9/application_views.c`) |
+| Post search | yes | yes | implemented (`macos9/application_views.c`) |
+| Custom feeds | yes | yes | implemented (`macos9/application_views.c`) |
+| Lists | yes | yes | implemented (`macos9/application_views.c`) |
 | Mute and block | yes | yes | implemented (`macos9/profile_feed.c`) |
-| Muted words | no | yes | implemented (`macos9/application.c`) |
+| Muted words | no | yes | implemented (`macos9/application_views.c`) |
 | Who liked or reposted | yes | no | implemented (`bridge/src/domain/api.ts`) |
 | Delete your own post | yes | no | implemented (`macos9/bridge_client.c`) |
 | Direct messages | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
