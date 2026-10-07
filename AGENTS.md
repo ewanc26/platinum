@@ -138,6 +138,7 @@ platinum/
 │   ├── preferences.h
 │   ├── people.c
 │   ├── people_feed.c
+│   ├── post_media.c
 │   ├── profile.c
 │   ├── profile_feed.c
 │   ├── profile.h
