@@ -118,6 +118,11 @@ platinum/
 ├── macos9/
 │   ├── application.c
 │   ├── application.h
+│   ├── application_auth.c
+│   ├── application_internal.h
+│   ├── application_menus.c
+│   ├── application_post.c
+│   ├── application_views.c
 │   ├── bridge_client.c
 │   ├── bridge_client.h
 │   ├── apppw.c
