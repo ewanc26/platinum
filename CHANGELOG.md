@@ -12,6 +12,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
+- Signing in needs the handle and password: the bridge reads the account's PDS from its DID document (`#atproto_pds`) and logs in there, so the host the account lives on no longer has to be typed. It falls back to the entered host when the document cannot be read. ([#112](https://github.com/ewanc26/platinum/pull/112))
+
 - CI builds the Mac OS 9 sources against Wolfram v0.35.0 and checks the bridge's vectors against it (was v0.28.0). ([#107](https://github.com/ewanc26/platinum/pull/107), [#109](https://github.com/ewanc26/platinum/pull/109))
 
 ### Added
