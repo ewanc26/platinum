@@ -3,6 +3,7 @@
 
 #include "bridge_client.h"
 #include "json_min.h"
+#include "post_media.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,7 +11,7 @@ extern "C" {
 
 /* Rows kept in memory, and rows asked for per request. Loading an older page
  * past the cap drops the newest rows from the front, so memory stays bounded at
- * MAX_POSTS previews (about 56KB) however far back the reader goes. */
+ * MAX_POSTS previews (about 130KB with their media references) however far back the reader goes. */
 #define PLATINUM_TIMELINE_MAX_POSTS 40
 #define PLATINUM_TIMELINE_PAGE 20
 #define PLATINUM_TIMELINE_AUTHOR_MAX 64
@@ -35,6 +36,9 @@ typedef struct platinum_post_preview {
     long quote_count;
     int liked;
     int reposted;
+    /* Avatar, pictures and link card references, for the windows that draw
+     * them. Empty for a post that has none. */
+    platinum_post_media media;
 } platinum_post_preview;
 
 typedef struct platinum_timeline {
