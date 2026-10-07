@@ -1,4 +1,5 @@
 #include "diagwin.h"
+#include "drawutil.h"
 
 #include <Quickdraw.h>
 #include <string.h>
@@ -24,17 +25,6 @@ static void diagwin_buttons(const platinum_diagwin *diagwin, Rect *close,
     *check = *close;
     check->left = close->right + 8;
     check->right = check->left + 92;
-}
-
-static void diagwin_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    MoveTo(bounds->left + (short)((bounds->right - bounds->left - width) / 2),
-           bounds->top + 14);
-    DrawString(title);
 }
 
 void platinum_diagwin_init(platinum_diagwin *diagwin)
@@ -94,8 +84,8 @@ void platinum_diagwin_draw(platinum_diagwin *diagwin)
     }
 
     diagwin_buttons(diagwin, &close, &check);
-    diagwin_button(&close, kClose);
-    diagwin_button(&check, kCheck);
+    platinum_draw_button(&close, kClose);
+    platinum_draw_button(&check, kCheck);
     SetPort(old_port);
 }
 
