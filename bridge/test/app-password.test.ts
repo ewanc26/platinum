@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AtpAgent, type AtpSessionData } from '@atproto/api'
 import {
-  AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService,
+  AppPasswordService, discoverPds, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService,
   type KeyValue, type StoredAppSession,
 } from '../src/auth/app-password.js'
 
@@ -134,4 +134,19 @@ test('enabled endpoint validates input and never leaks the password', async () =
     assert.equal((await post(s.port, { identifier: 'x.test', password: SECRET, service: 'http://bsky.social' })).json.error, 'invalid_service')
     assert.equal((await post(s.port, { identifier: 'x.test', password: SECRET, service: 'https://127.0.0.1' })).json.error, 'invalid_service')
   } finally { assert.ok(!s.stop().includes(SECRET)) }
+})
+
+test('discoverPds reads the #atproto_pds endpoint from the DID document', async () => {
+  const doc = { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://pds.example.net' }] }
+  const found = await discoverPds('alice.example.com', 'https://bsky.social',
+    async url => { assert.equal(url, 'https://plc.directory/did:plc:abc') ; return doc },
+    async () => 'did:plc:abc')
+  assert.equal(found, 'https://pds.example.net')
+})
+
+test('discoverPds keeps the entry host when the endpoint is unusable or resolution fails', async () => {
+  const bad = { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'http://10.0.0.1' }] }
+  assert.equal(await discoverPds('alice.example.com', 'https://bsky.social', async () => bad, async () => 'did:plc:abc'), undefined)
+  assert.equal(await discoverPds('alice.example.com', 'https://bsky.social', async () => ({}), async () => undefined), undefined)
+  assert.equal(await discoverPds('alice.example.com', 'https://bsky.social', async () => { throw new Error('down') }, async () => 'did:plc:abc'), undefined)
 })

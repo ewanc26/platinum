@@ -81,6 +81,47 @@ export class FailureLimiter {
   }
 }
 
+/**
+ * The PDS an account lives on, from its DID document: the `#atproto_pds`
+ * endpoint. A handle is resolved first through the entry host, the document is
+ * read from the PLC directory (did:plc) or the account's own host (did:web), and
+ * the endpoint goes through validateService like any client-supplied service.
+ * Any failure returns undefined, so the caller keeps the entry host.
+ */
+export async function discoverPds(
+  identifier: string,
+  entry: string,
+  fetchJson: (url: string) => Promise<unknown> = defaultFetchJson,
+  resolveHandle: (service: string, handle: string) => Promise<string | undefined> = defaultResolveHandle,
+): Promise<string | undefined> {
+  try {
+    const did = identifier.startsWith('did:') ? identifier : await resolveHandle(entry, identifier)
+    if (!did) return undefined
+    const docUrl = did.startsWith('did:plc:')
+      ? `https://plc.directory/${did}`
+      : did.startsWith('did:web:') ? `https://${did.slice('did:web:'.length).split(':')[0]}/.well-known/did.json` : undefined
+    if (!docUrl) return undefined
+    const doc = (await fetchJson(docUrl)) as { service?: Array<{ id?: string; type?: string; serviceEndpoint?: unknown }> }
+    const pds = doc.service?.find(svc => svc.id?.endsWith('#atproto_pds'))
+    if (typeof pds?.serviceEndpoint !== 'string') return undefined
+    return validateService(pds.serviceEndpoint)
+  } catch {
+    return undefined
+  }
+}
+
+async function defaultFetchJson(url: string): Promise<unknown> {
+  const res = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(10_000) })
+  if (!res.ok) throw new Error(`DID document answered ${res.status}`)
+  return res.json()
+}
+
+async function defaultResolveHandle(service: string, handle: string): Promise<string | undefined> {
+  const agent = new AtpAgent({ service })
+  const res = await agent.com.atproto.identity.resolveHandle({ handle })
+  return res.data.did
+}
+
 export class AppPasswordService {
   constructor(
     private readonly store: KeyValue<StoredAppSession>,
@@ -89,7 +130,9 @@ export class AppPasswordService {
   ) {}
 
   /** Exchange credentials for a PDS session. The password is not retained. */
-  async login(identifier: string, password: string, service: string): Promise<{ did: string; session: AtpSessionData; service: string }> {
+  async login(identifier: string, password: string, entry: string): Promise<{ did: string; session: AtpSessionData; service: string }> {
+    // The account's own PDS, when its DID document names one; otherwise the entry host.
+    const service = (await discoverPds(identifier, entry)) ?? entry
     const agent = this.makeAgent(service, () => undefined)
     try {
       await agent.login({ identifier, password })
