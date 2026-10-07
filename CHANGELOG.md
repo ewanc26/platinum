@@ -12,7 +12,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
-- CI builds the Mac OS 9 sources against Wolfram v0.28.0 and checks the bridge's vectors against it (was v0.26.0).
+- CI builds the Mac OS 9 sources against Wolfram v0.34.0 and checks the bridge's vectors against it (was v0.28.0). ([#107](https://github.com/ewanc26/platinum/pull/107))
 
 ### Added
 
