@@ -1,4 +1,5 @@
 #include "people.h"
+#include "drawutil.h"
 #include "scrollbar.h"
 
 #include <Quickdraw.h>
@@ -12,25 +13,6 @@ static unsigned char kPeopleTitle[] = {
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
-
-static void people_text(const char *text, short x, short y)
-{
-    if (text == NULL || text[0] == '\0')
-        return;
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
-
-static void people_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    MoveTo(bounds->left + (short)((bounds->right - bounds->left - width) / 2),
-           bounds->top + 14);
-    DrawString(title);
-}
 
 static short people_visible_rows(const platinum_people *people)
 {
@@ -94,15 +76,15 @@ static void people_draw_row(const platinum_people *people, short index,
 
     item = &people->items[index];
     top = 52 + (row * kPeopleRowHeight);
-    people_text(item->name, 12, top);
-    people_text(item->handle, 240, top);
+    platinum_draw_text(item->name, 12, top);
+    platinum_draw_text(item->handle, 240, top);
     /* The selected row is framed and marked in words, not only by colour. */
     if (index == people->selected) {
         Rect box;
 
         SetRect(&box, 4, top - 14, people->window->portRect.right - 20, top + 5);
         FrameRect(&box);
-        people_text("(selected)", 420, top);
+        platinum_draw_text("(selected)", 420, top);
     }
 }
 
@@ -121,9 +103,9 @@ void platinum_people_draw(platinum_people *people)
     SetPort((GrafPtr)people->window);
     EraseRect(&people->window->portRect);
 
-    people_text(people->heading, 12, 20);
+    platinum_draw_text(people->heading, 12, 20);
     if (people->status[0] != '\0')
-        people_text(people->status, 12, 38);
+        platinum_draw_text(people->status, 12, 38);
 
     visible = people_visible_rows(people);
     for (row = 0; row < visible; ++row) {
@@ -138,7 +120,7 @@ void platinum_people_draw(platinum_people *people)
     close_rect.right -= 10;
     close_rect.top = close_rect.bottom - 34;
     close_rect.bottom -= 10;
-    people_button(&close_rect, kClose);
+    platinum_draw_button(&close_rect, kClose);
 
     platinum_scrollbar_set_range(&people->scrollbar, (short)people->count,
                                  visible, people->scroll_row);

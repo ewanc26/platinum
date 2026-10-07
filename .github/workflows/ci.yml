@@ -112,6 +112,7 @@ jobs:
             macos9/diag.c \
             macos9/diagwin.c \
             macos9/draft.c \
+            macos9/drawutil.c \
             macos9/apppw.c \
             macos9/apppw_input.c \
             macos9/bridge_client.c \

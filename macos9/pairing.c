@@ -1,4 +1,5 @@
 #include "pairing.h"
+#include "drawutil.h"
 #include "text_codec.h"
 #include "textfield.h"
 
@@ -18,29 +19,6 @@ static unsigned char kPairingTitle[] = {
 };
 static unsigned char kCancel[] = { 6, 'C', 'a', 'n', 'c', 'e', 'l' };
 static unsigned char kPair[] = { 4, 'P', 'a', 'i', 'r' };
-
-static void pairing_text(const char *text, short x, short y)
-{
-    if (text == NULL)
-        return;
-
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
-
-static void pairing_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-    short baseline;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    baseline = bounds->top + 14;
-    MoveTo(bounds->left +
-               (short)((bounds->right - bounds->left - width) / 2),
-           baseline);
-    DrawString(title);
-}
 
 OSErr platinum_pairing_open(platinum_pairing *pairing,
                             const char *bridge_url)
@@ -132,10 +110,10 @@ void platinum_pairing_draw(platinum_pairing *pairing)
 
     EraseRect(&pairing->window->portRect);
 
-    pairing_text(kBridgeURLLabel, 18, 28);
-    pairing_text(kInstructions1, 18, 92);
-    pairing_text(kInstructions2, 18, 112);
-    pairing_text(kCodeLabel, 18, 140);
+    platinum_draw_text(kBridgeURLLabel, 18, 28);
+    platinum_draw_text(kInstructions1, 18, 92);
+    platinum_draw_text(kInstructions2, 18, 112);
+    platinum_draw_text(kCodeLabel, 18, 140);
 
     url_frame = (*pairing->bridge_url)->viewRect;
     FrameRect(&url_frame);
@@ -146,19 +124,19 @@ void platinum_pairing_draw(platinum_pairing *pairing)
     TEUpdate(&code_frame, pairing->code);
 
     if (pairing->status[0] != '\0')
-        pairing_text(pairing->status, 18, 214);
+        platinum_draw_text(pairing->status, 18, 214);
 
     cancel_rect = pairing->window->portRect;
     cancel_rect.left = cancel_rect.right - 150;
     cancel_rect.right = cancel_rect.left + 64;
     cancel_rect.top = cancel_rect.bottom - 34;
     cancel_rect.bottom -= 10;
-    pairing_button(&cancel_rect, kCancel);
+    platinum_draw_button(&cancel_rect, kCancel);
 
     pair_rect = cancel_rect;
     pair_rect.left = cancel_rect.right + 8;
     pair_rect.right = pair_rect.left + 52;
-    pairing_button(&pair_rect, kPair);
+    platinum_draw_button(&pair_rect, kPair);
 
     SetPort(old_port);
 }
