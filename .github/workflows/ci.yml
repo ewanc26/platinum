@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
-          ref: c8cf8308d7ce212a6942f0b92b8d8198acd55738
+          ref: df6ee1f4bc5b5f59760ec1a88ecb86ea59c8a048
           path: .wolfram-canon
           sparse-checkout: |
             test/vectors
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
-          ref: v0.34.0
+          ref: v0.35.0
           path: wolfram
 
       - name: Install clang
