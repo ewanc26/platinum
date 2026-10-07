@@ -105,6 +105,10 @@ jobs:
           set -euo pipefail
           for f in \
             macos9/application.c \
+            macos9/application_auth.c \
+            macos9/application_menus.c \
+            macos9/application_post.c \
+            macos9/application_views.c \
             macos9/diag.c \
             macos9/diagwin.c \
             macos9/draft.c \
