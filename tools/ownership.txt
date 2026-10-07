@@ -33,8 +33,13 @@ bridge/src/update/signature.ts     port      # port of wf_update_verify_signatur
 bridge/src/update/update_key.ts     bridge    # Platinum's own release public key; nothing to share
 bridge/src/update/manifest.ts      port      # port of wf_update_parse_manifest (update.h), tested against Wolfram's vectors
 bridge/src/update/version.ts       port      # port of wf_update_compare_versions (update.h), tested against Wolfram's vectors
-macos9/application.c               platform  # event loop and window routing
+macos9/application.c               platform  # event loop, dispatch and drawing
 macos9/application.h               platform
+macos9/application_auth.c          platform  # signing in with a pairing code or an app password, signing out
+macos9/application_internal.h      platform  # what the application's files share
+macos9/application_menus.c         platform  # the menu bar and what a choice does
+macos9/application_post.c          platform  # composing, replying, quoting, engaging, deleting
+macos9/application_views.c         platform  # opening and refreshing the windows
 macos9/bridge_client.c             protocol  # client for the bridge protocol over Wolfram's transport
 macos9/bridge_client.h             protocol
 macos9/compose.c                   platform
