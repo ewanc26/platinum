@@ -152,7 +152,8 @@ Timeline responses contain only fields that the Classic Mac client needs:
       "author": {
         "did": "did:plc:...",
         "handle": "example.test",
-        "displayName": "Example"
+        "displayName": "Example",
+        "avatar": "avatar_thumbnail/plain/did:plc:.../bafkrei...@jpeg"
       },
       "text": "Hello from Platinum.",
       "createdAt": "2026-10-05T00:00:00.000Z",
@@ -161,12 +162,18 @@ Timeline responses contain only fields that the Classic Mac client needs:
       "replyCount": 1,
       "quoteCount": 0,
       "liked": false,
-      "reposted": true
+      "reposted": true,
+      "images": [
+        { "ref": "feed_thumbnail/plain/did:plc:.../bafkrei...@jpeg", "alt": "A grey heron." }
+      ],
+      "card": { "uri": "https://example.com/a", "title": "An article", "domain": "example.com" }
     }
   ],
   "cursor": "optional-next-cursor"
 }
 ```
+
+`author.avatar`, `images` and `card` are present only when the post has them. `author.avatar` and each image `ref` are image references for `GET /v1/image` ([IMAGES.md](IMAGES.md)), never URLs: the bridge only emits one for an image on the Bluesky CDN and drops the rest. An avatar is always the 128 px kind. `images` has at most four entries, in order; `alt` is the author's description (at most 300 code points, empty if they gave none). `card` is a link card: `uri` is a web address (http or https, at most 300 characters), `title` at most 100 code points, `domain` the host to show under it. A record-with-media embed contributes its images and card; a quoted record contributes nothing here. The same fields appear on every post shape (a thread's posts, a profile's pinned post, an author feed).
 
 The bridge deliberately does not expose raw feed-view embeds, reply views or AppView-specific extension fields. Clients should treat absent optional author fields as empty. Text fields are bounded by Unicode code point count so the bridge cannot split a UTF-16 surrogate pair when limiting native-client payloads.
 

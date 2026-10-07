@@ -16,6 +16,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The bridge now puts image references in its post JSON: `author.avatar` (the 128 px avatar), up to four `images` with their alt text, and a link `card` (address, title, host), on every post shape. They are references for `GET /v1/image`, never URLs, and only for images on the Bluesky CDN. The Mac client does not draw them yet. ([#1](https://github.com/ewanc26/platinum/pull/1))
 - The bridge's updater checks a signature. Each release's `update.json` gets a detached Ed25519 signature, `update.json.sig`, made by a GitHub Actions job with a key that exists only as a repository secret, and the updater verifies it against the public key built in before it reads the manifest, refusing a release that has none or a wrong one. It runs Wolfram's Ed25519 vectors. No release has been cut with it, because releases are paused. [#49](https://github.com/ewanc26/platinum/issues/49)
 - The Mac client can ask the bridge for an image, check the bitmap it gets back against the contract and turn it into a QuickDraw PixMap. No window draws one yet, and none of it has run on a Mac. [#102](https://github.com/ewanc26/platinum/pull/102)
 - The bridge can turn an image into a small indexed-colour bitmap for the Mac to draw: `GET /v1/image`, JPEG and PNG in, at most 320 pixels wide, 16 or 256 colours, with the format written up in docs/IMAGES.md and pinned by test vectors. Nothing on the Mac draws one yet. [#100](https://github.com/ewanc26/platinum/pull/101)

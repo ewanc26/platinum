@@ -17,8 +17,8 @@ images (#33).
 
 `GET /v1/image?ref=...&w=...&depth=...`, with the usual bearer token.
 
-- `ref` is an opaque reference the bridge put in a post (a later change adds
-  them to the timeline JSON). It has the shape
+- `ref` is an opaque reference the bridge put in a post (`author.avatar` and
+  `images[].ref`, see [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md)). It has the shape
   `feed_thumbnail/plain/did:plc:.../bafy...@jpeg`: a kind (`avatar`,
   `avatar_thumbnail`, `feed_thumbnail` or `feed_fullsize`), the account, a blob
   id and `jpeg` or `png`. The Mac passes it back unchanged. It is never a URL,
