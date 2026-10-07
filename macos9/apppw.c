@@ -1,4 +1,5 @@
 #include "apppw.h"
+#include "drawutil.h"
 #include "textfield.h"
 
 #include <Quickdraw.h>
@@ -10,25 +11,6 @@ static unsigned char kTitle[] = {
 };
 static unsigned char kCancel[] = { 6, 'C', 'a', 'n', 'c', 'e', 'l' };
 static unsigned char kSignIn[] = { 7, 'S', 'i', 'g', 'n', ' ', 'I', 'n' };
-
-static void apppw_text(const char *text, short x, short y)
-{
-    if (text == NULL || text[0] == '\0')
-        return;
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
-
-static void apppw_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    MoveTo(bounds->left + (short)((bounds->right - bounds->left - width) / 2),
-           bounds->top + 14);
-    DrawString(title);
-}
 
 static void apppw_buttons(const platinum_apppw *apppw, Rect *cancel,
                           Rect *go)
@@ -154,9 +136,9 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     SetPort((GrafPtr)apppw->window);
     EraseRect(&apppw->window->portRect);
 
-    apppw_text("Bridge URL:", 18, 28);
-    apppw_text("Handle (for example you.bsky.social):", 18, 94);
-    apppw_text("App password (not your account password):", 18, 160);
+    platinum_draw_text("Bridge URL:", 18, 28);
+    platinum_draw_text("Handle (for example you.bsky.social):", 18, 94);
+    platinum_draw_text("App password (not your account password):", 18, 160);
 
     frame = (*apppw->bridge_url)->viewRect;
     FrameRect(&frame);
@@ -168,7 +150,7 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     apppw_password_rect(apppw, &frame);
     FrameRect(&frame);
     if (platinum_secret_mask(&apppw->password, mask, sizeof(mask)) >= 0)
-        apppw_text(mask, frame.left + 4, frame.top + 15);
+        platinum_draw_text(mask, frame.left + 4, frame.top + 15);
     if (apppw->active_field == 2) {
         /* No insertion point to blink: a thick bottom edge says it is active. */
         MoveTo(frame.left, frame.bottom + 1);
@@ -177,13 +159,13 @@ void platinum_apppw_draw(platinum_apppw *apppw)
 
     if (platinum_textfield_copy(apppw->bridge_url, url, sizeof(url)) >= 0 &&
         platinum_apppw_is_plain_http(url))
-        apppw_text("Warning: http:// sends the password across the network unencrypted.",
+        platinum_draw_text("Warning: http:// sends the password across the network unencrypted.",
                    18, 214);
-    apppw_text(apppw->status, 18, 232);
+    platinum_draw_text(apppw->status, 18, 232);
 
     apppw_buttons(apppw, &cancel, &go);
-    apppw_button(&cancel, kCancel);
-    apppw_button(&go, kSignIn);
+    platinum_draw_button(&cancel, kCancel);
+    platinum_draw_button(&go, kSignIn);
     SetPort(old_port);
 }
 
