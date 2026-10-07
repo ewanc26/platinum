@@ -15,9 +15,9 @@ notifications|Notifications|yes|yes|implemented|macos9/notifications_feed.c::pla
 notifications-paging|Notifications paging|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_load_older
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_load
-post|Post text|yes|yes|implemented|macos9/application.c::/v1/post
+post|Post text|yes|yes|implemented|macos9/application_post.c::platinum_application_submit_post
 reply|Reply|yes|yes|implemented|macos9/compose_model.c::platinum_compose_set_reply
-quote|Quote post|yes|yes|implemented|macos9/application.c::platinum_compose_set_quote
+quote|Quote post|yes|yes|implemented|macos9/application_post.c::platinum_compose_set_quote
 reply-gate|Reply gates|yes|no|implemented|macos9/compose_model.c::platinum_compose_cycle_gate
 like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement
 repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggle(
@@ -33,12 +33,12 @@ alt-text|Image alt text|yes|yes|issue|#32
 image-viewer|Full-size image viewer|yes|yes|issue|#32
 link-cards|Link-card previews|yes|yes|issue|#32
 compose-images|Attach images to a post|yes|yes|issue|#33
-search-actors|Actor search|yes|yes|implemented|macos9/application.c::/v1/search/actors
-search-posts|Post search|yes|yes|implemented|macos9/application.c::/v1/search/posts
-feeds|Custom feeds|yes|yes|implemented|macos9/application.c::/v1/feeds
-lists|Lists|yes|yes|implemented|macos9/application.c::/v1/lists
+search-actors|Actor search|yes|yes|implemented|macos9/application_views.c::/v1/search/actors
+search-posts|Post search|yes|yes|implemented|macos9/application_views.c::/v1/search/posts
+feeds|Custom feeds|yes|yes|implemented|macos9/application_views.c::/v1/feeds
+lists|Lists|yes|yes|implemented|macos9/application_views.c::/v1/lists
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
-muted-words|Muted words|no|yes|implemented|macos9/application.c::/v1/muted-words
+muted-words|Muted words|no|yes|implemented|macos9/application_views.c::/v1/muted-words
 engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
 delete-post|Delete your own post|yes|no|implemented|macos9/bridge_client.c::/v1/post/delete
 direct-messages|Direct messages|no|no|issue|#98
