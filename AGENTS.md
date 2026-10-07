@@ -260,7 +260,7 @@ Do not retain complete feeds, images or HTTP responses indefinitely without a cl
 
 Wolfram is the AT Protocol transport boundary used by Platinum.
 
-The Mac OS 9 transport is provided by the `0.26.0` release line and its Mac OS 9/Open Transport support; 0.26.0 is the minimum. CI builds against v0.28.0 (`ref:` in `.github/workflows/ci.yml`) and diffs the bridge's vectors against that release's commit.
+The Mac OS 9 transport is provided by the `0.26.0` release line and its Mac OS 9/Open Transport support; 0.26.0 is the minimum. CI builds against v0.34.0 (`ref:` in `.github/workflows/ci.yml`) and diffs the bridge's vectors against that release's commit.
 
 When changing the Wolfram integration:
 
