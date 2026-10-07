@@ -35,7 +35,7 @@ Early, and I'd rather say so plainly.
 
 There is no packaged release of the Mac application yet. The bridge can be run from this repository (see below) or from a release archive, and it can update itself from this repository's releases when you ask it to: [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) says how, what the checksum does and doesn't protect against, and why the Mac client can't update itself yet.
 
-Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The Mac client is aimed at CodeWarrior-era tools, [Wolfram](https://github.com/ewanc26/wolfram) 0.26.0 or newer (CI builds against 0.35.0) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
+Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The Mac client is aimed at CodeWarrior-era tools, [Wolfram](https://github.com/ewanc26/wolfram) 0.26.0 or newer (CI builds against 0.36.2) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
 
 ## Use
 
