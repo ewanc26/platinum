@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "drawutil.h"
 #include "scrollbar.h"
 
 #include <Quickdraw.h>
@@ -13,25 +14,6 @@ static unsigned char kThreadTitle[] = {
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
-
-static void thread_text(const char *text, short x, short y)
-{
-    if (text == NULL || text[0] == '\0')
-        return;
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
-
-static void thread_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    MoveTo(bounds->left + (short)((bounds->right - bounds->left - width) / 2),
-           bounds->top + 14);
-    DrawString(title);
-}
 
 static short thread_visible_rows(const platinum_thread *thread)
 {
@@ -105,15 +87,15 @@ static void thread_draw_row(const platinum_thread *thread, short index,
         depth = 6;
     indent = (short)(12 + depth * kThreadIndent);
 
-    thread_text(item->post.author, indent, top);
-    thread_text(item->post.handle, indent + 130, top);
-    thread_text(item->post.time, indent + 260, top);
+    platinum_draw_text(item->post.author, indent, top);
+    platinum_draw_text(item->post.handle, indent + 130, top);
+    platinum_draw_text(item->post.time, indent + 260, top);
     if (item->depth == 0)
-        thread_text("This post", indent + 320, top);
+        platinum_draw_text("This post", indent + 320, top);
     else if (item->depth < 0)
-        thread_text("Earlier", indent + 320, top);
-    thread_text(item->post.line1, indent, top + 14);
-    thread_text(item->post.line2, indent, top + 28);
+        platinum_draw_text("Earlier", indent + 320, top);
+    platinum_draw_text(item->post.line1, indent, top + 14);
+    platinum_draw_text(item->post.line2, indent, top + 28);
 }
 
 void platinum_thread_draw(platinum_thread *thread)
@@ -131,9 +113,9 @@ void platinum_thread_draw(platinum_thread *thread)
     SetPort((GrafPtr)thread->window);
     EraseRect(&thread->window->portRect);
 
-    thread_text(thread->heading[0] != '\0' ? thread->heading : "Thread", 12, 20);
+    platinum_draw_text(thread->heading[0] != '\0' ? thread->heading : "Thread", 12, 20);
     if (thread->status[0] != '\0')
-        thread_text(thread->status, 220, 20);
+        platinum_draw_text(thread->status, 220, 20);
 
     visible = thread_visible_rows(thread);
     for (row = 0; row < visible; ++row) {
@@ -148,7 +130,7 @@ void platinum_thread_draw(platinum_thread *thread)
     close_rect.right -= 10;
     close_rect.top = close_rect.bottom - 34;
     close_rect.bottom -= 10;
-    thread_button(&close_rect, kClose);
+    platinum_draw_button(&close_rect, kClose);
 
     platinum_scrollbar_set_range(&thread->scrollbar, (short)thread->count,
                                  visible, thread->scroll_row);

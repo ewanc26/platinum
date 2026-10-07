@@ -138,6 +138,8 @@ platinum/
 │   ├── preferences.c
 │   ├── prefs_file.c
 │   ├── draft.c
+│   ├── drawutil.c
+│   ├── drawutil.h
 │   ├── diag.c
 │   ├── diagwin.c
 │   ├── preferences.h

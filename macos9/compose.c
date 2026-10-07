@@ -1,4 +1,5 @@
 #include "bridge_client.h"
+#include "drawutil.h"
 #include "compose.h"
 #include "text_codec.h"
 #include "textfield.h"
@@ -17,27 +18,6 @@ static unsigned char kPost[] = {
     4, 'P', 'o', 's', 't'
 };
 static const char kPosting[] = "Posting...";
-static void platinum_compose_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-    short baseline;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    baseline = bounds->top + 14;
-    MoveTo(bounds->left + (short)((bounds->right - bounds->left - width) / 2),
-           baseline);
-    DrawString(title);
-}
-
-static void platinum_compose_text(const char *text, short x, short y)
-{
-    if (text == NULL)
-        return;
-
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
 
 /* The reply-gate button, at the left of the button row. */
 static void compose_gate_rect(const platinum_compose *compose, Rect *rect)
@@ -136,7 +116,7 @@ void platinum_compose_draw(platinum_compose *compose)
     TEUpdate(&compose->window->portRect, compose->text);
 
     if (compose->status[0] != '\0')
-        platinum_compose_text(compose->status, 14,
+        platinum_draw_text(compose->status, 14,
                               compose->window->portRect.bottom - 48);
 
     cancel_rect = compose->window->portRect;
@@ -144,15 +124,15 @@ void platinum_compose_draw(platinum_compose *compose)
     cancel_rect.right = cancel_rect.left + 68;
     cancel_rect.top = cancel_rect.bottom - 30;
     cancel_rect.bottom -= 8;
-    platinum_compose_button(&cancel_rect, kCancel);
+    platinum_draw_button(&cancel_rect, kCancel);
 
     post_rect = cancel_rect;
     post_rect.left = cancel_rect.right + 8;
     post_rect.right = post_rect.left + 58;
-    platinum_compose_button(&post_rect, kPost);
+    platinum_draw_button(&post_rect, kPost);
 
     if (compose->caption[0] != '\0')
-        platinum_compose_text(compose->caption, 14,
+        platinum_draw_text(compose->caption, 14,
                               compose->window->portRect.bottom - 66);
 
     if (compose->reply_uri[0] == '\0') {
@@ -162,11 +142,11 @@ void platinum_compose_draw(platinum_compose *compose)
         strcpy(label, "Who can reply: ");
         strcat(label, platinum_bridge_reply_gate_label(compose->reply_gate));
         FrameRect(&gate_rect);
-        platinum_compose_text(label, gate_rect.left + 6, gate_rect.top + 14);
+        platinum_draw_text(label, gate_rect.left + 6, gate_rect.top + 14);
     }
 
     if (compose->posting) {
-        platinum_compose_text(kPosting, 14, 28);
+        platinum_draw_text(kPosting, 14, 28);
     }
 
     SetPort(old_port);

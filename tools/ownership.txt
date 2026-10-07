@@ -68,6 +68,8 @@ macos9/preferences.c               platform
 macos9/prefs_file.c               platform  # small files in the Preferences folder; one place does the folder lookup and file I/O
 macos9/prefs_file.h               platform
 macos9/draft.c                    platform  # the unsent post, kept in the Preferences folder
+macos9/drawutil.c                  platform  # the button and text drawing every window repeated
+macos9/drawutil.h                  platform
 macos9/draft.h                    platform
 macos9/diag.c                     platform  # the Connection Status model; Wolfram has no status-to-text, so platinum_status_text lives here
 macos9/diag.h                     platform

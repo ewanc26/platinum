@@ -1,4 +1,5 @@
 #include "notifications.h"
+#include "drawutil.h"
 #include "scrollbar.h"
 
 #include <Quickdraw.h>
@@ -10,28 +11,6 @@ static unsigned char kNotificationsTitle[] = {
 static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
-static void notification_text(const char *text, short x, short y)
-{
-    if (text == NULL || text[0] == '\0')
-        return;
-
-    MoveTo(x, y);
-    DrawText((Ptr)text, 0, (short)strlen(text));
-}
-
-static void notification_button(const Rect *bounds, StringPtr title)
-{
-    long width;
-    short baseline;
-
-    FrameRect(bounds);
-    width = StringWidth(title);
-    baseline = bounds->top + 14;
-    MoveTo(bounds->left +
-               (short)((bounds->right - bounds->left - width) / 2),
-           baseline);
-    DrawString(title);
-}
 
 OSErr platinum_notifications_open(platinum_notifications *notifications)
 {
@@ -97,20 +76,20 @@ static void notifications_draw_row(platinum_notifications *notifications,
     top = 36 + (row * 46);
 
     MoveTo(12, top);
-    notification_text(item->author, 12, top);
+    platinum_draw_text(item->author, 12, top);
 
     MoveTo(120, top);
-    notification_text(item->handle, 120, top);
+    platinum_draw_text(item->handle, 120, top);
 
     MoveTo(230, top);
-    notification_text(item->reason, 230, top);
+    platinum_draw_text(item->reason, 230, top);
 
     MoveTo(450, top);
-    notification_text(item->time, 450, top);
+    platinum_draw_text(item->time, 450, top);
 
     if (!item->is_read) {
         MoveTo(12, top + 16);
-        notification_text("New", 12, top + 16);
+        platinum_draw_text("New", 12, top + 16);
     }
 }
 
@@ -129,13 +108,13 @@ void platinum_notifications_draw(platinum_notifications *notifications)
     SetPort((GrafPtr)notifications->window);
     EraseRect(&notifications->window->portRect);
 
-    notification_text("Author", 12, 24);
-    notification_text("Handle", 120, 24);
-    notification_text("Reason", 230, 24);
-    notification_text("Time", 450, 24);
+    platinum_draw_text("Author", 12, 24);
+    platinum_draw_text("Handle", 120, 24);
+    platinum_draw_text("Reason", 230, 24);
+    platinum_draw_text("Time", 450, 24);
 
     if (notifications->status[0] != '\0')
-        notification_text(notifications->status, 12, 54);
+        platinum_draw_text(notifications->status, 12, 54);
 
     visible = (notifications->window->portRect.bottom - 78) / 46;
     if (visible < 1)
@@ -153,7 +132,7 @@ void platinum_notifications_draw(platinum_notifications *notifications)
     close_rect.right -= 10;
     close_rect.top = close_rect.bottom - 34;
     close_rect.bottom -= 10;
-    notification_button(&close_rect, kClose);
+    platinum_draw_button(&close_rect, kClose);
 
     platinum_scrollbar_set_range(
         &notifications->scrollbar,
