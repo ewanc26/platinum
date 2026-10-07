@@ -45,6 +45,21 @@ export interface Author {
   did: string
   handle?: string
   displayName?: string
+  /** An image reference for GET /v1/image (the 128 px avatar), when the account has one. */
+  avatar?: string
+}
+
+/** A picture on a post: the reference to ask GET /v1/image for, and the author's description of it. */
+export interface PostImage {
+  ref: string
+  alt: string
+}
+
+/** A link card: where it goes, what it is called, and the host to show under it. */
+export interface PostCard {
+  uri: string
+  title: string
+  domain: string
 }
 
 export interface TimelinePost {
@@ -60,6 +75,10 @@ export interface TimelinePost {
   /** Whether the signed-in account has liked / reposted this post. */
   liked: boolean
   reposted: boolean
+  /** Up to four pictures, in order. Absent when the post has none. */
+  images?: PostImage[]
+  /** The link card, when the post has one. */
+  card?: PostCard
 }
 
 /** A post in a thread, flattened. depth < 0 is an ancestor, 0 the post asked for, > 0 a reply. */
