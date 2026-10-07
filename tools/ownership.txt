@@ -57,6 +57,8 @@ macos9/pairing.h                   platform
 macos9/people.c                    platform  # the People window
 macos9/people.h                    platform
 macos9/people_feed.c               platform  # view model of a bridge account list, no QuickDraw so it links on a host
+macos9/post_media.c                platform  # reads the bridge's image references and link card out of a post, no Toolbox so it links on a host; the format is Platinum's own
+macos9/post_media.h                platform
 macos9/preferences.c               platform
 macos9/prefs_file.c               platform  # small files in the Preferences folder; one place does the folder lookup and file I/O
 macos9/prefs_file.h               platform

@@ -146,6 +146,8 @@ int platinum_timeline_parse_post(platinum_post_preview *post,
         (void)timeline_copy_field(post->author, sizeof(post->author), author,
                                   "did", 1);
 
+    platinum_post_media_parse(&post->media, author, item);
+
     if (platinum_json_string_truncating(author, "handle", handle,
                                         sizeof(handle)) == WF_OK) {
         post->handle[0] = '@';
