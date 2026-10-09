@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Repository
+
+- Document that C++ must remain outside the strict-C89 Mac OS 9 application target. ([#113](https://github.com/ewanc26/platinum/pull/113))
+
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
 ### Changed
