@@ -88,7 +88,7 @@ CI's C89 job is the same check you can run locally against a Wolfram checkout; t
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) has the flow: branch, small conventional commits, a pull request, green CI, merge by rebase. [AGENTS.md](AGENTS.md) has the engineering rules, including the Mac OS 9 constraints (strict C89, cooperative networking, bounded memory, no desktop libraries). If a capability can live in the bridge, it shouldn't be reimplemented on the Mac.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the flow: branch, small conventional commits, a pull request, green CI, merge by rebase. [AGENTS.md](AGENTS.md) has the engineering rules, including the Mac OS 9 constraints (strict C89, cooperative networking, bounded memory, no desktop libraries). [Language boundaries](docs/LANGUAGE_BOUNDARIES.md) explains why C++ must not enter the native Mac target. If a capability can live in the bridge, it shouldn't be reimplemented on the Mac.
 
 ## Licence
 
