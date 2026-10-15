@@ -84,15 +84,6 @@ void platinum_scrollbar_set_range(platinum_scrollbar *scrollbar,
         ShowControl(scrollbar->control);
 }
 
-short platinum_scrollbar_value(
-    const platinum_scrollbar *scrollbar)
-{
-    if (scrollbar == NULL || scrollbar->control == NULL)
-        return 0;
-
-    return GetControlValue(scrollbar->control);
-}
-
 int platinum_scrollbar_handle_mouse(platinum_scrollbar *scrollbar,
                                      EventRecord *event,
                                      short *value)
