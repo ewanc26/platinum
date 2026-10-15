@@ -8,13 +8,11 @@ pull request.
 
 ## [Unreleased]
 
-### Repository
-
-- Document that C++ must remain outside the strict-C89 Mac OS 9 application target. ([#113](https://github.com/ewanc26/platinum/pull/113))
-
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
 ### Changed
+
+- Document that C++ must remain outside the strict-C89 Mac OS 9 application target. ([#113](https://github.com/ewanc26/platinum/pull/113))
 
 - Signing in needs the handle and password: the bridge reads the account's PDS from its DID document (`#atproto_pds`) and logs in there, so the host the account lives on no longer has to be typed. It falls back to the entered host when the document cannot be read. ([#112](https://github.com/ewanc26/platinum/pull/112))
 
