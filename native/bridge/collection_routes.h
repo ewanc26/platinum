@@ -38,4 +38,8 @@ int platinum_route_actor_graph(void *ctx, platinum_collection_fn fn, int kind, c
 int platinum_route_engagement(void *ctx, platinum_collection_fn fn, int kind, const char *uri,
                               const char *limit, const char *cursor, char *body, size_t cap);
 
+/* GET /v1/thread. Same post-reference rule and 404 as the engagement routes; the
+ * thread lookup is a callback with kind 2. */
+int platinum_route_thread(void *ctx, platinum_collection_fn fn, const char *uri, char *body, size_t cap);
+
 #endif
