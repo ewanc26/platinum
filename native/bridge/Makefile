@@ -26,6 +26,29 @@ test: $(TESTS) test_profile_wolfram
 	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS) test_profile_wolfram
+	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live
 
 .PHONY: all test clean
+
+# Live tests: the Wolfram fetch and publish run against Wolfram's library and a mock
+# PDS on localhost (no network). They need Wolfram built as a host library first:
+#   cmake -S $(WOLFRAM_ROOT) -B $(WOLFRAM_HOST_BUILD) -DWOLFRAM_BUILD_TESTS=OFF -DWOLFRAM_BUILD_EXAMPLES=OFF
+#   cmake --build $(WOLFRAM_HOST_BUILD) --target wolfram
+WOLFRAM_HOST_BUILD ?= /tmp/wf-host
+LIVE_CFLAGS = -std=c2x -pedantic -Wall -Wextra -Werror -Wshadow -I$(WOLFRAM_ROOT)/include -I$(WOLFRAM_ROOT)/test -I/usr/include/cjson -I.
+LIVE_LIBS = -L$(WOLFRAM_HOST_BUILD) -lwolfram -lcjson -lmicrohttpd -Wl,-rpath,$(WOLFRAM_HOST_BUILD)
+
+mock_pds.o:
+	$(CC) -std=c2x -I$(WOLFRAM_ROOT)/include -I$(WOLFRAM_ROOT)/test -c $(WOLFRAM_ROOT)/test/mock_pds.c -o $@
+
+test_profile_live: test_profile_live.c profile_live.c profile_route.c profile_wolfram.c profile.c validate.c mock_pds.o
+	$(CC) $(LIVE_CFLAGS) test_profile_live.c profile_live.c profile_route.c profile_wolfram.c profile.c validate.c mock_pds.o $(LIVE_LIBS) -o $@
+
+test_publish_live: test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o
+	$(CC) $(LIVE_CFLAGS) test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o $(LIVE_LIBS) -o $@
+
+live: test_profile_live test_publish_live
+	./test_profile_live
+	./test_publish_live
+
+.PHONY: live
