@@ -60,7 +60,7 @@ can be revisited.
 - **Reply gates and the threadgate rkey.** Wolfram's `wf_agent_create_threadgate`
   writes the threadgate with a new rkey, which the AppView does not link to the post.
   The native bridge writes it with `putRecord` and the post's rkey, as the TypeScript
-  does. Wolfram is not changed here; the gap is filed as an issue in the wolfram repository.
+  does. Wolfram is not changed here; the gap is filed as ewanc26/wolfram#203.
 
 Part 10 remaining: wire the other route families through the server (each needs its
 live Wolfram call), sign-in (Part 7 is deferred, so pairing needs the app-password
