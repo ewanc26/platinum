@@ -76,3 +76,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 - A guard that stops logic Wolfram owns being copied into the bridge or the Mac client. [#58](https://github.com/ewanc26/platinum/pull/58)
 - A release dry run on every pull request, with real releases blocked while they're paused. [#63](https://github.com/ewanc26/platinum/pull/63)
 - Labels and repository metadata as code, checked against Wolfram's. [#65](https://github.com/ewanc26/platinum/pull/65)
+
+## [0.3.1]
+
+The version `bridge/package.json` already carried when releases were first
+gated. Earlier history is in git.
