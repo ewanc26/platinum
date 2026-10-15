@@ -29,7 +29,7 @@ test: $(TESTS) test_profile_wolfram
 	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram
+	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram test_server
 
 .PHONY: all test clean
 
@@ -53,9 +53,15 @@ test_publish_live: test_publish_live.c publish_live.c post_routes.c profile.c va
 test_image_source_wolfram: test_image_source_wolfram.c image_source_wolfram.c image_route.c plim.o
 	$(CC) $(LIVE_CFLAGS) test_image_source_wolfram.c image_source_wolfram.c $(LIVE_LIBS) -o $@
 
-live: test_profile_live test_publish_live test_image_source_wolfram
+SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c
+
+test_server: test_server.c $(SERVER_SRCS) mock_pds.o
+	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
+
+live: test_profile_live test_publish_live test_image_source_wolfram test_server
 	./test_profile_live
 	./test_publish_live
 	./test_image_source_wolfram
+	./test_server
 
 .PHONY: live
