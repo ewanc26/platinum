@@ -14,6 +14,9 @@ static int checks = 0;
 #define CHECK(cond) do { checks++; if (!(cond)) { failures++; fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); } } while (0)
 
 #define RECORD_JSON "{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kpost\",\"cid\":\"bafyreiabc\"}"
+#define AUTHOR_JSON "{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}"
+#define PARENT_TOP_JSON "{\"posts\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kparent\",\"cid\":\"bafyparent\",\"author\":" AUTHOR_JSON ",\"record\":{\"text\":\"parent\"}}]}"
+#define PARENT_NESTED_JSON "{\"posts\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kparent\",\"cid\":\"bafyparent\",\"author\":" AUTHOR_JSON ",\"record\":{\"text\":\"parent\",\"reply\":{\"root\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kroot\",\"cid\":\"bafyroot\"},\"parent\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kmid\",\"cid\":\"bafymid\"}}}}]}"
 
 int
 main(void)
@@ -61,15 +64,45 @@ main(void)
     CHECK(st == 200);
     CHECK(strstr(body, "\"replyGateApplied\":false") != NULL);
 
-    /* A reply is not wired, so it is refused as a server error, not posted with the wrong root. */
+    /* A reply to a top-level post: the parent is the thread root. */
+    wf_mock_pds_register(pds, "app.bsky.feed.getPosts", PARENT_TOP_JSON);
     memset(&req, 0, sizeof req);
     req.text = "a reply";
     req.has_reply = 1;
     req.reply_is_object = 1;
     req.reply.uri = "at://did:plc:bob/app.bsky.feed.post/3kparent";
-    req.reply.cid = "bafyparent";
+    req.reply.cid = "bafyclientcid";     /* the client's cid is ignored; the AppView's is used */
     st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
-    CHECK(st == 500);
+    CHECK(st == 200);
+    {
+        /* The record the PDS received: its thread root is the top-level parent, and its
+         * parent is the same post. */
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+        CHECK(wf_mock_pds_get_last_request(pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(nsid != NULL && strcmp(nsid, "com.atproto.repo.createRecord") == 0);
+        CHECK(sent != NULL && strstr(sent, "\"root\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kparent\",\"cid\":\"bafyparent\"}") != NULL);
+    }
+
+    /* A reply to a reply: the root comes from the parent's reply.root. */
+    wf_mock_pds_register(pds, "app.bsky.feed.getPosts", PARENT_NESTED_JSON);
+    st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
+    CHECK(st == 200);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+        CHECK(wf_mock_pds_get_last_request(pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(sent != NULL && strstr(sent, "\"root\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kroot\",\"cid\":\"bafyroot\"}") != NULL);
+        CHECK(sent != NULL && strstr(sent, "\"parent\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kparent\",\"cid\":\"bafyparent\"}") != NULL);
+    }
+
+    /* A parent that no longer exists is a 404, not a post. */
+    wf_mock_pds_register(pds, "app.bsky.feed.getPosts", "{\"posts\":[]}");
+    st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
+    CHECK(st == 404);
+    CHECK(strstr(body, "post_not_found") != NULL);
 
     /* A quote goes through wf_agent_quote. */
     memset(&req, 0, sizeof req);
