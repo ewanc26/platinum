@@ -29,7 +29,7 @@ test: $(TESTS) test_profile_wolfram
 	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram test_server
+	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram test_server test_image_cdn
 
 .PHONY: all test clean
 
@@ -58,10 +58,15 @@ SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c pr
 test_server: test_server.c $(SERVER_SRCS) mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
 
-live: test_profile_live test_publish_live test_image_source_wolfram test_server
+test_image_cdn: test_image_cdn.c image_cdn.c image_route.c image_source_wolfram.c ../plim/plim.c
+	$(CC) $(LIVE_CFLAGS) test_image_cdn.c image_cdn.c image_route.c image_source_wolfram.c ../plim/plim.c $(LIVE_LIBS) -o $@
+
+# test_image_cdn makes a throwaway test certificate with openssl, in TMPDIR.
+live: test_profile_live test_publish_live test_image_source_wolfram test_server test_image_cdn
 	./test_profile_live
 	./test_publish_live
 	./test_image_source_wolfram
 	./test_server
+	./test_image_cdn
 
 .PHONY: live
