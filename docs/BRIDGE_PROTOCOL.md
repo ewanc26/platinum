@@ -350,3 +350,20 @@ The initial implementation uses local file-backed state. Installation records co
 
 The protocol does not depend on that storage implementation, so a later database
 or managed KV store can replace it.
+
+## Transport (native bridge)
+
+The Mac client speaks plain HTTP. It cannot do TLS, so a native bridge serving the
+Mac listens only on a private address: 127.0.0.1 by default, or a LAN address set
+by the operator. It must not listen on a public address. Access from outside the
+LAN goes through a VPN that the operator runs. Bearer tokens travel in clear over
+the LAN, so the LAN is part of the trust boundary.
+
+## Image source limits (native bridge)
+
+The native `GET /v1/image` decodes the source with Wolfram, which refuses a source
+over 2048 pixels on either side with `413 image_unavailable`. The Node bridge accepts
+up to 12 million pixels, so the native bridge refuses the larger sources. The two bridges
+use different decoders (jpeg-js in the Node bridge, stb in Wolfram), so for a source
+both accept, the bytes are not shown to match: the pixel step after decoding is the
+byte-exact part, and that is what the vectors check.
