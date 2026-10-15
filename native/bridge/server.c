@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <cJSON.h>
@@ -9,6 +10,8 @@
 #include "post_routes.h"
 #include "profile.h"
 #include "profile_live.h"
+#include "image_cdn.h"
+#include "image_route.h"
 #include "profile_route.h"
 #include "publish_live.h"
 #include "routes.h"
@@ -191,6 +194,41 @@ platinum_server_dispatch(const platinum_server_ctx *ctx, const char *method, con
     if (id == PLATINUM_ROUTE_PROFILE) {
         actor = query_value(target, "actor", actor_buf, sizeof actor_buf);
         return platinum_route_profile(agent, platinum_profile_fetch_live, actor, out, cap);
+    }
+    if (id == PLATINUM_ROUTE_IMAGE) {
+        char ref_buf[320];
+        char w_buf[16];
+        char depth_buf[8];
+        const char *ref = query_value(target, "ref", ref_buf, sizeof ref_buf);
+        const char *w = query_value(target, "w", w_buf, sizeof w_buf);
+        const char *depth = query_value(target, "depth", depth_buf, sizeof depth_buf);
+        unsigned char *blob = NULL;
+        long blob_len = 0;
+        int st;
+
+        if (ctx->cdn == NULL) {
+            return write_json(out, cap, "{\"error\":\"image_unavailable\",\"message\":\"The image could not be fetched.\"}") == 0 ? 502 : 500;
+        }
+        st = platinum_route_image(ctx->cdn, platinum_image_source_cdn, ref, w, depth, &blob, &blob_len);
+        if (st == 200) {
+            /* The blob is binary: it is handed back through the same buffer the JSON uses,
+             * so the caller sees its length. */
+            if ((size_t) blob_len > cap) {
+                free(blob);
+                return write_json(out, cap, "{\"error\":\"image_unavailable\",\"message\":\"The image could not be prepared.\"}") == 0 ? 502 : 500;
+            }
+            memcpy(out, blob, (size_t) blob_len);
+            free(blob);
+            return 200;
+        }
+        free(blob);
+        if (st == 400) {
+            return write_json(out, cap, "{\"error\":\"invalid_image\",\"message\":\"ref must be an image reference the bridge gave you; w is 16 to 320; depth is 4 or 8.\"}") == 0 ? 400 : 500;
+        }
+        if (st == 413) {
+            return write_json(out, cap, "{\"error\":\"image_unavailable\",\"message\":\"The image could not be prepared.\"}") == 0 ? 413 : 500;
+        }
+        return write_json(out, cap, "{\"error\":\"image_unavailable\",\"message\":\"The image could not be fetched.\"}") == 0 ? 502 : 500;
     }
     if (id == PLATINUM_ROUTE_POST) {
         if (body_len > ctx->max_body_bytes) {
