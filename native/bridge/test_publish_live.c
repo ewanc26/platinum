@@ -51,18 +51,44 @@ main(void)
     CHECK(st == 200);
     CHECK(strcmp(body, "{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kpost\",\"cid\":\"bafyreiabc\"}") == 0);
 
-    /* The gate "nobody" is applied as a threadgate: no replyGateApplied field. */
-    req.has_gate = 1;
-    req.gate = "nobody";
-    st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
-    CHECK(st == 200);
-    CHECK(strstr(body, "replyGateApplied") == NULL);
+    /* Each gate is written as a threadgate with the rule api.ts writes; the threadgate is
+     * the last record the PDS receives for that post. */
+    {
+        const char *gates[4];
+        const char *rules[4];
+        int i;
+        gates[0] = "nobody";    rules[0] = "\"allow\":[]";
+        gates[1] = "mentioned"; rules[1] = "app.bsky.feed.threadgate#mentionRule";
+        gates[2] = "following"; rules[2] = "app.bsky.feed.threadgate#followingRule";
+        gates[3] = "followers"; rules[3] = "app.bsky.feed.threadgate#followerRule";
+        for (i = 0; i < 4; i++) {
+            const char *nsid = NULL;
+            const char *method = NULL;
+            const char *sent = NULL;
+            memset(&req, 0, sizeof req);
+            req.text = "gated";
+            req.has_gate = 1;
+            req.gate = gates[i];
+            st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
+            CHECK(st == 200);
+            CHECK(strstr(body, "replyGateApplied") == NULL);
+            CHECK(wf_mock_pds_get_last_request(pds, &nsid, &method, &sent) == WF_OK);
+            CHECK(nsid != NULL && strcmp(nsid, "com.atproto.repo.putRecord") == 0);
+            CHECK(sent != NULL && strstr(sent, "app.bsky.feed.threadgate") != NULL);
+            CHECK(sent != NULL && strstr(sent, rules[i]) != NULL);
+            /* The threadgate shares the post's rkey, as api.ts names it. */
+            CHECK(sent != NULL && strstr(sent, "\"rkey\":\"3kpost\"") != NULL);
+            CHECK(sent != NULL && strstr(sent, "\"post\":\"at://did:plc:bob/app.bsky.feed.post/3kpost\"") != NULL);
+        }
+    }
 
-    /* A gate Wolfram cannot express: posted, and reported as not applied. */
-    req.gate = "following";
+    /* A gate the TypeScript would also reject is refused before publishing. */
+    memset(&req, 0, sizeof req);
+    req.text = "gated";
+    req.has_gate = 1;
+    req.gate = "anyone";
     st = platinum_route_post(agent, platinum_publish_live, &req, body, sizeof body);
-    CHECK(st == 200);
-    CHECK(strstr(body, "\"replyGateApplied\":false") != NULL);
+    CHECK(st == 400);
 
     /* A reply to a top-level post: the parent is the thread root. */
     wf_mock_pds_register(pds, "app.bsky.feed.getPosts", PARENT_TOP_JSON);
@@ -124,6 +150,38 @@ main(void)
 
     wf_agent_free(agent);
     wf_mock_pds_free(pds);
+
+    /* The post is created but its threadgate is not: a PDS that serves createRecord only
+     * answers the threadgate's putRecord with 404, so the post is kept and reported as
+     * not gated. */
+    {
+        wf_mock_pds *only = NULL;
+        int port2 = 0;
+        char service2[64];
+        wf_agent *agent2;
+
+        if (wf_mock_pds_start(&only, &port2) == WF_OK) {
+            wf_mock_pds_register(only, "com.atproto.repo.createRecord", RECORD_JSON);
+            snprintf(service2, sizeof service2, "http://127.0.0.1:%d", port2);
+            agent2 = wf_agent_new(service2);
+            CHECK(agent2 != NULL);
+            if (agent2 != NULL) {
+                CHECK(wf_agent_set_bearer(agent2, "tok", "bob.test", "did:plc:bob") == WF_OK);
+                memset(&req, 0, sizeof req);
+                req.text = "gate fails";
+                req.has_gate = 1;
+                req.gate = "following";
+                st = platinum_route_post(agent2, platinum_publish_live, &req, body, sizeof body);
+                CHECK(st == 200);
+                CHECK(strstr(body, "\"replyGateApplied\":false") != NULL);
+                CHECK(strstr(body, "\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kpost\"") != NULL);
+                wf_agent_free(agent2);
+            }
+            wf_mock_pds_free(only);
+        } else {
+            CHECK(0);
+        }
+    }
 
     if (failures) {
         fprintf(stderr, "test_publish_live: %d of %d checks failed\n", failures, checks);

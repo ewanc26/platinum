@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include <cJSON.h>
 #include <wolfram/agent.h>
@@ -83,6 +84,34 @@ plain_token(const char *s)
     return 1;
 }
 
+/* Writes the threadgate with the post's rkey, as api.ts does. Wolfram's
+ * wf_agent_create_threadgate would mint a fresh rkey, which the AppView does not link to
+ * the post. Returns 1 when the record was written. */
+static int
+write_threadgate(wf_agent *agent, const char *post_uri, const char *allow)
+{
+    const char *rkey = strrchr(post_uri, '/');
+    char created[32];
+    char record[1024];
+    time_t now = time(NULL);
+    struct tm utc;
+    wf_agent_post_result out;
+    wf_status st;
+
+    if (rkey == NULL || rkey[1] == '\0' || !plain_token(post_uri)) return 0;
+    rkey++;
+    if (gmtime(&now) == NULL) return 0;
+    utc = *gmtime(&now);
+    if (strftime(created, sizeof created, "%Y-%m-%dT%H:%M:%S.000Z", &utc) == 0) return 0;
+    if (strlen(post_uri) + strlen(allow) + 128 >= sizeof record) return 0;
+    sprintf(record, "{\"$type\":\"app.bsky.feed.threadgate\",\"post\":\"%s\",\"allow\":%s,\"createdAt\":\"%s\"}",
+            post_uri, allow, created);
+    memset(&out, 0, sizeof out);
+    st = wf_agent_put_record(agent, "app.bsky.feed.threadgate", rkey, record, &out);
+    wf_agent_post_result_free(&out);
+    return st == WF_OK;
+}
+
 platinum_post_result
 platinum_publish_live(void *ctx, const char *text, const platinum_ref *reply,
                       const platinum_ref *quote, const char *gate, char *body, size_t cap)
@@ -92,8 +121,6 @@ platinum_publish_live(void *ctx, const char *text, const platinum_ref *reply,
     wf_status st;
     int applied = 1;
     int gate_asked = gate != NULL && strcmp(gate, "everyone") != 0;
-    int gate_supported = 0;
-    wf_reply_gate wgate = WF_REPLY_GATE_EVERYONE;
     size_t need;
 
     if (agent == NULL || text == NULL || body == NULL || cap == 0) return PLATINUM_POST_ERROR;
@@ -125,16 +152,22 @@ platinum_publish_live(void *ctx, const char *text, const platinum_ref *reply,
     }
 
     if (gate_asked) {
+        /* The same allow rules api.ts writes; "nobody" is the empty list. */
+        const char *allow = NULL;
+
         if (strcmp(gate, "nobody") == 0) {
-            wgate = WF_REPLY_GATE_NOBODY;
-            gate_supported = 1;
-        } else {
-            gate_supported = 0;
+            allow = "[]";
+        } else if (strcmp(gate, "mentioned") == 0) {
+            allow = "[{\"$type\":\"app.bsky.feed.threadgate#mentionRule\"}]";
+        } else if (strcmp(gate, "following") == 0) {
+            allow = "[{\"$type\":\"app.bsky.feed.threadgate#followingRule\"}]";
+        } else if (strcmp(gate, "followers") == 0) {
+            allow = "[{\"$type\":\"app.bsky.feed.threadgate#followerRule\"}]";
         }
-        if (gate_supported) {
-            applied = wf_agent_set_reply_gate(agent, res.uri, wgate) == WF_OK;
-        } else {
+        if (allow == NULL) {
             applied = 0;
+        } else {
+            applied = write_threadgate(agent, res.uri, allow);
         }
     }
 
