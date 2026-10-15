@@ -78,6 +78,60 @@ test_query(void)
     CHECK(platinum_valid_query("abc", out, 4) == 0);
 }
 
+static void
+test_seen_at(void)
+{
+    char out[64];
+    const double now = 1792000000000.0;  /* 2026-10-14T17:46:40Z */
+    const double later = 2000000000000.0;
+
+    /* Values as Date.parse and toISOString give them. */
+    CHECK(platinum_valid_seen_at("1970-01-01T00:00:00Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "1970-01-01T00:00:00.000Z") == 0);
+    CHECK(platinum_valid_seen_at("1969-12-31T23:59:59.999Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "1969-12-31T23:59:59.999Z") == 0);
+    CHECK(platinum_valid_seen_at("2024-02-29T00:00:00Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2024-02-29T00:00:00.000Z") == 0);
+    CHECK(platinum_valid_seen_at("2026-10-15T14:00:00+02:00", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2026-10-15T12:00:00.000Z") == 0);
+    CHECK(platinum_valid_seen_at("2026-10-15T12:00:00.5Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2026-10-15T12:00:00.500Z") == 0);
+
+    /* Day 30 of February rolls over, as Date.parse does. */
+    CHECK(platinum_valid_seen_at("2023-02-30T00:00:00Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2023-03-02T00:00:00.000Z") == 0);
+
+    /* 24:00:00 is the end of the day, and only that. */
+    CHECK(platinum_valid_seen_at("2026-10-15T24:00:00Z", later, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2026-10-16T00:00:00.000Z") == 0);
+
+    /* A future time is clamped to now. */
+    CHECK(platinum_valid_seen_at("2099-01-01T00:00:00Z", now, out, sizeof out) == 0);
+    CHECK(strcmp(out, "2026-10-14T17:46:40.000Z") == 0);
+
+    /* Rejections, as Date.parse and the format check give them. */
+    CHECK(platinum_valid_seen_at("2023-02-32T00:00:00Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-13-01T00:00:00Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15T24:00:01Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15T24:00:00.5Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15T23:59:60Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15T12:00:00", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15 12:00:00Z", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at("2026-10-15T12:00:00+0200", later, out, sizeof out) == -1);
+    CHECK(platinum_valid_seen_at(NULL, later, out, sizeof out) == -1);
+}
+
+static void
+test_muted_word(void)
+{
+    char out[256];
+
+    CHECK(platinum_valid_muted_word(" spoilers ", out, sizeof out) == 0);
+    CHECK(strcmp(out, "spoilers") == 0);
+    CHECK(platinum_valid_muted_word("   ", out, sizeof out) == -1);
+    CHECK(platinum_valid_muted_word("bad\x01word", out, sizeof out) == -1);
+}
+
 int
 main(void)
 {
@@ -85,6 +139,8 @@ main(void)
     test_post_ref();
     test_subject_did();
     test_query();
+    test_seen_at();
+    test_muted_word();
     if (failures) {
         fprintf(stderr, "test_validate: %d of %d checks failed\n", failures, checks);
         return 1;
