@@ -6,7 +6,7 @@
 #include "validate.h"
 
 static int
-write_error(char *body, size_t cap, const char *code, const char *message)
+write_error(char *body, size_t cap, int status, const char *code, const char *message)
 {
     if (strlen(code) + strlen(message) + 32 >= cap) {
         body[0] = '\0';
@@ -17,7 +17,7 @@ write_error(char *body, size_t cap, const char *code, const char *message)
     strcat(body, "\",\"message\":\"");
     strcat(body, message);
     strcat(body, "\"}");
-    return 0;
+    return status;
 }
 
 int
@@ -30,17 +30,14 @@ platinum_route_seen(void *ctx, platinum_seen_fn fn, const char *seen_at, double 
     body[0] = '\0';
 
     if (platinum_valid_seen_at(seen_at, now_ms, normalised, sizeof normalised) != 0) {
-        write_error(body, cap, "invalid_seen_at", "seenAt must be an ISO 8601 timestamp.");
-        return 400;
+        return write_error(body, cap, 400, "invalid_seen_at", "seenAt must be an ISO 8601 timestamp.");
     }
     if (fn(ctx, normalised) != PLATINUM_ACCOUNT_OK) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     /* normalised is digits, dashes, colons, dots and T and Z only: nothing to escape. */
     if (strlen(normalised) + 16 >= cap) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     sprintf(body, "{\"seenAt\":\"%s\"}", normalised);
     return 200;
@@ -82,16 +79,13 @@ platinum_route_muted_set(void *ctx, platinum_word_fn fn, const char *word, int o
     body[0] = '\0';
 
     if (!on_valid || platinum_valid_muted_word(word, trimmed, sizeof trimmed) != 0) {
-        write_error(body, cap, "invalid_word", "A word of 1 to 100 characters and a boolean \"on\" are required.");
-        return 400;
+        return write_error(body, cap, 400, "invalid_word", "A word of 1 to 100 characters and a boolean \"on\" are required.");
     }
     if (fn(ctx, trimmed, on) != PLATINUM_ACCOUNT_OK) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     if (json_string(trimmed, quoted, sizeof quoted) != 0 || strlen(quoted) + 16 >= cap) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     sprintf(body, "{\"value\":%s,\"on\":%s}", quoted, on ? "true" : "false");
     return 200;

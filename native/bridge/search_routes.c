@@ -74,10 +74,12 @@ platinum_route_search(void *ctx, platinum_search_fn fn, int posts, const char *q
     body[0] = '\0';
 
     if (platinum_valid_query(q, query, sizeof query) != 0) {
-        /* Same message as server.ts. */
-        if (cap > 80) {
-            strcpy(body, "{\"error\":\"invalid_query\",\"message\":\"q must be 1 to 100 characters.\"}");
+        /* Same message as server.ts. A body that does not fit is the generic 500. */
+        if (cap <= 80) {
+            body[0] = '\0';
+            return 500;
         }
+        strcpy(body, "{\"error\":\"invalid_query\",\"message\":\"q must be 1 to 100 characters.\"}");
         return 400;
     }
 
