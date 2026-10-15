@@ -24,8 +24,16 @@ export class FileStorage implements BridgeStorage {
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}; throw error }
   }
   private async save<T>(name: string, value: Record<string, T>): Promise<void> {
-    await writeFile(join(this.root, name), JSON.stringify(value, null, 2), { mode: 0o600 })
+    await writeFileAtomic(join(this.root, name), JSON.stringify(value, null, 2))
   }
+}
+
+/* Write to a temporary file and rename it over `path`, so a failed or
+ * interrupted write leaves the previous file intact rather than truncated. */
+async function writeFileAtomic(path: string, data: string): Promise<void> {
+  const temporary = path + '.tmp'
+  await writeFile(temporary, data, { mode: 0o600 })
+  await rename(temporary, path)
 }
 
 class FileInstallationStore implements InstallationStore {
@@ -59,9 +67,6 @@ class FileInstallationStore implements InstallationStore {
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}; throw error }
   }
   private async save(value: Record<string, InstallationRecord>): Promise<void> {
-    const path = join(this.root, 'installations.json')
-    const temporary = path + '.tmp'
-    await writeFile(temporary, JSON.stringify(value, null, 2), { mode: 0o600 })
-    await rename(temporary, path)
+    await writeFileAtomic(join(this.root, 'installations.json'), JSON.stringify(value, null, 2))
   }
 }
