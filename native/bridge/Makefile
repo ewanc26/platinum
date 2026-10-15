@@ -14,10 +14,18 @@ all: test
 $(TESTS): %: %.c $(PARTS_OBJ)
 	$(CC) $(CFLAGS) $< $(PARTS_OBJ) -o $@
 
-test: $(TESTS)
-	@for t in $(TESTS); do ./$$t || exit 1; done
+# The Wolfram adapter uses Wolfram's C23 headers, so it is built apart from the
+# C89 parts. WOLFRAM_ROOT is the sibling checkout of Wolfram.
+WOLFRAM_ROOT ?= ../../../wolfram
+C2X_CFLAGS = -std=c2x -pedantic -Wall -Wextra -Werror -Wshadow -I$(WOLFRAM_ROOT)/include -I/usr/include/cjson
+
+test_profile_wolfram: test_profile_wolfram.c profile_wolfram.c profile.c
+	$(CC) $(C2X_CFLAGS) -I. test_profile_wolfram.c profile_wolfram.c profile.c -o $@
+
+test: $(TESTS) test_profile_wolfram
+	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS)
+	rm -f *.o $(TESTS) test_profile_wolfram
 
 .PHONY: all test clean
