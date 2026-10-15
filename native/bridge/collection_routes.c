@@ -148,3 +148,10 @@ platinum_route_engagement(void *ctx, platinum_collection_fn fn, int kind, const 
     }
     return 200;
 }
+
+int
+platinum_route_thread(void *ctx, platinum_collection_fn fn, const char *uri, char *body, size_t cap)
+{
+    /* The thread lookup takes no paging: it returns the post's ancestors and replies in one answer. */
+    return platinum_route_engagement(ctx, fn, 2, uri, NULL, NULL, body, cap);
+}

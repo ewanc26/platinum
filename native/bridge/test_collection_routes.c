@@ -130,9 +130,35 @@ test_engagement(void)
     CHECK(st == 500);
 }
 
+static void
+test_thread(void)
+{
+    fake f;
+    char body[256];
+    int st;
+    const char *post = "at://did:plc:abc/app.bsky.feed.post/3k";
+
+    memset(&f, 0, sizeof f);
+    st = platinum_route_thread(&f, fake_fn, post, body, sizeof body);
+    CHECK(st == 200 && f.kind == 2 && f.count == 20);
+    CHECK(strcmp(f.key, post) == 0);
+
+    memset(&f, 0, sizeof f);
+    st = platinum_route_thread(&f, fake_fn, "https://example.com/p", body, sizeof body);
+    CHECK(st == 400 && f.calls == 0);
+    CHECK(strstr(body, "\"error\":\"invalid_post_ref\"") != NULL);
+
+    memset(&f, 0, sizeof f);
+    f.mode = 1;
+    st = platinum_route_thread(&f, fake_fn, post, body, sizeof body);
+    CHECK(st == 404);
+    CHECK(strstr(body, "\"error\":\"post_not_found\"") != NULL);
+}
+
 int
 main(void)
 {
+    test_thread();
     test_collection_uri();
     test_feed_and_list();
     test_actor_graph();
