@@ -51,6 +51,8 @@ macos9/image_blob.c               platform  # reads docs/IMAGES.md's blob, no To
 macos9/image_blob.h               platform
 macos9/image_pix.c                platform  # a parsed image as a QuickDraw PixMap, drawn with CopyBits
 macos9/image_pix.h                platform
+macos9/avatar_cache.c              platform  # bounded slots of parsed avatars keyed by reference; no protocol or Wolfram logic
+macos9/avatar_cache.h              platform
 macos9/json_min.c                  protocol  # bounded C89 reader; Wolfram's JSON is cJSON (C99), unusable here (#39)
 macos9/json_min.h                  protocol
 macos9/main.c                      platform
