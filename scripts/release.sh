@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Cut a Platinum release: the inputs the bridge updater consumes.
 #
-#   scripts/release.sh [--dry-run] <MAJOR.MINOR.PATCH>
+#   scripts/release.sh [--dry-run] [--prerelease] <MAJOR.MINOR.PATCH>
 #
 # Builds release/platinum-bridge-<v>.tar.gz (dist/, package.json and production
 # node_modules, so an update runs nothing from a registry), <archive>.sha256 and
 # update.json. Without --dry-run it also tags v<v> and attaches those
 # three files to a GitHub release. It publishes to no package registry.
+#
+# --prerelease publishes the GitHub release as a pre-release, which the bridge's
+# updater ignores (it reads the latest full release only).
 #
 # Refuses unless the tree is clean, you are on main, main equals origin/main,
 # bridge/package.json already says <v>, and CHANGELOG.md has a "## [<v>]"
@@ -15,9 +18,17 @@
 set -euo pipefail
 
 dry=0
-if [[ "${1:-}" == "--dry-run" ]]; then dry=1; shift; fi
+prerelease=0
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --dry-run) dry=1 ;;
+    --prerelease) prerelease=1 ;;
+    *) echo "unknown option $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 version="${1:-}"
-[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "usage: $0 [--dry-run] <MAJOR.MINOR.PATCH>" >&2; exit 2; }
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "usage: $0 [--dry-run] [--prerelease] <MAJOR.MINOR.PATCH>" >&2; exit 2; }
 tag="v$version"
 cd "$(git rev-parse --show-toplevel)"
 fail() { echo "release: $*" >&2; exit 1; }
@@ -77,5 +88,7 @@ if [ "$dry" = 1 ]; then echo "release: dry run, nothing tagged or published"; ex
 notes="$(awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {f=1; next} f && /^## \[/ {exit} f {print}' CHANGELOG.md)"
 git tag -a "$tag" -m "Platinum $version" "$(git rev-parse main)"
 git push origin "$tag"
+pre_flag=()
+if [ "$prerelease" = 1 ]; then pre_flag=(--prerelease); fi
 gh release create "$tag" "$out/$archive" "$out/$archive.sha256" "$out/update.json" \
-  --title "Platinum $version" --notes "$notes"
+  --title "Platinum $version" --notes "$notes" "${pre_flag[@]}"
