@@ -79,5 +79,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ## [0.3.1]
 
+Changelog-baseline: 0.3.1 — the version bridge/package.json carried when releases were first gated; never tagged because releases are paused (#62).
+
 The version `bridge/package.json` already carried when releases were first
 gated. Earlier history is in git.
