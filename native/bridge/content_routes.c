@@ -7,7 +7,7 @@
 #include "validate.h"
 
 static int
-write_error(char *body, size_t cap, const char *code, const char *message)
+write_error(char *body, size_t cap, int status, const char *code, const char *message)
 {
     if (strlen(code) + strlen(message) + 32 >= cap) {
         body[0] = '\0';
@@ -18,7 +18,7 @@ write_error(char *body, size_t cap, const char *code, const char *message)
     strcat(body, "\",\"message\":\"");
     strcat(body, message);
     strcat(body, "\"}");
-    return 0;
+    return status;
 }
 
 /* Appends s as a JSON string to body at *len. Words are validated as having no control
@@ -66,8 +66,7 @@ platinum_route_muted_list(void *ctx, platinum_muted_list_fn fn, char *body, size
     body[0] = '\0';
 
     if (fn(ctx, views, PLATINUM_MUTED_LIST_MAX, &count) != PLATINUM_CONTENT_OK) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     if (count > PLATINUM_MUTED_LIST_MAX) count = PLATINUM_MUTED_LIST_MAX;
 
@@ -89,8 +88,7 @@ platinum_route_muted_list(void *ctx, platinum_muted_list_fn fn, char *body, size
     return 200;
 
 too_big:
-    write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-    return 500;
+    return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
 }
 
 int
@@ -104,21 +102,17 @@ platinum_route_post_delete(void *ctx, platinum_delete_fn fn, const char *uri,
 
     /* The TypeScript checks the URI with a placeholder cid; only the URI shape matters. */
     if (platinum_valid_post_ref(uri, "x") != 0) {
-        write_error(body, cap, "invalid_post_ref", "uri must be an app.bsky.feed.post AT URI.");
-        return 400;
+        return write_error(body, cap, 400, "invalid_post_ref", "uri must be an app.bsky.feed.post AT URI.");
     }
     r = fn(ctx, uri);
     if (r == PLATINUM_CONTENT_NOT_YOURS) {
-        write_error(body, cap, "not_your_post", "You can only delete your own posts.");
-        return 403;
+        return write_error(body, cap, 403, "not_your_post", "You can only delete your own posts.");
     }
     if (r != PLATINUM_CONTENT_OK) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     if (strlen(uri) + 32 >= cap) {
-        write_error(body, cap, "bridge_error", "The backend could not complete the request.");
-        return 500;
+        return write_error(body, cap, 500, "bridge_error", "The backend could not complete the request.");
     }
     sprintf(body, "{\"uri\":\"%s\",\"deleted\":true}", uri);
     return 200;
