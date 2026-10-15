@@ -63,7 +63,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 - Windows hilite and dim properly when they gain and lose focus, text fields stop blinking in background windows, and clicking a background window brings it forward instead of pressing whatever was under the pointer. [#53](https://github.com/ewanc26/platinum/pull/53)
 - The application state no longer lives on the stack, which on a Classic Mac is small and fixed at launch. [#59](https://github.com/ewanc26/platinum/pull/59)
 
-### Repository
+### Changed
 
 - A check that the Mac SDK stand-ins match the real Toolbox signatures (from the Multiversal Interfaces), with the 60-odd that don't listed and tracked in #82. [#83](https://github.com/ewanc26/platinum/pull/83)
 - A Node port of Wolfram's OAuth pairing contract, verified against Wolfram's shared vectors. It isn't used yet; wiring the bridge to a Wolfram OAuth node is tracked in #75. [#76](https://github.com/ewanc26/platinum/pull/76)
