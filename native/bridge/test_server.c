@@ -106,6 +106,13 @@ test_dispatch(void)
     CHECK(st == 501);
     CHECK(strstr(out, "not_implemented") != NULL);
 
+    /* The image route needs a token; with one, a bad ref is 400 and no CDN is 502. */
+    st = dispatch(&ctx, "GET", "/v1/image?ref=avatar/plain/did:plc:abc/x@png", NULL, NULL, out, sizeof out, &st);
+    CHECK(st == 401);
+    st = dispatch(&ctx, "GET", "/v1/image?ref=banner/x", "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 502);
+    CHECK(strstr(out, "image_unavailable") != NULL);
+
     /* Post: a valid body publishes live. */
     st = dispatch(&ctx, "POST", "/v1/post", "Bearer good-token",
                   "{\"text\":\"from the native bridge\"}", out, sizeof out, &st);

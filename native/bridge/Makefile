@@ -53,7 +53,7 @@ test_publish_live: test_publish_live.c publish_live.c post_routes.c profile.c va
 test_image_source_wolfram: test_image_source_wolfram.c image_source_wolfram.c image_route.c plim.o
 	$(CC) $(LIVE_CFLAGS) test_image_source_wolfram.c image_source_wolfram.c $(LIVE_LIBS) -o $@
 
-SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c
+SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c
 
 test_server: test_server.c $(SERVER_SRCS) mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@

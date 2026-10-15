@@ -25,6 +25,8 @@ typedef struct platinum_server_ctx {
     void *user;
     const char *version;
     size_t max_body_bytes;
+    /* The CDN the image route fetches from; NULL answers image requests with 502. */
+    void *cdn;
 } platinum_server_ctx;
 
 /* Answers one request. target is the path and query, authorization the Authorization
