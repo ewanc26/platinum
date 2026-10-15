@@ -46,6 +46,23 @@ test('a failed installation write leaves the previous file intact', async () => 
   })
 })
 
+test('concurrent writes to one file are not lost', async () => {
+  await withStorage(async (root, storage) => {
+    const states = storage.stateStore()
+    const keys = Array.from({ length: 20 }, (_, i) => `key-${i}`)
+    await Promise.all(keys.map(key => states.set(key, { nonce: key } as unknown as NodeSavedState)))
+
+    const kept = JSON.parse(await readFile(join(root, 'states.json'), 'utf8')) as Record<string, unknown>
+    assert.deepEqual(Object.keys(kept).sort(), [...keys].sort())
+
+    const installations = storage.installations()
+    const ids = Array.from({ length: 20 }, (_, i) => `id-${i}`)
+    await Promise.all(ids.map(id => installations.create({ id, did: 'did:plc:x' } as unknown as InstallationRecord)))
+    const stored = JSON.parse(await readFile(join(root, 'installations.json'), 'utf8')) as Record<string, unknown>
+    assert.deepEqual(Object.keys(stored).sort(), [...ids].sort())
+  })
+})
+
 test('a successful key-value write replaces the file and leaves no temporary file behind', async () => {
   await withStorage(async (root, storage) => {
     const sessions = storage.sessionStore()

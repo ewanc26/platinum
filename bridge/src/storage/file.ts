@@ -4,9 +4,22 @@ import type { NodeSavedSession, NodeSavedSessionStore, NodeSavedState, NodeSaved
 import type { StoredAppSession } from '../auth/app-password.js'
 import type { BridgeStorage, InstallationRecord, InstallationStore } from './interfaces.js'
 
+/* Runs read-modify-write cycles on one file one at a time. Without it, two
+ * saves that both load before either writes lose one another's change. */
+class FileQueue {
+  private readonly tails = new Map<string, Promise<unknown>>()
+  run<T>(name: string, task: () => Promise<T>): Promise<T> {
+    const previous = this.tails.get(name) ?? Promise.resolve()
+    const result = previous.then(task, task)
+    this.tails.set(name, result.catch(() => undefined))
+    return result
+  }
+}
+
 export class FileStorage implements BridgeStorage {
+  private readonly queue = new FileQueue()
   private readonly installationStore: FileInstallationStore
-  constructor(private readonly root: string) { this.installationStore = new FileInstallationStore(root) }
+  constructor(private readonly root: string) { this.installationStore = new FileInstallationStore(root, this.queue) }
   async init(): Promise<void> { await mkdir(this.root, { recursive: true }) }
   sessionStore(): NodeSavedSessionStore { return this.keyValueStore<NodeSavedSession>('sessions.json') }
   stateStore(): NodeSavedStateStore { return this.keyValueStore<NodeSavedState>('states.json') }
@@ -14,9 +27,9 @@ export class FileStorage implements BridgeStorage {
   appPasswordSessions() { return this.keyValueStore<StoredAppSession>('app-password-sessions.json') }
   private keyValueStore<T>(name: string): { set: (key: string, value: T) => Promise<void>; get: (key: string) => Promise<T | undefined>; del: (key: string) => Promise<void> } {
     return {
-      set: async (key, value) => { const data = await this.load<T>(name); data[key] = value; await this.save(name, data) },
+      set: (key, value) => this.queue.run(name, async () => { const data = await this.load<T>(name); data[key] = value; await this.save(name, data) }),
       get: async key => (await this.load<T>(name))[key],
-      del: async key => { const data = await this.load<T>(name); delete data[key]; await this.save(name, data) },
+      del: key => this.queue.run(name, async () => { const data = await this.load<T>(name); delete data[key]; await this.save(name, data) }),
     }
   }
   private async load<T>(name: string): Promise<Record<string, T>> {
@@ -37,30 +50,36 @@ async function writeFileAtomic(path: string, data: string): Promise<void> {
 }
 
 class FileInstallationStore implements InstallationStore {
-  constructor(private readonly root: string) {}
-  async create(record: InstallationRecord): Promise<void> {
-    const data = await this.load()
-    if (data[record.id]) throw new Error('installation id already exists')
-    data[record.id] = record
-    await this.save(data)
+  constructor(private readonly root: string, private readonly queue: FileQueue) {}
+  create(record: InstallationRecord): Promise<void> {
+    return this.queue.run('installations.json', async () => {
+      const data = await this.load()
+      if (data[record.id]) throw new Error('installation id already exists')
+      data[record.id] = record
+      await this.save(data)
+    })
   }
   async get(id: string): Promise<InstallationRecord | undefined> { return (await this.load())[id] }
   async getByTokenHash(tokenHash: string): Promise<InstallationRecord | undefined> {
     return Object.values(await this.load()).find(record => record.tokenHash === tokenHash)
   }
-  async update(record: InstallationRecord): Promise<void> {
-    const data = await this.load()
-    if (!data[record.id]) return
-    data[record.id] = record
-    await this.save(data)
+  update(record: InstallationRecord): Promise<void> {
+    return this.queue.run('installations.json', async () => {
+      const data = await this.load()
+      if (!data[record.id]) return
+      data[record.id] = record
+      await this.save(data)
+    })
   }
-  async revoke(id: string, revokedAt = new Date().toISOString()): Promise<boolean> {
-    const data = await this.load()
-    const record = data[id]
-    if (!record || record.revokedAt) return false
-    data[id] = { ...record, revokedAt }
-    await this.save(data)
-    return true
+  revoke(id: string, revokedAt = new Date().toISOString()): Promise<boolean> {
+    return this.queue.run('installations.json', async () => {
+      const data = await this.load()
+      const record = data[id]
+      if (!record || record.revokedAt) return false
+      data[id] = { ...record, revokedAt }
+      await this.save(data)
+      return true
+    })
   }
   private async load(): Promise<Record<string, InstallationRecord>> {
     try { return JSON.parse(await readFile(join(this.root, 'installations.json'), 'utf8')) as Record<string, InstallationRecord> }
