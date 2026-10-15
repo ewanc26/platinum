@@ -48,6 +48,41 @@ static int platinum_application_forward_passive(platinum_application *app,
     return 1;
 }
 
+/* Closes the child window that owns `window`, if there is one, and brings the
+ * timeline forward. Returns 0 when no child owns it. */
+static int platinum_application_close_child(platinum_application *app,
+                                            WindowPtr window)
+{
+    if (app->profile.window != NULL && window == app->profile.window) {
+        platinum_profile_close(&app->profile);
+    } else if (app->notifications.window != NULL &&
+               window == app->notifications.window) {
+        platinum_notifications_close(&app->notifications);
+    } else if (app->thread.window != NULL && window == app->thread.window) {
+        platinum_thread_close(&app->thread);
+    } else if (app->people.window != NULL && window == app->people.window) {
+        platinum_people_close(&app->people);
+    } else if (app->diagwin.window != NULL && window == app->diagwin.window) {
+        platinum_diagwin_close(&app->diagwin);
+    } else if (app->search.window != NULL && window == app->search.window) {
+        platinum_search_close(&app->search);
+    } else if (app->apppw.window != NULL && window == app->apppw.window) {
+        platinum_apppw_close(&app->apppw);
+    } else if (app->pairing.window != NULL && window == app->pairing.window) {
+        platinum_pairing_close(&app->pairing);
+    } else if (app->preferences.window != NULL &&
+               window == app->preferences.window) {
+        platinum_preferences_close(&app->preferences);
+    } else if (app->compose.window != NULL && window == app->compose.window) {
+        platinum_application_close_compose(app, 0);
+    } else {
+        return 0;
+    }
+
+    platinum_application_show_main(app);
+    return 1;
+}
+
 OSErr platinum_application_init(platinum_application *app)
 {
     Rect bounds;
@@ -200,46 +235,8 @@ void platinum_application_handle_event(platinum_application *app,
             } else if (part == inGoAway) {
                 if (window == app->window) {
                     app->running = 0;
-                } else if (app->profile.window != NULL &&
-                           window == app->profile.window) {
-                    platinum_profile_close(&app->profile);
-                    platinum_application_show_main(app);
-                } else if (app->notifications.window != NULL &&
-                           window == app->notifications.window) {
-                    platinum_notifications_close(&app->notifications);
-                    platinum_application_show_main(app);
-                } else if (app->thread.window != NULL &&
-                           window == app->thread.window) {
-                    platinum_thread_close(&app->thread);
-                    platinum_application_show_main(app);
-                } else if (app->people.window != NULL &&
-                           window == app->people.window) {
-                    platinum_people_close(&app->people);
-                    platinum_application_show_main(app);
-                } else if (app->diagwin.window != NULL &&
-                           window == app->diagwin.window) {
-                    platinum_diagwin_close(&app->diagwin);
-                    platinum_application_show_main(app);
-                } else if (app->search.window != NULL &&
-                           window == app->search.window) {
-                    platinum_search_close(&app->search);
-                    platinum_application_show_main(app);
-                } else if (app->apppw.window != NULL &&
-                           window == app->apppw.window) {
-                    platinum_apppw_close(&app->apppw);
-                    platinum_application_show_main(app);
-                } else if (app->pairing.window != NULL &&
-                           window == app->pairing.window) {
-                    platinum_pairing_close(&app->pairing);
-                    platinum_application_show_main(app);
-                } else if (app->preferences.window != NULL &&
-                           window == app->preferences.window) {
-                    platinum_preferences_close(&app->preferences);
-                    platinum_application_show_main(app);
-                } else if (app->compose.window != NULL &&
-                           window == app->compose.window) {
-                    platinum_application_close_compose(app, 0);
-                    platinum_application_show_main(app);
+                } else {
+                    platinum_application_close_child(app, window);
                 }
             } else if (part == inDrag) {
                 DragWindow(window, event->where, NULL);
