@@ -12,6 +12,6 @@ permissions:
 
 jobs:
   flow:
-    uses: ewanc26/wolfram/.github/workflows/flow-reusable.yml@aabb55e66ee5c8b971385c8bd9925d79f31eea54
+    uses: ewanc26/wolfram/.github/workflows/flow-reusable.yml@011b4244588cc57fa148f41f0ddfa20bcbedb44f
     with:
-      canon_ref: aabb55e66ee5c8b971385c8bd9925d79f31eea54
+      canon_ref: 011b4244588cc57fa148f41f0ddfa20bcbedb44f
