@@ -798,10 +798,14 @@ wf_status platinum_json_count(platinum_json array, long *out)
     return json_array_walk(array.at, -1, out, NULL);
 }
 
-wf_status platinum_json_string(platinum_json object,
-                              const char *name,
-                              char *dst,
-                              size_t cap)
+/* The string member `name`, decoded into `dst`. A truncating read fills `dst`
+ * with as much of the string as fits; otherwise a string that does not fit is
+ * refused, because json_decode_string never writes a partial one. */
+static wf_status json_member_string(platinum_json object,
+                                    const char *name,
+                                    char *dst,
+                                    size_t cap,
+                                    int truncating)
 {
     platinum_json value;
     wf_status status;
@@ -818,34 +822,27 @@ wf_status platinum_json_string(platinum_json object,
     if (*value.at != '"')
         return WF_ERR_PARSE;
 
-    return json_decode_string(value.at, dst, cap, NULL);
+    return json_decode_string_ex(value.at, dst, cap, NULL, truncating);
+}
+
+wf_status platinum_json_string(platinum_json object,
+                              const char *name,
+                              char *dst,
+                              size_t cap)
+{
+    return json_member_string(object, name, dst, cap, 0);
 }
 
 /*
  * The truncating form. json_decode_string refuses to write a partial string, so
- * this measures first and then decodes into a capacity that is known to fit.
+ * the non-truncating read measures first; this one fills what fits.
  */
 wf_status platinum_json_string_truncating(platinum_json object,
                                           const char *name,
                                           char *dst,
                                           size_t cap)
 {
-    platinum_json value;
-    wf_status status;
-
-    if (dst == NULL || cap == 0)
-        return WF_ERR_INVALID_ARG;
-
-    dst[0] = '\0';
-
-    status = platinum_json_member(object, name, &value);
-    if (status != WF_OK)
-        return status;
-
-    if (*value.at != '"')
-        return WF_ERR_PARSE;
-
-    return json_decode_string_ex(value.at, dst, cap, NULL, 1);
+    return json_member_string(object, name, dst, cap, 1);
 }
 
 wf_status platinum_json_int(platinum_json object, const char *name, long *out)

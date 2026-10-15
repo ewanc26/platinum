@@ -63,6 +63,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Repository
 
+- `macos9/json_min.c`: the string accessors share one routine for the plain and truncating reads. No behaviour change. Refs [#105](https://github.com/ewanc26/platinum/issues/105).
 - A check that the Mac SDK stand-ins match the real Toolbox signatures (from the Multiversal Interfaces), with the 60-odd that don't listed and tracked in #82. [#83](https://github.com/ewanc26/platinum/pull/83)
 - A Node port of Wolfram's OAuth pairing contract, verified against Wolfram's shared vectors. It isn't used yet; wiring the bridge to a Wolfram OAuth node is tracked in #75. [#76](https://github.com/ewanc26/platinum/pull/76)
 - Pull requests are checked by Wolfram's shared flow workflow (conventions, house style, drift), and the PR template and the agent flow rules are Wolfram's, byte for byte. The README's licence badge says licence. [#69](https://github.com/ewanc26/platinum/pull/69)
