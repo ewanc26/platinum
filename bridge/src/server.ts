@@ -8,7 +8,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validReplyGate, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
+import { DomainApi, validConvoId, validReplyGate, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
 import { ImageService, parseImageParams, validImageRef } from './image/fetch.js'
 import { ImageError } from './image/convert.js'
 import { validMutedWord } from './domain/muted.js'
@@ -248,6 +248,18 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'GET' && url.pathname === '/v1/timeline') {
     const cursor = url.searchParams.get('cursor') ?? undefined
     return json(res, 200, await domain.timeline(agent, limit(url.searchParams.get('limit')), cursor))
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/conversations') {
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    return json(res, 200, await domain.conversations(agent, limit(url.searchParams.get('limit')), cursor))
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/conversation') {
+    const convoId = validConvoId(url.searchParams.get('id'))
+    if (!convoId) return json(res, 400, errorBody('invalid_conversation', 'id must name a conversation.'))
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    return json(res, 200, await domain.conversationMessages(agent, convoId, limit(url.searchParams.get('limit')), cursor))
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/notifications') {

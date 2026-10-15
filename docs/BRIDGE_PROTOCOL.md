@@ -62,6 +62,8 @@ POST /v1/mute
 POST /v1/block
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
+GET /v1/conversations?limit=20&cursor=...
+GET /v1/conversation?id=...&limit=20&cursor=...
 GET /v1/thread?uri=...
 GET /v1/search/actors?q=...
 GET /v1/search/posts?q=...
@@ -210,6 +212,24 @@ notification you displayed, exactly as the bridge sent it, not the Mac's clock:
 notifications that arrive after the list was fetched then stay unread. A time in
 the future is clamped to the bridge's now. Returns `{"seenAt": "..."}`; `400
 invalid_seen_at` for anything that is not an ISO 8601 timestamp.
+
+### Direct messages
+
+`GET /v1/conversations` returns the account's conversations, one row each:
+`{"conversations":[{"id","name","handle","avatar","group","preview","unread"}],"cursor"}`.
+`name` is the other person's display name or handle, or `Group` when there is
+more than one other person, in which case `handle` and `avatar` are absent.
+`preview` is the latest message's text, empty if there is none, and `unread` is
+its unread count. A conversation with nobody else in it is left out.
+
+`GET /v1/conversation?id=...` returns one page of a conversation's messages,
+newest first, as `{"messages":[{"id","text","mine","sentAt"}],"cursor"}`. `mine`
+is true for the signed-in account's own messages. Deleted messages are left out.
+`400 invalid_conversation` for an id that is not a conversation id. The Mac
+reverses a page to read it oldest first.
+
+Both are read-only, and both go through the account's PDS to the chat service.
+Replying is not on the bridge yet.
 
 ### Thread
 

@@ -111,6 +111,39 @@ export interface Notifications {
   cursor?: string
 }
 
+/**
+ * A direct message conversation, flattened for the Mac: the person it is with
+ * (or "Group"), the latest message as a preview, and how many are unread.
+ */
+export interface Conversation {
+  id: string
+  name: string
+  handle?: string
+  avatar?: string
+  group: boolean
+  preview: string
+  unread: number
+}
+
+export interface Conversations {
+  conversations: Conversation[]
+  cursor?: string
+}
+
+/** One message in a conversation. `mine` is true for the signed-in account's own. */
+export interface ConversationMessage {
+  id: string
+  text: string
+  mine: boolean
+  sentAt: string
+}
+
+/** A page of a conversation, newest first, as the chat service returns it. */
+export interface ConversationMessages {
+  messages: ConversationMessage[]
+  cursor?: string
+}
+
 /** Result of POST /v1/like and /v1/repost: the state now, and the count to show. */
 export interface ToggleResult {
   uri: string
