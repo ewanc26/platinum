@@ -45,6 +45,11 @@ the token deletes it. Errors: `403 app_password_disabled`, `400 invalid_service`
 detail), `429 too_many_attempts` (five failures per client address per ten
 minutes).
 
+`POST /v1/revoke` takes the installation's bearer token and returns `{"ok":true}`.
+It is refused the same way as every other authenticated route: `401
+missing_bearer_token` without a token, and `401 invalid_token` for one that is not
+valid or is already revoked.
+
 ## Endpoints
 
 GET /health

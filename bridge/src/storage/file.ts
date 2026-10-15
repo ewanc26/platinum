@@ -50,6 +50,10 @@ async function writeFileAtomic(path: string, data: string): Promise<void> {
 }
 
 class FileInstallationStore implements InstallationStore {
+  /* The parsed file, kept after each successful write so a request does not
+   * re-read and re-parse it. The bridge is the only writer, so this stays in
+   * step with the file. */
+  private cache: Record<string, InstallationRecord> | undefined
   constructor(private readonly root: string, private readonly queue: FileQueue) {}
   create(record: InstallationRecord): Promise<void> {
     return this.queue.run('installations.json', async () => {
@@ -81,11 +85,17 @@ class FileInstallationStore implements InstallationStore {
       return true
     })
   }
+  /* Returns a copy, so a write that fails before saving leaves the cache as it was. */
   private async load(): Promise<Record<string, InstallationRecord>> {
-    try { return JSON.parse(await readFile(join(this.root, 'installations.json'), 'utf8')) as Record<string, InstallationRecord> }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}; throw error }
+    if (this.cache) return { ...this.cache }
+    let data: Record<string, InstallationRecord>
+    try { data = JSON.parse(await readFile(join(this.root, 'installations.json'), 'utf8')) as Record<string, InstallationRecord> }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') data = {}; else throw error }
+    this.cache = data
+    return { ...data }
   }
   private async save(value: Record<string, InstallationRecord>): Promise<void> {
     await writeFileAtomic(join(this.root, 'installations.json'), JSON.stringify(value, null, 2))
+    this.cache = value
   }
 }

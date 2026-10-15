@@ -46,6 +46,22 @@ test('a failed installation write leaves the previous file intact', async () => 
   })
 })
 
+test('token lookups reflect successful writes and ignore a failed one', async () => {
+  await withStorage(async (root, storage) => {
+    const installations = storage.installations()
+    await installations.create({ id: 'one', did: 'did:plc:one', tokenHash: 'h1' } as unknown as InstallationRecord)
+    assert.equal((await installations.getByTokenHash('h1'))?.id, 'one')
+
+    await installations.revoke('one', '2026-10-15T00:00:00Z')
+    assert.equal((await installations.getByTokenHash('h1'))?.revokedAt, '2026-10-15T00:00:00Z')
+
+    await mkdir(join(root, 'installations.json.tmp'))
+    await assert.rejects(installations.create({ id: 'two', did: 'did:plc:two', tokenHash: 'h2' } as unknown as InstallationRecord))
+    assert.equal(await installations.getByTokenHash('h2'), undefined)
+    assert.equal((await installations.get('one'))?.revokedAt, '2026-10-15T00:00:00Z')
+  })
+})
+
 test('concurrent writes to one file are not lost', async () => {
   await withStorage(async (root, storage) => {
     const states = storage.stateStore()

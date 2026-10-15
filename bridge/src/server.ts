@@ -210,10 +210,10 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     }
 
     const revoked = await tokens.revokeRecord(token)
-    if (revoked?.authKind === 'app-password') await appPassword.forget(revoked.id)
     if (!revoked) {
-      return json(res, 404, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
+      return json(res, 401, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
     }
+    if (revoked.authKind === 'app-password') await appPassword.forget(revoked.id)
 
     return json(res, 200, { ok: true })
   }
