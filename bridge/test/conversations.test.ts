@@ -7,6 +7,7 @@ import {
   normalizeConversation,
   normalizeMessage,
   validConvoId,
+  validReplyText,
 } from '../src/domain/api.js'
 
 const viewer = 'did:plc:viewer'
@@ -136,4 +137,37 @@ test('a conversation id is bounded and limited to the characters the chat servic
   assert.equal(validConvoId('a'.repeat(129)), undefined)
   assert.equal(validConvoId('../../etc'), undefined)
   assert.equal(validConvoId(undefined), undefined)
+})
+
+test('a reply is text with something in it, no longer than 1000 characters', () => {
+  assert.equal(validReplyText('on my way'), 'on my way')
+  assert.equal(validReplyText(undefined), undefined)
+  assert.equal(validReplyText('   \n'), undefined)
+  assert.equal(validReplyText('é'.repeat(1000)), 'é'.repeat(1000))
+  assert.equal(validReplyText('é'.repeat(1001)), undefined)
+})
+
+test('sending a reply goes through the chat proxy and comes back as the stored message', async () => {
+  const sent: unknown[] = []
+  const chat = {
+    chat: {
+      bsky: {
+        convo: {
+          sendMessage: async (input: unknown) => {
+            sent.push(input)
+            return {
+              data: { id: 'm9', text: 'on my way', sender: { did: viewer }, sentAt: '2026-10-02T08:00:00.000Z' },
+            }
+          },
+        },
+      },
+    },
+  }
+  const agent = { accountDid: viewer, withProxy: () => chat } as unknown as Agent
+
+  const message = await new DomainApi().sendConversationMessage(agent, 'convo-1', 'on my way')
+
+  assert.deepEqual(sent, [{ convoId: 'convo-1', message: { text: 'on my way' } }])
+  assert.equal(message.mine, true)
+  assert.equal(message.text, 'on my way')
 })

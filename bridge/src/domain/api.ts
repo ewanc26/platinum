@@ -164,6 +164,16 @@ export function validConvoId(value: unknown): string | undefined {
   return value
 }
 
+/**
+ * A reply the chat service will take: text with something other than spaces in
+ * it, and no more than 1000 characters. Returns the text, or undefined.
+ */
+export function validReplyText(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  if (Array.from(value).length > MAX_MESSAGE_LENGTH) return undefined
+  return value
+}
+
 /** The chat service, reached through the account's PDS. Only read calls go through it here. */
 function chatOf(agent: Agent) {
   return agent.withProxy('bsky_chat', CHAT_SERVICE)
@@ -522,6 +532,12 @@ export class DomainApi {
       if (normalized) conversations.push(normalized)
     }
     return { conversations, cursor: result.data.cursor }
+  }
+
+  /** Send `text` to a conversation and return the message as the service stored it. */
+  async sendConversationMessage(agent: Agent, convoId: string, text: string): Promise<ConversationMessage> {
+    const result = await chatOf(agent).chat.bsky.convo.sendMessage({ convoId, message: { text } })
+    return normalizeMessage(result.data as never, agent.accountDid)
   }
 
   /** One page of a conversation, newest first. Deleted messages are left out. */
