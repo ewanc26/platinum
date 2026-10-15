@@ -22,7 +22,7 @@ Wolfram's library and a local server (`make live`).
 | 7 | OAuth glue | deferred by decision on #75 | #75 |
 | 8 | Domain routes | route families done, see below | Wolfram typed headers |
 | 9 | Image route `GET /v1/image` | done, decision on #118 | nothing further |
-| 10 | HTTP server with the chosen transport | not started; transport decided | the transport decision below |
+| 10 | HTTP server with the chosen transport | first slice done: private bind only, `/health`, live `/v1/profile` and `POST /v1/post`, bearer check in server.ts order; every other route answers 501 | the transport decision below |
 
 Part 8, route families. Done as pure handlers with tests: routing and the bearer rule,
 profile, the write routes (like, repost, follow, mute, block), notifications seen,
@@ -61,6 +61,12 @@ can be revisited.
   writes the threadgate with a new rkey, which the AppView does not link to the post.
   The native bridge writes it with `putRecord` and the post's rkey, as the TypeScript
   does. Wolfram is not changed here; the gap is filed as an issue in the wolfram repository.
+
+Part 10 remaining: wire the other route families through the server (each needs its
+live Wolfram call), sign-in (Part 7 is deferred, so pairing needs the app-password
+sign-in route), and token persistence (token records must survive restart, so the
+server needs Part 4 storage behind the token lookup). The server keeps tokens only as
+the caller provides them.
 
 ## Blocked
 
