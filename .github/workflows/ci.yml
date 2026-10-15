@@ -137,6 +137,7 @@ jobs:
             macos9/drawutil.c \
             macos9/apppw.c \
             macos9/apppw_input.c \
+            macos9/avatar_cache.c \
             macos9/bridge_client.c \
             macos9/compose.c \
             macos9/compose_model.c \
@@ -168,6 +169,7 @@ jobs:
             macos9/timeline.c \
             macos9/ui.c \
             macos9/test/test_apppw.c \
+            macos9/test/test_avatar_cache.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_diag.c \
             macos9/test/test_image_blob.c \
@@ -214,6 +216,10 @@ jobs:
           clang "${CFLAGS[@]}" -o /tmp/test_json_min \
             macos9/json_min.c macos9/test/test_json_min.c
           /tmp/test_json_min
+          clang "${CFLAGS[@]}" -I macos9/test -o /tmp/test_avatar_cache \
+            macos9/avatar_cache.c macos9/image_blob.c macos9/json_min.c \
+            macos9/test/test_avatar_cache.c
+          /tmp/test_avatar_cache
           clang "${CFLAGS[@]}" -I macos9/test -o /tmp/test_bridge_client \
             macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_bridge_client.c
