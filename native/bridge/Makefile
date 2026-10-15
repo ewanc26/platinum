@@ -2,13 +2,16 @@
 CC ?= cc
 CFLAGS ?= -std=c89 -pedantic-errors -Wall -Wextra -Werror -Wshadow -Wstrict-prototypes -Wmissing-prototypes -O1 -g
 
-PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o post_routes.o
+PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o post_routes.o plim.o image_route.o
 
-TESTS = test_config test_token test_fsstore test_pairing test_policy test_routes test_profile test_profile_route test_validate test_write_routes test_account_routes test_content_routes test_search_routes test_collection_routes test_post_routes
+TESTS = test_config test_token test_fsstore test_pairing test_policy test_routes test_profile test_profile_route test_validate test_write_routes test_account_routes test_content_routes test_search_routes test_collection_routes test_post_routes test_image_route
 
 all: test
 
 %.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+plim.o: ../plim/plim.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TESTS): %: %.c $(PARTS_OBJ)
@@ -26,7 +29,7 @@ test: $(TESTS) test_profile_wolfram
 	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live
+	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram
 
 .PHONY: all test clean
 
@@ -47,8 +50,12 @@ test_profile_live: test_profile_live.c profile_live.c profile_route.c profile_wo
 test_publish_live: test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o $(LIVE_LIBS) -o $@
 
-live: test_profile_live test_publish_live
+test_image_source_wolfram: test_image_source_wolfram.c image_source_wolfram.c image_route.c plim.o
+	$(CC) $(LIVE_CFLAGS) test_image_source_wolfram.c image_source_wolfram.c $(LIVE_LIBS) -o $@
+
+live: test_profile_live test_publish_live test_image_source_wolfram
 	./test_profile_live
 	./test_publish_live
+	./test_image_source_wolfram
 
 .PHONY: live
