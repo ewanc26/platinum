@@ -2,9 +2,9 @@
 CC ?= cc
 CFLAGS ?= -std=c89 -pedantic-errors -Wall -Wextra -Werror -Wshadow -Wstrict-prototypes -Wmissing-prototypes -O1 -g
 
-PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o
+PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o post_routes.o
 
-TESTS = test_config test_token test_fsstore test_pairing test_policy test_routes test_profile test_profile_route test_validate test_write_routes test_account_routes test_content_routes test_search_routes test_collection_routes
+TESTS = test_config test_token test_fsstore test_pairing test_policy test_routes test_profile test_profile_route test_validate test_write_routes test_account_routes test_content_routes test_search_routes test_collection_routes test_post_routes
 
 all: test
 
