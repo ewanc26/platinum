@@ -64,6 +64,7 @@ GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
 GET /v1/conversations?limit=20&cursor=...
 GET /v1/conversation?id=...&limit=20&cursor=...
+POST /v1/conversation/message
 GET /v1/thread?uri=...
 GET /v1/search/actors?q=...
 GET /v1/search/posts?q=...
@@ -228,8 +229,14 @@ is true for the signed-in account's own messages. Deleted messages are left out.
 `400 invalid_conversation` for an id that is not a conversation id. The Mac
 reverses a page to read it oldest first.
 
-Both are read-only, and both go through the account's PDS to the chat service.
-Replying is not on the bridge yet.
+`POST /v1/conversation/message` with `{"convoId":"...","text":"..."}` sends a
+message and returns it as the service stored it, in the same shape as a page
+entry with `mine` true. The text must have something other than spaces in it
+and be at most 1000 characters: `400 missing_text` or `400 text_too_long`
+otherwise, and `400 invalid_conversation` for a bad `convoId`.
+
+The reads and the send go through the account's PDS to the chat service. The
+bridge does not start conversations or read message requests yet.
 
 ### Thread
 
