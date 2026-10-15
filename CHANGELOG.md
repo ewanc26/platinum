@@ -16,6 +16,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The Mac client keeps avatars by reference in a bounded cache (`macos9/avatar_cache.c`): a reference is wanted once, fetched through the bridge, and parsed into a ready image, a failed one is not asked for again, and a fetch in progress is never evicted. Nothing draws an avatar yet. Refs [#32](https://github.com/ewanc26/platinum/issues/32).
 - The native C bridge (`native/bridge`) is a standalone HTTP/JSON service that serves `docs/BRIDGE_PROTOCOL.md` through Wolfram's typed calls, so the Mac client no longer needs Node behind it. Every dispatched route answers live: profile, publishing and reply gates, timeline and feeds, thread flattening, notifications, actor and post search, follows and engagement, conversations, and muted words. Its C89 route modules and Wolfram adapters are host-tested against a mock PDS; it has not run on Mac OS 9. Refs [#120](https://github.com/ewanc26/platinum/issues/120).
 
 ### Changed
