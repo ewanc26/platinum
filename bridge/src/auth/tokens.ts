@@ -12,6 +12,10 @@ export interface InstallationOptions {
   authKind?: 'oauth' | 'app-password'
 }
 
+/* lastUsedAt is written at most this often. It is only shown to the operator,
+ * so a write on every request would rewrite the installations file for nothing. */
+const LAST_USED_WRITE_INTERVAL_MS = 60 * 60 * 1000
+
 export class TokenService {
   constructor(private readonly store: InstallationStore) {}
 
@@ -33,7 +37,10 @@ export class TokenService {
     if (!token) return undefined
     const record = await this.store.getByTokenHash(hashToken(token))
     if (!record || record.revokedAt) return undefined
-    const updated = { ...record, lastUsedAt: new Date().toISOString() }
+    const now = Date.now()
+    const lastUsed = record.lastUsedAt ? Date.parse(record.lastUsedAt) : NaN
+    if (Number.isFinite(lastUsed) && Math.abs(now - lastUsed) < LAST_USED_WRITE_INTERVAL_MS) return record
+    const updated = { ...record, lastUsedAt: new Date(now).toISOString() }
     await this.store.update(updated)
     return updated
   }

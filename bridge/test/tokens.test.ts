@@ -46,6 +46,33 @@ test('revoked tokens no longer authenticate and retain revocation metadata', asy
   assert.equal(await service.authenticate(token), undefined)
 })
 
+test('lastUsedAt is written once per interval, not on every request', async () => {
+  const store = new MemoryInstallationStore()
+  let writes = 0
+  const update = store.update.bind(store)
+  store.update = async record => { writes += 1; return update(record) }
+  const service = new TokenService(store)
+  const token = 'test-token'
+
+  const issued = await service.issue('did:plc:test', token)
+  const first = await service.authenticate(token)
+  assert.equal(writes, 1)
+  assert.ok(first?.lastUsedAt)
+
+  // Requests inside the interval reuse the stored record and write nothing.
+  await service.authenticate(token)
+  await service.authenticate(token)
+  assert.equal(writes, 1)
+
+  // Once the stored time is an hour old, the next request writes it again.
+  const stale = new Date(Date.now() - 61 * 60 * 1000).toISOString()
+  await store.update({ ...issued.record, lastUsedAt: stale })
+  writes = 0
+  const refreshed = await service.authenticate(token)
+  assert.equal(writes, 1)
+  assert.notEqual(refreshed?.lastUsedAt, stale)
+})
+
 test('token rotation revokes the old installation and issues a new one', async () => {
   const store = new MemoryInstallationStore()
   const service = new TokenService(store)
