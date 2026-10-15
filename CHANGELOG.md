@@ -20,6 +20,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- `scripts/release.sh --prerelease` publishes the GitHub release as a pre-release, which the bridge's updater does not offer as an update. The `RELEASES_PAUSED` marker is removed, so releases can go out again. ([#121](https://github.com/ewanc26/platinum/pull/121))
+
 - The bridge now puts image references in its post JSON: `author.avatar` (the 128 px avatar), up to four `images` with their alt text, and a link `card` (address, title, host), on every post shape. They are references for `GET /v1/image`, never URLs, and only for images on the Bluesky CDN. The Mac client reads them into each post preview (`macos9/post_media.c`) but does not draw them yet. ([#106](https://github.com/ewanc26/platinum/pull/106))
 - The bridge's updater checks a signature. Each release's `update.json` gets a detached Ed25519 signature, `update.json.sig`, made by a GitHub Actions job with a key that exists only as a repository secret, and the updater verifies it against the public key built in before it reads the manifest, refusing a release that has none or a wrong one. It runs Wolfram's Ed25519 vectors. No release has been cut with it, because releases are paused. [#49](https://github.com/ewanc26/platinum/issues/49)
 - The Mac client can ask the bridge for an image, check the bitmap it gets back against the contract and turn it into a QuickDraw PixMap. No window draws one yet, and none of it has run on a Mac. [#102](https://github.com/ewanc26/platinum/pull/102)
@@ -63,7 +65,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 - Windows hilite and dim properly when they gain and lose focus, text fields stop blinking in background windows, and clicking a background window brings it forward instead of pressing whatever was under the pointer. [#53](https://github.com/ewanc26/platinum/pull/53)
 - The application state no longer lives on the stack, which on a Classic Mac is small and fixed at launch. [#59](https://github.com/ewanc26/platinum/pull/59)
 
-### Repository
+### Changed
 
 - A check that the Mac SDK stand-ins match the real Toolbox signatures (from the Multiversal Interfaces), with the 60-odd that don't listed and tracked in #82. [#83](https://github.com/ewanc26/platinum/pull/83)
 - A Node port of Wolfram's OAuth pairing contract, verified against Wolfram's shared vectors. It isn't used yet; wiring the bridge to a Wolfram OAuth node is tracked in #75. [#76](https://github.com/ewanc26/platinum/pull/76)
