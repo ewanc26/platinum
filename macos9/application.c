@@ -138,6 +138,73 @@ void platinum_application_yield(void *userdata)
         platinum_application_handle_event(app, &event);
 }
 
+/* Carries out an action from the main timeline window. The mouse and the
+ * keyboard both produce these, so both go through here: a Command-key shortcut
+ * is only reachable from the keyboard, and it must do what its menu item does. */
+static void platinum_application_timeline_action(platinum_application *app,
+                                                 int action)
+{
+    if (action == PLATINUM_UI_ACTION_QUIT)
+        app->running = 0;
+    else if (action == PLATINUM_UI_ACTION_REFRESH)
+        platinum_application_refresh_timeline(app);
+    else if (action == PLATINUM_UI_ACTION_COMPOSE)
+        platinum_application_new_post(app);
+    else if (action == PLATINUM_UI_ACTION_PROFILE)
+        platinum_application_open_profile(app);
+    else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS)
+        platinum_application_open_notifications(app);
+    else if (action == PLATINUM_UI_ACTION_LOAD_OLDER)
+        platinum_application_load_older(app);
+    else if (action == PLATINUM_UI_ACTION_LIKE)
+        platinum_application_engage(app, 0);
+    else if (action == PLATINUM_UI_ACTION_REPOST)
+        platinum_application_engage(app, 1);
+    else if (action == PLATINUM_UI_ACTION_REPLY)
+        platinum_application_reply(app);
+    else if (action == PLATINUM_UI_ACTION_THREAD)
+        platinum_application_show_thread(app);
+    else if (action == PLATINUM_UI_ACTION_AUTHOR)
+        platinum_application_show_author(app);
+    else if (action == PLATINUM_UI_ACTION_FOLLOW)
+        platinum_application_follow(app);
+}
+
+/* Passes an update or activate event to the secondary window it belongs to.
+ * Returns 0 when the window is not one of them, so the caller can handle the
+ * main window itself. */
+static int platinum_application_forward_window_event(platinum_application *app,
+                                                     WindowPtr window,
+                                                     EventRecord *event)
+{
+    if (app->apppw.window != NULL && window == app->apppw.window) {
+        platinum_apppw_handle_event(&app->apppw, event);
+    } else if (app->pairing.window != NULL && window == app->pairing.window) {
+        platinum_pairing_handle_event(&app->pairing, event);
+    } else if (app->preferences.window != NULL &&
+               window == app->preferences.window) {
+        platinum_preferences_handle_event(&app->preferences, event);
+    } else if (app->diagwin.window != NULL && window == app->diagwin.window) {
+        platinum_diagwin_handle_event(&app->diagwin, event);
+    } else if (app->search.window != NULL && window == app->search.window) {
+        platinum_search_handle_event(&app->search, event);
+    } else if (app->people.window != NULL && window == app->people.window) {
+        platinum_people_handle_event(&app->people, event);
+    } else if (app->thread.window != NULL && window == app->thread.window) {
+        platinum_thread_handle_event(&app->thread, event);
+    } else if (app->notifications.window != NULL &&
+               window == app->notifications.window) {
+        platinum_notifications_handle_event(&app->notifications, event);
+    } else if (app->profile.window != NULL && window == app->profile.window) {
+        platinum_profile_handle_event(&app->profile, event);
+    } else if (app->compose.window != NULL && window == app->compose.window) {
+        platinum_compose_handle_event(&app->compose, event);
+    } else {
+        return 0;
+    }
+    return 1;
+}
+
 void platinum_application_handle_event(platinum_application *app,
                                               EventRecord *event)
 {
@@ -351,68 +418,15 @@ void platinum_application_handle_event(platinum_application *app,
                         &app->timeline,
                         local_where);
                 }
-                if (action == PLATINUM_UI_ACTION_QUIT)
-                    app->running = 0;
-                else if (action == PLATINUM_UI_ACTION_REFRESH)
-                    platinum_application_refresh_timeline(app);
-                else if (action == PLATINUM_UI_ACTION_COMPOSE) {
-                    platinum_application_new_post(app);
-                } else if (action == PLATINUM_UI_ACTION_PROFILE) {
-                    platinum_application_open_profile(app);
-                } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
-                    platinum_application_open_notifications(app);
-                } else if (action == PLATINUM_UI_ACTION_LOAD_OLDER) {
-                    platinum_application_load_older(app);
-                } else if (action == PLATINUM_UI_ACTION_LIKE) {
-                    platinum_application_engage(app, 0);
-                } else if (action == PLATINUM_UI_ACTION_REPOST) {
-                    platinum_application_engage(app, 1);
-                } else if (action == PLATINUM_UI_ACTION_REPLY) {
-                    platinum_application_reply(app);
-                } else if (action == PLATINUM_UI_ACTION_THREAD) {
-                    platinum_application_show_thread(app);
-                } else if (action == PLATINUM_UI_ACTION_AUTHOR) {
-                    platinum_application_show_author(app);
-                } else if (action == PLATINUM_UI_ACTION_FOLLOW) {
-                    platinum_application_follow(app);
-                }
+                platinum_application_timeline_action(app, action);
                 platinum_application_invalidate(app);
             }
             break;
 
         case updateEvt:
             window = (WindowPtr)(long)event->message;
-            if (app->apppw.window != NULL &&
-                window == app->apppw.window) {
-                platinum_apppw_handle_event(&app->apppw, event);
-            } else if (app->pairing.window != NULL &&
-                window == app->pairing.window) {
-                platinum_pairing_handle_event(&app->pairing, event);
-            } else if (app->preferences.window != NULL &&
-                window == app->preferences.window) {
-                platinum_preferences_handle_event(&app->preferences,
-                                                  event);
-            } else if (app->diagwin.window != NULL &&
-                window == app->diagwin.window) {
-                platinum_diagwin_handle_event(&app->diagwin, event);
-            } else if (app->search.window != NULL &&
-                window == app->search.window) {
-                platinum_search_handle_event(&app->search, event);
-            } else if (app->people.window != NULL &&
-                window == app->people.window) {
-                platinum_people_handle_event(&app->people, event);
-            } else if (app->thread.window != NULL &&
-                window == app->thread.window) {
-                platinum_thread_handle_event(&app->thread, event);
-            } else if (app->notifications.window != NULL &&
-                window == app->notifications.window) {
-                platinum_notifications_handle_event(&app->notifications,
-                                                    event);
-            } else if (app->profile.window != NULL && window == app->profile.window) {
-                platinum_profile_handle_event(&app->profile, event);
-            } else if (app->compose.window != NULL && window == app->compose.window) {
-                platinum_compose_handle_event(&app->compose, event);
-            } else if (window == app->window) {
+            if (!platinum_application_forward_window_event(app, window, event) &&
+                window == app->window) {
                 BeginUpdate(window);
                 platinum_application_relayout(app);
                 platinum_application_draw(app);
@@ -422,37 +436,8 @@ void platinum_application_handle_event(platinum_application *app,
 
         case activateEvt:
             window = (WindowPtr)(long)event->message;
-            if (app->apppw.window != NULL &&
-                window == app->apppw.window) {
-                platinum_apppw_handle_event(&app->apppw, event);
-            } else if (app->pairing.window != NULL &&
-                window == app->pairing.window) {
-                platinum_pairing_handle_event(&app->pairing, event);
-            } else if (app->preferences.window != NULL &&
-                window == app->preferences.window) {
-                platinum_preferences_handle_event(&app->preferences,
-                                                  event);
-            } else if (app->diagwin.window != NULL &&
-                window == app->diagwin.window) {
-                platinum_diagwin_handle_event(&app->diagwin, event);
-            } else if (app->search.window != NULL &&
-                window == app->search.window) {
-                platinum_search_handle_event(&app->search, event);
-            } else if (app->people.window != NULL &&
-                window == app->people.window) {
-                platinum_people_handle_event(&app->people, event);
-            } else if (app->thread.window != NULL &&
-                window == app->thread.window) {
-                platinum_thread_handle_event(&app->thread, event);
-            } else if (app->notifications.window != NULL &&
-                window == app->notifications.window) {
-                platinum_notifications_handle_event(&app->notifications,
-                                                    event);
-            } else if (app->profile.window != NULL && window == app->profile.window) {
-                platinum_profile_handle_event(&app->profile, event);
-            } else if (app->compose.window != NULL && window == app->compose.window) {
-                platinum_compose_handle_event(&app->compose, event);
-            } else if (window == app->window) {
+            if (!platinum_application_forward_window_event(app, window, event) &&
+                window == app->window) {
                 HiliteWindow(window, (event->modifiers & activeFlag) != 0);
             }
             break;
@@ -571,17 +556,7 @@ void platinum_application_handle_event(platinum_application *app,
                                                 &app->ui,
                                                 &app->timeline,
                                                 event);
-                if (action == PLATINUM_UI_ACTION_QUIT)
-                    app->running = 0;
-                else if (action == PLATINUM_UI_ACTION_REFRESH)
-                    platinum_application_refresh_timeline(app);
-                else if (action == PLATINUM_UI_ACTION_COMPOSE) {
-                    platinum_application_new_post(app);
-                } else if (action == PLATINUM_UI_ACTION_PROFILE) {
-                    platinum_application_open_profile(app);
-                } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
-                    platinum_application_open_notifications(app);
-                }
+                platinum_application_timeline_action(app, action);
                 platinum_application_invalidate(app);
             }
             break;

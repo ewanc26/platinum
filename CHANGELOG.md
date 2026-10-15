@@ -57,6 +57,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Fixed
 
+- Command-L, Command-E, Command-J, Command-T, Command-I and Command-Y from the keyboard now like, repost, reply, show the thread, show the author and follow, and Down Arrow at the end of the timeline loads older posts. The keyboard recognised them but dropped them, so only the mouse reached those actions.
 - The bridge writes every file it keeps (sessions, OAuth state, app-password sessions and installations) to a temporary file and renames it over the old one, so a crash or failed write mid-save leaves the previous file whole rather than truncated. Until now only the installations file was written that way. [#117](https://github.com/ewanc26/platinum/issues/117)
 - The bridge records when an installation was last used at most once an hour, rather than rewriting its installations file on every request. [#116](https://github.com/ewanc26/platinum/issues/116)
 - Two saves to the same bridge file at once no longer drop one of the changes: each file's read-modify-write runs one at a time.
