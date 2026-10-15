@@ -28,4 +28,13 @@ int platinum_valid_subject_did(const char *did);
  * trimmed query into out (cap bytes). 0 ok, -1 not. */
 int platinum_valid_query(const char *in, char *out, size_t cap);
 
+/* A muted word: the same rule as a search query (trimmed, 1 to 100 code points, no
+ * control characters). 0 ok, -1 not. */
+int platinum_valid_muted_word(const char *in, char *out, size_t cap);
+
+/* A seenAt timestamp (ISO 8601 with a zone). Writes it as the milliseconds
+ * toISOString form, clamped to now_ms (ms since the epoch) when in the future.
+ * Returns 0 if valid, -1 if not. out needs 25 bytes. */
+int platinum_valid_seen_at(const char *in, double now_ms, char *out, size_t cap);
+
 #endif

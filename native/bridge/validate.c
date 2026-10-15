@@ -1,5 +1,6 @@
 #include "validate.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "profile.h"
@@ -141,5 +142,144 @@ platinum_valid_query(const char *in, char *out, size_t cap)
     }
     memcpy(out, start, n);
     out[n] = '\0';
+    return 0;
+}
+
+int
+platinum_valid_muted_word(const char *in, char *out, size_t cap)
+{
+    return platinum_valid_query(in, out, cap);
+}
+
+/* Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's algorithm). */
+static double
+days_from_civil(long y, long m, long d)
+{
+    long era;
+    long yoe;
+    long doy;
+    long doe;
+
+    y -= m <= 2;
+    era = (y >= 0 ? y : y - 399) / 400;
+    yoe = y - era * 400;
+    doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return (double)era * 146097.0 + (double)doe - 719468.0;
+}
+
+static int
+digits(const char *p, int n, long *out)
+{
+    long v = 0;
+    int i;
+    for (i = 0; i < n; i++) {
+        if (p[i] < '0' || p[i] > '9') return 0;
+        v = v * 10 + (p[i] - '0');
+    }
+    *out = v;
+    return 1;
+}
+
+/* Writes ms since the epoch as YYYY-MM-DDTHH:MM:SS.mmmZ, the form toISOString uses. */
+static void
+format_iso(double ms, char *out)
+{
+    long z = (long)(ms / 86400000.0);
+    double rem;
+    long era, doe, yoe, doy, mp, y, d, m, hh, mi, ss, msec;
+
+    /* Round toward negative infinity so times before 1970 keep the right day. */
+    if (ms < 0 && (double)z * 86400000.0 != ms) z -= 1;
+    rem = ms - (double)z * 86400000.0;
+
+    z += 719468;
+    era = (z >= 0 ? z : z - 146096) / 146097;
+    doe = z - era * 146097;
+    yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    y = yoe + era * 400;
+    doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    mp = (5 * doy + 2) / 153;
+    d = doy - (153 * mp + 2) / 5 + 1;
+    m = mp + (mp < 10 ? 3 : -9);
+    y += m <= 2;
+
+    msec = (long)rem;
+    hh = msec / 3600000;
+    mi = (msec / 60000) % 60;
+    ss = (msec / 1000) % 60;
+    msec = msec % 1000;
+    sprintf(out, "%04ld-%02ld-%02ldT%02ld:%02ld:%02ld.%03ldZ", y, m, d, hh, mi, ss, msec);
+}
+
+int
+platinum_valid_seen_at(const char *in, double now_ms, char *out, size_t cap)
+{
+    const char *p;
+    long y, mo, d, hh, mi, ss, ms = 0, oh = 0, om = 0;
+    double t;
+    double offset_ms = 0;
+    size_t n;
+    int sign = 0;
+    int frac_nonzero = 0;
+
+    if (in == NULL || out == NULL || cap < 26) return -1;
+    out[0] = '\0';
+    n = strlen(in);
+    if (n > 64 || n < 20) return -1;
+
+    /* YYYY-MM-DDTHH:MM:SS */
+    if (!digits(in, 4, &y) || in[4] != '-' || !digits(in + 5, 2, &mo) || in[7] != '-' ||
+        !digits(in + 8, 2, &d) || in[10] != 'T' || !digits(in + 11, 2, &hh) || in[13] != ':' ||
+        !digits(in + 14, 2, &mi) || in[16] != ':' || !digits(in + 17, 2, &ss)) {
+        return -1;
+    }
+    p = in + 19;
+    if (*p == '.') {
+        size_t k = 1;
+        long frac = 0;
+        int scale = 0;
+        while (p[k] >= '0' && p[k] <= '9') {
+            if (p[k] != '0') frac_nonzero = 1;
+            if (scale < 3) {
+                frac = frac * 10 + (p[k] - '0');
+                scale++;
+            }
+            k++;
+        }
+        if (k == 1) return -1;
+        while (scale < 3) {
+            frac *= 10;
+            scale++;
+        }
+        ms = frac;
+        p += k;
+    }
+    if (*p == 'Z' && p[1] == '\0') {
+        /* UTC */
+    } else if ((*p == '+' || *p == '-') && strlen(p) == 6 && p[3] == ':' &&
+               digits(p + 1, 2, &oh) && digits(p + 4, 2, &om)) {
+        sign = (*p == '+') ? 1 : -1;
+        if (oh > 23 || om > 59) return -1;
+        offset_ms = sign * (double)(oh * 3600000L + om * 60000L);
+    } else {
+        return -1;
+    }
+
+    /* As Date.parse does: a day of 1 to 31 is accepted in any month and rolls over
+     * (2023-02-30 is 2023-03-02); hour 24 is only the end of the day, at 24:00:00. */
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return -1;
+    if (hh == 24) {
+        if (mi != 0 || ss != 0 || ms != 0 || frac_nonzero) return -1;
+    } else if (hh > 23) {
+        return -1;
+    }
+    if (mi > 59 || ss > 59) return -1;
+
+    t = days_from_civil(y, mo, d) * 86400000.0 + (double)(hh * 3600000L + mi * 60000L + ss * 1000L + ms);
+    t -= offset_ms;
+
+    if (t > now_ms) t = now_ms;
+    format_iso(t, out);
     return 0;
 }
