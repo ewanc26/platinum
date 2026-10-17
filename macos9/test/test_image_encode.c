@@ -137,6 +137,60 @@ static void test_hand_derived(void)
                 "0a0a0a" "141414" "0110");
 }
 
+static void test_flatten_boundary(void)
+{
+    /*
+     * Flatten rounding at an exact boundary. With c = 1 and a = 128 the sum is
+     * 1*128 + 255*127 + 127 = 32640, and 32640 / 255 = 128 exactly, so the +127
+     * matters: +126 would give 127. Green and blue (c = 0) are
+     * (255*127 + 127) / 255 = 127.5, rounded down to 127.
+     */
+    expect_blob("flatten rounds half up, exactly at a boundary",
+                (const unsigned char *)"\x01\x00\x00\x80", 1, 1, 320, 320, 4,
+                "504c494d" "01" "04" "0001" "0001" "0002" "0001" "0000"
+                "807f7f" "0000");
+}
+
+static void test_limit(void)
+{
+    long length = -1;
+    platinum_image image;
+    long p;
+    long k;
+
+    /*
+     * 250 x 319 at depth 8, 78 colours: 16 + 3*78 + 319*250 = 80,000 exactly.
+     * Colour k is (k, 0, 0), and pixel p is colour p mod 78, so all 78 appear.
+     */
+    for (p = 0; p < 250L * 319L; p++) {
+        k = p % 78;
+        big[p * 4] = (unsigned char)k;
+        big[p * 4 + 1] = 0;
+        big[p * 4 + 2] = 0;
+        big[p * 4 + 3] = 255;
+    }
+    check(platinum_image_encode(big, 250, 319, 320, 320, 8, out, (long)sizeof(out),
+                                &length) == PLATINUM_ENCODE_OK &&
+              length == 80000 &&
+              platinum_image_parse(out, length, &image) == PLATINUM_IMAGE_OK,
+          "a blob of exactly 80,000 bytes is accepted");
+
+    /*
+     * 250 x 317 at depth 8, 245 colours: 16 + 3*245 + 317*250 = 80,001, one over.
+     */
+    for (p = 0; p < 250L * 317L; p++) {
+        k = p % 245;
+        big[p * 4] = (unsigned char)k;
+        big[p * 4 + 1] = 0;
+        big[p * 4 + 2] = 0;
+        big[p * 4 + 3] = 255;
+    }
+    length = -1;
+    check(platinum_image_encode(big, 250, 317, 320, 320, 8, out, (long)sizeof(out),
+                                &length) == PLATINUM_ENCODE_TOO_LARGE && length == 0,
+          "a blob of 80,001 bytes is refused");
+}
+
 static void test_colour_cap(void)
 {
     static unsigned char seventeen[17 * 4];
@@ -289,7 +343,9 @@ int main(void)
 {
     test_vectors();
     test_hand_derived();
+    test_flatten_boundary();
     test_colour_cap();
+    test_limit();
     test_sizes();
     test_buffer();
     test_refusals();
