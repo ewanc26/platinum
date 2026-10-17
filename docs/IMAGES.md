@@ -9,7 +9,11 @@ are its examples, and the Mac client's parser will be tested against the same
 bytes.
 
 What exists today is the bridge half (the converter and `GET /v1/image`) and the
-Mac's reader and PixMap builder, which no window uses yet; the plan is in [PARITY.md](PARITY.md) under
+Mac's reader and PixMap builder, which no window uses yet. The Mac also has a C89
+encoder, `macos9/image_encode.c`, for steps 2, 3 and 5 below and the exact-palette
+branch of step 4. It refuses an image whose shrunk form needs more colours than the
+depth allows, because the median cut is not ported, so its output is the bridge's
+bytes only for images that fit the palette. The plan is in [PARITY.md](PARITY.md) under
 avatars, post images, alt text, the viewer and link cards (#32), and attaching
 images (#33).
 

@@ -26,6 +26,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The Mac client has a C89 encoder for the image blob, host-tested byte for byte against the bridge's image vectors. It matches the bridge for any image whose shrunk form fits the palette, and refuses the rest rather than approximate the bridge's median cut, which is not ported. Nothing on the Mac uses it yet. ([#120](https://github.com/ewanc26/platinum/issues/120))
+
 - `scripts/release.sh --prerelease` publishes the GitHub release as a pre-release, which the bridge's updater does not offer as an update. The `RELEASES_PAUSED` marker is removed, so releases can go out again. ([#121](https://github.com/ewanc26/platinum/pull/121))
 
 - The bridge now puts image references in its post JSON: `author.avatar` (the 128 px avatar), up to four `images` with their alt text, and a link `card` (address, title, host), on every post shape. They are references for `GET /v1/image`, never URLs, and only for images on the Bluesky CDN. The Mac client reads them into each post preview (`macos9/post_media.c`) but does not draw them yet. ([#106](https://github.com/ewanc26/platinum/pull/106))
