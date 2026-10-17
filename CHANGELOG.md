@@ -12,6 +12,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
+- The bridge writes its state files one at a time and atomically, and each write uses its own temporary file. Overlapping saves to the session, state and app-password stores no longer lose each other's updates. ([#117](https://github.com/ewanc26/platinum/issues/117))
+
 - The bridge keeps its installations in memory with an index by token hash, so an authenticated request no longer scans `installations.json`. The file is still the store, and every write updates both. ([#116](https://github.com/ewanc26/platinum/issues/116))
 
 - Document that C++ must remain outside the strict-C89 Mac OS 9 application target. ([#113](https://github.com/ewanc26/platinum/pull/113))

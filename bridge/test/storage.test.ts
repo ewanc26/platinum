@@ -43,3 +43,16 @@ test('creating a duplicate installation id is refused', async () => {
     await rm(root, { recursive: true, force: true })
   }
 })
+
+test('concurrent writes to one state file all land', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'platinum-storage-'))
+  try {
+    const storage = new FileStorage(root)
+    await storage.init()
+    const sessions = storage.sessionStore()
+    await Promise.all(Array.from({ length: 50 }, (_, i) => sessions.set(`key-${i}`, { value: i } as never)))
+    for (let i = 0; i < 50; i++) assert.deepEqual(await sessions.get(`key-${i}`), { value: i })
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
