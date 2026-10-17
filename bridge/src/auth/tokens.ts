@@ -12,6 +12,9 @@ export interface InstallationOptions {
   authKind?: 'oauth' | 'app-password'
 }
 
+/** How often an authenticated request may rewrite the installation's lastUsedAt. */
+export const LAST_USED_WRITE_INTERVAL_MS = 10 * 60 * 1000
+
 export class TokenService {
   constructor(private readonly store: InstallationStore) {}
 
@@ -33,7 +36,9 @@ export class TokenService {
     if (!token) return undefined
     const record = await this.store.getByTokenHash(hashToken(token))
     if (!record || record.revokedAt) return undefined
-    const updated = { ...record, lastUsedAt: new Date().toISOString() }
+    const now = Date.now()
+    if (record.lastUsedAt && now - Date.parse(record.lastUsedAt) < LAST_USED_WRITE_INTERVAL_MS) return record
+    const updated = { ...record, lastUsedAt: new Date(now).toISOString() }
     await this.store.update(updated)
     return updated
   }
