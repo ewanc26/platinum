@@ -1,7 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { readFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import { Agent } from '@atproto/api'
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { loadConfig } from './config.js'
 import { AtprotoClient } from './atproto/client.js'
@@ -16,6 +15,7 @@ import { upstreamError } from './atproto/errors.js'
 import { BridgeError, errorBody } from './http/errors.js'
 import { binary, html, json, readBody, redirect, RequestBodyTooLargeError } from './http/json.js'
 import { FileStorage } from './storage/file.js'
+import type { InstallationRecord } from './storage/interfaces.js'
 
 const config = loadConfig()
 const storage = new FileStorage(config.dataDir)
@@ -76,14 +76,11 @@ function limit(value: string | null): number {
   return Math.min(Math.max(Math.trunc(parsed), 1), 50)
 }
 
-async function authenticatedAgent(req: IncomingMessage): Promise<Agent | undefined> {
+async function authenticatedRecord(req: IncomingMessage): Promise<InstallationRecord | undefined> {
   const token = bearerToken(req)
   if (!token) return undefined
 
-  const record = await tokens.authenticate(token)
-  if (!record) return undefined
-
-  return atproto.forInstallation(record)
+  return tokens.authenticate(token)
 }
 
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -203,24 +200,12 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, { protocol: 1, token: issued.token, did: issued.record.did, installationId: issued.record.id })
   }
 
-  if (req.method === 'POST' && url.pathname === '/v1/revoke') {
-    const token = bearerToken(req)
-    if (!token) {
-      return json(res, 401, errorBody('missing_bearer_token', 'A Platinum installation token is required.'))
-    }
-
-    const revoked = await tokens.revokeRecord(token)
-    if (revoked?.authKind === 'app-password') await appPassword.forget(revoked.id)
-    if (!revoked) {
-      return json(res, 404, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
-    }
-
-    return json(res, 200, { ok: true })
-  }
-
+  // The shared gate: every /v1 route, revoke included, needs a valid
+  // installation token. Revoke stops here, so a stale upstream session
+  // cannot block it.
   const token = bearerToken(req)
-  const agent = await authenticatedAgent(req)
-  if (!agent) {
+  const record = await authenticatedRecord(req)
+  if (!record) {
     return json(
       res,
       401,
@@ -230,6 +215,25 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
           ? 'The Platinum installation token is not valid.'
           : 'A Platinum installation token is required.',
       ),
+    )
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/revoke') {
+    const revoked = await tokens.revokeRecord(token!)
+    if (revoked?.authKind === 'app-password') await appPassword.forget(revoked.id)
+    if (!revoked) {
+      return json(res, 404, errorBody('invalid_token', 'The Platinum installation token is not valid.'))
+    }
+
+    return json(res, 200, { ok: true })
+  }
+
+  const agent = await atproto.forInstallation(record)
+  if (!agent) {
+    return json(
+      res,
+      401,
+      errorBody('invalid_token', 'The Platinum installation token is not valid.'),
     )
   }
 
