@@ -120,6 +120,7 @@ jobs:
             macos9/compose_model.c \
             macos9/config.c \
             macos9/image_blob.c \
+            macos9/image_encode.c \
             macos9/image_pix.c \
             macos9/json_min.c \
             macos9/main.c \
@@ -148,6 +149,7 @@ jobs:
             macos9/test/test_bridge_client.c \
             macos9/test/test_diag.c \
             macos9/test/test_image_blob.c \
+            macos9/test/test_image_encode.c \
             macos9/test/test_compose.c \
             macos9/test/test_json_min.c \
             macos9/test/test_notifications.c \
@@ -240,6 +242,11 @@ jobs:
             macos9/image_blob.c macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_image_blob.c
           /tmp/test_image_blob
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_image_encode \
+            macos9/image_encode.c macos9/image_blob.c \
+            macos9/test/test_image_encode.c
+          /tmp/test_image_encode
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_diag \
             macos9/diag.c macos9/bridge_client.c macos9/json_min.c \

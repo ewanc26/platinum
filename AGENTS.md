@@ -151,6 +151,7 @@ platinum/
 │   ├── profile.h
 │   ├── config.h
 │   ├── image_blob.c
+│   ├── image_encode.c
 │   ├── image_pix.c
 │   ├── main.c
 │   ├── search.c
