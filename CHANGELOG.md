@@ -32,6 +32,8 @@ pull request.
 
 ### Changed
 
+- The bridge's port of Wolfram's OAuth node pairing contract now matches Wolfram's C driver. A 404 ends a pairing with the contract's message, other non-2xx replies are retried, and a zero or negative `expires_at` means no expiry. Sign-in does not use it yet; wiring it in is tracked in [#75](https://github.com/ewanc26/platinum/issues/75).
+
 - Verified the Keychain question against the pinned Retro68 image: it ships no `Keychain.h`, `CarbonLib` or `KeychainLib`, so the refresh token cannot be persisted without an untested shim. ADR 0007 and `docs/research/2026-10-31-keychain-surface.md` record the check and the smallest shim that would unblock it. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The app-password window has no bridge URL field any more; it is a handle field, a password field and Sign In. The plain-http warning went with the field, because every native request is https. ([#156](https://github.com/ewanc26/platinum/pull/156))
