@@ -28,40 +28,63 @@ export class FileStorage implements BridgeStorage {
   }
 }
 
+/**
+ * Installations live in one JSON file. The store keeps them in memory, with an
+ * index by token hash, so an authenticated request is a map lookup rather than
+ * a scan of the file. Every write goes through this instance and updates both
+ * the map and the file, so the cache cannot drift while the bridge is the only
+ * writer, which is how it is deployed.
+ */
 class FileInstallationStore implements InstallationStore {
+  private records?: Map<string, InstallationRecord>
+  private byTokenHash?: Map<string, string>
+
   constructor(private readonly root: string) {}
+
   async create(record: InstallationRecord): Promise<void> {
-    const data = await this.load()
-    if (data[record.id]) throw new Error('installation id already exists')
-    data[record.id] = record
-    await this.save(data)
+    const records = await this.loaded()
+    if (records.has(record.id)) throw new Error('installation id already exists')
+    records.set(record.id, record)
+    await this.save()
   }
-  async get(id: string): Promise<InstallationRecord | undefined> { return (await this.load())[id] }
+  async get(id: string): Promise<InstallationRecord | undefined> { return (await this.loaded()).get(id) }
   async getByTokenHash(tokenHash: string): Promise<InstallationRecord | undefined> {
-    return Object.values(await this.load()).find(record => record.tokenHash === tokenHash)
+    await this.loaded()
+    const id = this.byTokenHash!.get(tokenHash)
+    return id === undefined ? undefined : this.records!.get(id)
   }
   async update(record: InstallationRecord): Promise<void> {
-    const data = await this.load()
-    if (!data[record.id]) return
-    data[record.id] = record
-    await this.save(data)
+    const records = await this.loaded()
+    if (!records.has(record.id)) return
+    records.set(record.id, record)
+    await this.save()
   }
   async revoke(id: string, revokedAt = new Date().toISOString()): Promise<boolean> {
-    const data = await this.load()
-    const record = data[id]
+    const records = await this.loaded()
+    const record = records.get(id)
     if (!record || record.revokedAt) return false
-    data[id] = { ...record, revokedAt }
-    await this.save(data)
+    records.set(id, { ...record, revokedAt })
+    await this.save()
     return true
   }
-  private async load(): Promise<Record<string, InstallationRecord>> {
+  private async loaded(): Promise<Map<string, InstallationRecord>> {
+    if (!this.records) {
+      const data = await this.read()
+      this.records = new Map(Object.entries(data))
+      this.byTokenHash = new Map([...this.records.values()].map(record => [record.tokenHash, record.id]))
+    }
+    return this.records
+  }
+  private async read(): Promise<Record<string, InstallationRecord>> {
     try { return JSON.parse(await readFile(join(this.root, 'installations.json'), 'utf8')) as Record<string, InstallationRecord> }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}; throw error }
   }
-  private async save(value: Record<string, InstallationRecord>): Promise<void> {
+  private async save(): Promise<void> {
     const path = join(this.root, 'installations.json')
     const temporary = path + '.tmp'
-    await writeFile(temporary, JSON.stringify(value, null, 2), { mode: 0o600 })
+    const data = Object.fromEntries(this.records!)
+    await writeFile(temporary, JSON.stringify(data, null, 2), { mode: 0o600 })
     await rename(temporary, path)
+    this.byTokenHash = new Map([...this.records!.values()].map(record => [record.tokenHash, record.id]))
   }
 }
