@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TokenService, hashToken } from '../src/auth/tokens.js'
+import { LAST_USED_WRITE_INTERVAL_MS, TokenService, hashToken } from '../src/auth/tokens.js'
 import type { InstallationRecord, InstallationStore } from '../src/storage/interfaces.js'
 
 class MemoryInstallationStore implements InstallationStore {
@@ -65,4 +65,27 @@ test('token rotation revokes the old installation and issues a new one', async (
   assert.equal(rotated?.record.installationLabel, 'Quadra')
   assert.equal(await service.authenticate(token), undefined)
   assert.ok(await service.authenticate(rotated!.token))
+})
+
+test('lastUsedAt is written at most once per interval', async () => {
+  const store = new MemoryInstallationStore()
+  let writes = 0
+  const update = store.update.bind(store)
+  store.update = async record => { writes += 1; return update(record) }
+  const service = new TokenService(store)
+  const token = 'test-token'
+
+  await service.issue('did:plc:test', token)
+  await service.authenticate(token)
+  assert.equal(writes, 1)
+  await service.authenticate(token)
+  assert.equal(writes, 1)
+
+  const stale = new Date(Date.now() - LAST_USED_WRITE_INTERVAL_MS - 1000).toISOString()
+  const record = await store.getByTokenHash(hashToken(token))
+  await store.update({ ...record!, lastUsedAt: stale })
+  writes = 0
+  const fresh = await service.authenticate(token)
+  assert.equal(writes, 1)
+  assert.notEqual(fresh?.lastUsedAt, stale)
 })
