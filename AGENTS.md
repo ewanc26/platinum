@@ -1037,3 +1037,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 Do not expand the roadmap merely to mirror the modern Bluesky feature set. Prioritise a coherent native Mac OS 9 client.
 
 Keep this section current as milestones are completed.
+
+## File naming
+
+Source files are named `<scope>/<atom>.<ext>`: the directory is the scope and the file is one atom. This applies to every language, with the language's own extension (for C, `.c` and `.h`; for C++, `.cpp` and `.hpp`).
