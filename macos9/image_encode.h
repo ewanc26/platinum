@@ -12,7 +12,13 @@ extern "C" {
  * 2^depth. The quantiser is part of the contract: change it here and in
  * convert.ts together. Reads nothing from the Toolbox, so it links on a host.
  *
- * Not reentrant: the median cut uses static tables of about 640 KB.
+ * Budget, for the iMac G3 under Mac OS 9 (233 MHz, 32-bit big-endian PowerPC):
+ * the median cut uses about 640 KiB of static tables and the encoder allocates
+ * nothing else. The application's memory partition must cover that plus the
+ * source and output buffers; the partition size is not yet confirmed on the
+ * machine. The encoder is NOT reentrant: one encode at a time. Encode time on the
+ * G3 is unmeasured; worst case is estimated from the bridge's 320 x 320 and
+ * 80,000-byte caps.
  */
 
 #define PLATINUM_ENCODE_MAX_SOURCE_PIXELS 12000000L

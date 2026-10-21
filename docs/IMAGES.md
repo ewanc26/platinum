@@ -12,9 +12,25 @@ What exists today is the bridge half (the converter and `GET /v1/image`) and the
 Mac's reader and PixMap builder, which no window uses yet. The Mac also has a C89
 encoder, `macos9/image_encode.c`, which produces the same bytes as the converter,
 median cut included. It is checked on the host against the vectors and against
-stored converter output, and it has never run on a Mac. Its tables take 640 KiB on
-the Mac target, which AGENTS.md section 4 treats as a constraint, and it is not
-reentrant. The plan is in [PARITY.md](PARITY.md) under avatars, post images, alt
+stored converter output, and it has never run on a Mac.
+
+Budget, for the target machine, an iMac G3 under Mac OS 9 (a 233 MHz 32-bit
+big-endian PowerPC; the blob is written with explicit big-endian stores, so byte
+order is not a hazard):
+
+- Static memory: the median cut's tables are about 640 KiB, and the encoder
+  allocates nothing else. The Platinum application's memory partition must cover
+  that plus the RGBA source, the flattened and shrunk pixels read on the fly, and
+  the output blob (at most 80,000 bytes). The partition size has not been
+  confirmed on the machine and cannot be measured here.
+- Not reentrant: two encodes at once would share the static tables. The
+  application must call the encoder from one place, one image at a time.
+- Time: encode time on a 233 MHz G3 is unmeasured. The largest image the bridge
+  sends is capped by the TypeScript path (a 320 x 320 output, a blob of at most
+  80,000 bytes, a source of at most 12 million pixels). Worst-case time is
+  estimated from that cap, not measured.
+
+The plan is in [PARITY.md](PARITY.md) under avatars, post images, alt
 text, the viewer and link cards (#32), and attaching images (#33).
 
 ## Asking for an image
