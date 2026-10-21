@@ -51,7 +51,7 @@ macos9/image_blob.c               platform  # reads docs/IMAGES.md's blob, no To
 macos9/image_blob.h               platform
 macos9/image_pix.c                platform  # a parsed image as a QuickDraw PixMap, drawn with CopyBits
 macos9/image_pix.h                platform
-macos9/image_encode.c             platform  # RGBA to docs/IMAGES.md's blob, the converter's steps 2, 3 and 5 and the exact-palette branch of 4; no Toolbox so it links on a host; median cut is not ported
+macos9/image_encode.c             platform  # RGBA to docs/IMAGES.md's blob, byte for byte the converter's output including the median cut; no Toolbox so it links on a host; static tables of about 640 KiB, not reentrant
 macos9/image_encode.h             platform
 macos9/json_min.c                  protocol  # bounded C89 reader; Wolfram's JSON is cJSON (C99), unusable here (#39)
 macos9/json_min.h                  protocol

@@ -10,12 +10,12 @@ bytes.
 
 What exists today is the bridge half (the converter and `GET /v1/image`) and the
 Mac's reader and PixMap builder, which no window uses yet. The Mac also has a C89
-encoder, `macos9/image_encode.c`, for steps 2, 3 and 5 below and the exact-palette
-branch of step 4. It refuses an image whose shrunk form needs more colours than the
-depth allows, because the median cut is not ported, so its output is the bridge's
-bytes only for images that fit the palette. The plan is in [PARITY.md](PARITY.md) under
-avatars, post images, alt text, the viewer and link cards (#32), and attaching
-images (#33).
+encoder, `macos9/image_encode.c`, which produces the same bytes as the converter,
+median cut included. It is checked on the host against the vectors and against
+stored converter output, and it has never run on a Mac. Its tables take 640 KiB on
+the Mac target, which AGENTS.md section 4 treats as a constraint, and it is not
+reentrant. The plan is in [PARITY.md](PARITY.md) under avatars, post images, alt
+text, the viewer and link cards (#32), and attaching images (#33).
 
 ## Asking for an image
 
@@ -82,10 +82,13 @@ All integer arithmetic, in this order, so the same input gives the same bytes:
    index winning a tie. There is no dithering.
 
 The vectors pin steps 1 to 3 and the palette order exactly for images with few
-colours, which are the cases small enough to work out by hand. For images with
-many colours the tests check what has to be true (the palette size, valid
-indices, a bound on the average error) rather than every byte of the median cut,
-so a better quantiser can replace it without breaking the contract.
+colours, which are the cases small enough to work out by hand. The median cut in
+step 4 is part of the contract as well. The Mac encoder must reproduce it byte for
+byte: `macos9/test/test_image_encode.c` holds converter output for images that need
+it, and `bridge/test/image-encode-snapshots.test.ts` checks the converter still
+produces those bytes. Changing the quantiser therefore means changing `convert.ts`
+and `image_encode.c` in the same change, and regenerating those snapshots. Which
+quantiser the format uses is an owner decision, not a tuning detail.
 
 ## What I have not checked
 
