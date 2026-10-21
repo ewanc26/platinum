@@ -7,11 +7,12 @@ extern "C" {
 
 /*
  * The encoder half of docs/IMAGES.md: decoded RGBA pixels in, a "PLIM" blob out.
- * For an image whose shrunk form has no more colours than 2^depth, the bytes are
- * the bridge's (bridge/src/image/convert.ts). The bridge's median cut for busier
- * images is NOT ported: such an image is refused with
- * PLATINUM_ENCODE_TOO_MANY_COLOURS, never approximated. This reads nothing from
- * the Toolbox, so it links on a host for tests.
+ * The bytes are the bridge's (bridge/src/image/convert.ts) for every image,
+ * including the median cut that runs when the shrunk image has more colours than
+ * 2^depth. The quantiser is part of the contract: change it here and in
+ * convert.ts together. Reads nothing from the Toolbox, so it links on a host.
+ *
+ * Not reentrant: the median cut uses static tables of about 640 KB.
  */
 
 #define PLATINUM_ENCODE_MAX_SOURCE_PIXELS 12000000L
@@ -19,10 +20,9 @@ extern "C" {
 
 enum {
     PLATINUM_ENCODE_OK = 0,
-    PLATINUM_ENCODE_BAD_ARG = 1,          /* NULL pointer, size, depth or bound out of range */
-    PLATINUM_ENCODE_TOO_MANY_COLOURS = 2, /* the shrunk image needs more than 2^depth colours */
-    PLATINUM_ENCODE_TOO_LARGE = 3,        /* the blob would be over 80,000 bytes */
-    PLATINUM_ENCODE_BUFFER_SMALL = 4      /* out_size is short; *out_length holds the size needed */
+    PLATINUM_ENCODE_BAD_ARG = 1,        /* NULL pointer, size, depth or bound out of range */
+    PLATINUM_ENCODE_TOO_LARGE = 2,      /* the blob would be over 80,000 bytes */
+    PLATINUM_ENCODE_BUFFER_SMALL = 3    /* out_size is short; *out_length holds the size needed */
 };
 
 /*
