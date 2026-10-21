@@ -12,8 +12,10 @@
  *
  * The median cut keeps a dense histogram over the 5-bit-per-channel bins
  * (2^15 of them), with per-bin sums, plus a per-bin box owner. Those tables are
- * static, so the encoder never allocates, but they are about 640 KB and the
- * encoder is NOT reentrant: two calls at once would share them.
+ * static, so the encoder never allocates, but they are about 640 KiB on the
+ * iMac G3 target and the encoder is NOT reentrant: two calls at once would share
+ * them. The partition size and encode time on the G3 are unmeasured (see
+ * docs/IMAGES.md).
  */
 
 #define HEADER_BYTES 16UL
