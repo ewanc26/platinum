@@ -26,6 +26,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The Mac client builds as a real Mac OS 9 application with Retro68: `macos9/CMakeLists.txt` compiles every source as strict C89, `tools/build-macos9.sh` builds 68k and PowerPC variants, and `.github/workflows/ci.yml` has a `macos9-build` job. Nothing on the Mac uses the image encoder yet, and it has not run on Mac OS 9. ([#62](https://github.com/ewanc26/platinum/issues/62))
+
 - The Mac client has a C89 encoder for the image blob that produces the bridge's bytes for every image, median cut included. Host tests check it against the bridge's vectors and stored converter output, and a differential run matched the converter byte for byte on 3,180 generated images, 2,220 of which went through the median cut. Nothing on the Mac uses it yet, and it has not run on Mac OS 9. ([#120](https://github.com/ewanc26/platinum/issues/120))
 
 - `scripts/release.sh --prerelease` publishes the GitHub release as a pre-release, which the bridge's updater does not offer as an update. The `RELEASES_PAUSED` marker is removed, so releases can go out again. ([#121](https://github.com/ewanc26/platinum/pull/121))

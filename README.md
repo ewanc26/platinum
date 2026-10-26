@@ -82,7 +82,22 @@ cmake -S . -B build-macos9-transport \
 cmake --build build-macos9-transport --target wolfram-macos9-transport
 ```
 
-I don't have a CodeWarrior project or a Retro68 build for the application itself yet; the first is waiting on the UI settling and the second on a legal way for CI to get Apple's Open Transport headers (see [#41](https://github.com/ewanc26/platinum/issues/41)). The application icon is generated, not drawn: `tools/gen-art.py` writes `docs/logo.svg` and `macos9/resources/icon.r` from one shape, and CI checks they are current. Nothing builds the `.r` into an application yet, so I haven't seen the icon in a Finder.
+Then build the native application with Retro68, a GCC-based cross-compiler
+for Classic Mac OS (68k and PowerPC):
+
+```sh
+WOLFRAM_INCLUDE_DIR=../wolfram/include \
+tools/build-macos9.sh [68k|ppc|both]
+```
+
+This produces a Mac OS 9 application file in `build-macos9-*/Platinum`. Copy
+it to a Mac OS 9 volume (real hardware or an emulator such as BasiliskII,
+SheepShaver or Mini vMac) and double-click it.
+
+I don't have a CodeWarrior project yet; the Retro68 CMake build in
+`macos9/CMakeLists.txt` is the application build. CI compiles every source as
+strict C89 against the SDK stubs, which checks dialect and types but is not a
+native CodeWarrior build or Classic Mac OS 9 validation.
 
 CI's C89 job is the same check you can run locally against a Wolfram checkout; the flags are in [`ci.yml`](.github/workflows/ci.yml) and [`macos9/test/sdk-stubs/README.md`](macos9/test/sdk-stubs/README.md) explains exactly what a clean run does and doesn't prove. A host build is not Mac OS 9 compatibility.
 
