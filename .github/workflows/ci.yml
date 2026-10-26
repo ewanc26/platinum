@@ -299,6 +299,45 @@ jobs:
   # jobs would let a renamed or added job silently drop out of the gate; this
   # job fails unless every job it needs succeeded, and the drift check fails if
   # a job is not listed here.
+  # Builds the Mac OS 9 application with Retro68 when the toolchain is
+  # available. Not in gate.needs yet: Retro68 is a self-built cross-compiler
+  # and may not be on every runner. Once it is reliably available, move it
+  # into gate.needs so a broken Mac build blocks merge.
+  macos9-build:
+    name: Mac OS 9 application (Retro68)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Wolfram public headers (xrpc.h, macos9_tls.h) are needed to compile.
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: df6ee1f4bc5b5f59760ec1a88ecb86ea59c8a048
+          path: wolfram
+
+      - name: Install Retro68 from source
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake git libboost-program-options-dev \
+            libboost-filesystem-dev libboost-system-dev
+          git clone --depth 1 https://github.com/autc04/Retro68.git /tmp/retro68
+          cmake -S /tmp/retro68 -B /tmp/retro68/build \
+            -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build /tmp/retro68/build -j"$(nproc)"
+          sudo cmake --install /tmp/retro68/build
+
+      - name: Build for 68k
+        run: |
+          WOLFRAM_INCLUDE_DIR=$PWD/wolfram/include \
+          tools/build-macos9.sh 68k /usr/local
+
+      - name: Build for PowerPC
+        run: |
+          WOLFRAM_INCLUDE_DIR=$PWD/wolfram/include \
+          tools/build-macos9.sh ppc /usr/local
+
   gate:
     name: CI gate
     if: always()
