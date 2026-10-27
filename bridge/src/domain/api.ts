@@ -1,13 +1,10 @@
 import type { Agent } from '@atproto/api'
 import { MutedWords, isMutedPost } from './muted.js'
-import { refFromCdnUrl } from '../image/fetch.js'
+import { avatarRef, clipped, MAX_DISPLAY_NAME_LENGTH, MAX_HANDLE_LENGTH, MAX_PROFILE_DESCRIPTION_LENGTH, postDisplayFields } from './display.js'
 import type {
   Author,
   Notification,
   Notifications,
-  PostCard,
-  PostImage,
-  PostResult,
   ActorList,
   NamedList,
   FollowResult,
@@ -18,30 +15,8 @@ import type {
   Profile,
   Timeline,
   TimelinePost,
+  PostResult,
 } from './types.js'
-
-const MAX_HANDLE_LENGTH = 255
-const MAX_DISPLAY_NAME_LENGTH = 64
-const MAX_POST_TEXT_LENGTH = 300
-const MAX_PROFILE_DESCRIPTION_LENGTH = 511
-const MAX_POST_IMAGES = 4
-const MAX_ALT_LENGTH = 300
-const MAX_CARD_TITLE_LENGTH = 100
-const MAX_CARD_URI_LENGTH = 300
-
-function stringValue(value: unknown): string {
-  return typeof value === 'string' ? value : ''
-}
-
-function clipped(value: unknown, maximum: number): string {
-  return Array.from(stringValue(value)).slice(0, maximum).join('')
-}
-
-/** The reference for the small avatar the AppView linked, or undefined if there is none we would serve. */
-function avatarRef(url: unknown): string | undefined {
-  const ref = refFromCdnUrl(url)
-  return ref?.startsWith('avatar/') ? `avatar_thumbnail/${ref.slice('avatar/'.length)}` : undefined
-}
 
 function authorFrom(value: {
   did: string
@@ -57,41 +32,6 @@ function authorFrom(value: {
       : undefined,
     ...(avatarRef(value.avatar) ? { avatar: avatarRef(value.avatar) } : {}),
   }
-}
-
-type EmbedView = {
-  $type?: unknown
-  images?: unknown
-  external?: unknown
-  media?: unknown
-}
-
-/** The images view, whether the post's embed is one or a record-with-media wrapping one. */
-function imagesOf(embed: EmbedView): PostImage[] {
-  const media = embed.media !== null && typeof embed.media === 'object' ? (embed.media as EmbedView) : embed
-  if (!Array.isArray(media.images)) return []
-  const out: PostImage[] = []
-  for (const item of media.images.slice(0, MAX_POST_IMAGES)) {
-    const view = item as { thumb?: unknown; alt?: unknown } | null
-    const ref = refFromCdnUrl(view?.thumb)
-    if (ref) out.push({ ref, alt: clipped(view?.alt, MAX_ALT_LENGTH) })
-  }
-  return out
-}
-
-function cardOf(embed: EmbedView): PostCard | undefined {
-  const media = embed.media !== null && typeof embed.media === 'object' ? (embed.media as EmbedView) : embed
-  const ext = media.external as { uri?: unknown; title?: unknown } | null | undefined
-  if (!ext || typeof ext.uri !== 'string') return undefined
-  let domain = ''
-  try {
-    const url = new URL(ext.uri)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
-    domain = url.hostname
-  } catch {
-    return undefined
-  }
-  return { uri: clipped(ext.uri, MAX_CARD_URI_LENGTH), title: clipped(ext.title, MAX_CARD_TITLE_LENGTH), domain: clipped(domain, 100) }
 }
 
 type TimelinePostView = {
@@ -119,34 +59,23 @@ type TimelineFeedItem = {
 
 export function normalizeTimelinePost(feedItem: TimelineFeedItem): TimelinePost {
   const post = feedItem.post
-  const record =
-    post.record !== null && typeof post.record === 'object'
-      ? (post.record as { text?: unknown; createdAt?: unknown })
-      : {}
+  const display = postDisplayFields(post.record, post.embed)
 
   return {
     uri: clipped(post.uri, 512),
     cid: clipped(post.cid, 255),
     author: authorFrom(post.author),
-    text: clipped(record.text, MAX_POST_TEXT_LENGTH),
-    createdAt: clipped(record.createdAt, 64),
+    text: display.text,
+    createdAt: display.createdAt,
     likeCount: post.likeCount ?? 0,
     repostCount: post.repostCount ?? 0,
     replyCount: post.replyCount ?? 0,
     quoteCount: post.quoteCount ?? 0,
     liked: typeof post.viewer?.like === 'string',
     reposted: typeof post.viewer?.repost === 'string',
-    ...embedFields(post.embed),
+    ...(display.images ? { images: display.images } : {}),
+    ...(display.card ? { card: display.card } : {}),
   }
-}
-
-/** `images` and `card`, each only when present, so a plain post's JSON is unchanged. */
-function embedFields(embed: unknown): { images?: PostImage[]; card?: PostCard } {
-  if (embed === null || typeof embed !== 'object') return {}
-  const view = embed as EmbedView
-  const images = imagesOf(view)
-  const card = cardOf(view)
-  return { ...(images.length ? { images } : {}), ...(card ? { card } : {}) }
 }
 
 export function normalizeNotification(notification: {

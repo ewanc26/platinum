@@ -18,7 +18,8 @@ bridge/src/auth/app-password.ts    bridge    # @atproto/api login; app-password 
 bridge/src/auth/pairing.ts         bridge    # the Mac-to-bridge pairing code: Platinum-specific, the Mac cannot do TLS, outside Wolfram's contract
 bridge/src/auth/oauth-node-pairing.ts bridge   # the parsing half runs in Wolfram's C through the Node addon (oauth_pairing.h); the driver (transport, retry, timing) is Platinum's and stays
 bridge/src/auth/tokens.ts          bridge    # bridge tokens are Platinum's own credential
-bridge/src/domain/api.ts           port      # post and notification shaping; Wolfram post_display.h owns the model (#39)
+bridge/src/domain/api.ts           port      # the DomainApi client over @atproto/api and notification shaping; the record/embed half of post shaping runs in Wolfram's C (post_display.h) through the addon (#39), so the NSIDs the client speaks are the remaining reason this row is port
+bridge/src/domain/display.ts       bridge    # fills wire post fields from Wolfram's display model through the Node addon (post_display.h); bounds, image refs and the card host are protocol policy on top
 bridge/src/domain/muted.ts         bridge    # muted-word filtering of Platinum responses; the matcher is the AT Protocol SDK's
 bridge/src/image/convert.ts       bridge    # decode, shrink, quantise and pack an image into docs/IMAGES.md's blob; Platinum's own format, the matching C side is Platinum's too
 bridge/src/image/fetch.ts         bridge    # CDN-only image fetch, validated refs, a small cache

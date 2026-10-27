@@ -38,12 +38,12 @@ test('post images keep their references and alt text, at most four', () => {
 })
 
 test('an image the bridge would not serve is left out', () => {
-  const p = post({ embed: { images: [{ thumb: 'https://evil.example/x.jpg', alt: 'no' }, { thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@png`, alt: 'ok' }] } })
+  const p = post({ embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'https://evil.example/x.jpg', alt: 'no' }, { thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@png`, alt: 'ok' }] } })
   assert.deepEqual(p.images, [{ ref: `feed_thumbnail/plain/${DID}/bafkreiok@png`, alt: 'ok' }])
 })
 
 test('alt text is clipped to what the Mac can hold', () => {
-  const p = post({ embed: { images: [{ thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@jpeg`, alt: 'a'.repeat(1000) }] } })
+  const p = post({ embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@jpeg`, alt: 'a'.repeat(1000) }] } })
   assert.equal(Array.from(p.images?.[0].alt ?? '').length, 300)
 })
 
@@ -62,7 +62,7 @@ test('images and the card are found inside a record with media', () => {
     embed: {
       $type: 'app.bsky.embed.recordWithMedia#view',
       record: { record: {} },
-      media: { images: [{ thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@jpeg`, alt: 'inside' }] },
+      media: { $type: 'app.bsky.embed.images#view', images: [{ thumb: `${CDN}/feed_thumbnail/plain/${DID}/bafkreiok@jpeg`, alt: 'inside' }] },
     },
   })
   assert.equal(p.images?.[0].alt, 'inside')
