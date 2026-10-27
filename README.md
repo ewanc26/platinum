@@ -83,16 +83,28 @@ cmake --build build-macos9-transport --target wolfram-macos9-transport
 ```
 
 Then build the native application with Retro68, a GCC-based cross-compiler
-for Classic Mac OS (68k and PowerPC):
+for Classic Mac OS (68k and PowerPC). The easiest source of the toolchain is
+its prebuilt image, which contains everything the build needs:
 
 ```sh
-WOLFRAM_INCLUDE_DIR=../wolfram/include \
-tools/build-macos9.sh [68k|ppc|both]
+docker run --rm -v "$PWD":/root -v /path/to/wolfram:/root/wolfram \
+  ghcr.io/autc04/retro68 tools/build-macos9.sh [68k|ppc|both]
 ```
 
-This produces a Mac OS 9 application file in `build-macos9-*/Platinum`. Copy
-it to a Mac OS 9 volume (real hardware or an emulator such as BasiliskII,
-SheepShaver or Mini vMac) and double-click it.
+A locally built Retro68 works too; pass its build directory as the last
+argument (`tools/build-macos9.sh [68k|ppc|both] /path/to/Retro68-build`).
+
+This produces a MacBinary application file in `build-macos9-*/Platinum.bin`,
+with the compiled resource fork (icons and all) carried inside it; the `.bin`
+copy is the one to take to a Mac OS 9 volume — real hardware or an emulator
+such as BasiliskII, SheepShaver or Mini vMac — and double-click.
+
+It is the application shell: CI (and the local command above) link the test
+transport stub, because the Wolfram Mac OS 9 transport needs Open Transport
+and macTLS that CI does not have ([#41](https://github.com/ewanc26/platinum/issues/41)).
+Such a binary cannot reach the bridge, so it must not be distributed. A real
+build links the transport libraries with `-DPLATINUM_LINK_TRANSPORT_STUB=OFF
+-DPLATINUM_TRANSPORT_LIBS=...`.
 
 I don't have a CodeWarrior project yet; the Retro68 CMake build in
 `macos9/CMakeLists.txt` is the application build. CI compiles every source as

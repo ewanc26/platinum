@@ -73,6 +73,11 @@ cmd_drift() {
   for v in bridge macos9 flow release-dry-run; do
     grep -qE "needs:.*\b$v\b" .github/workflows/ci.yml || bad "ci.yml gate job does not wait for job '$v'"
   done
+  # 6. Every Mac application source is also in the Retro68 CMake build.
+  for f in macos9/*.c; do
+    grep -qF "$(basename "$f")" macos9/CMakeLists.txt ||
+      bad "macos9/CMakeLists.txt does not compile $(basename "$f")"
+  done
 }
 
 # Shared logic belongs in Wolfram. Three rules:
