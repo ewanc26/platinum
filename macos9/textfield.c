@@ -34,7 +34,7 @@ long platinum_textfield_length(TEHandle field)
 
 long platinum_textfield_copy(TEHandle field, char *buffer, long capacity)
 {
-    Handle text;
+    CharsHandle text;
     SignedByte state;
     long length;
 
@@ -55,10 +55,10 @@ long platinum_textfield_copy(TEHandle field, char *buffer, long capacity)
         return -1;
     }
     if (length > 0) {
-        state = HGetState(text);
-        HLock(text);
+        state = HGetState((Handle)text);
+        HLock((Handle)text);
         memcpy(buffer, *text, (size_t)length);
-        HSetState(text, state);
+        HSetState((Handle)text, state);
     }
     buffer[length] = '\0';
     return length;

@@ -51,6 +51,26 @@ Watch for name collisions with real SDK macros. `cmdKey`, `optionKey` and
 called `cmdKey` or the declaration silently becomes `short 0x0100`. That
 happened once while writing these.
 
+## Constants are real or absent
+
+The same rule as signatures, for constants: a stub may define only names and
+values the real Classic Mac OS interfaces define. The Retro68 toolchain is
+what a real `m68k-apple-macos-gcc` sees, so its Multiversal Interfaces header
+set is the authority available here; compare `Multiverse.h` in the
+`ghcr.io/autc04/retro68` image before adding or re-valuing a constant.
+
+It happened, and one of the lies cost a broken application build to find it:
+
+- `overrunErr -27` was invented and invisible to the host build; one call site
+  returned it. It is out of the stubs, and the call site returns `paramErr`.
+- The stub's event masks and modifier values were shifted (`keyDownMask 2`
+  where the real value is 8, `optionKey 0x0400` where the real value is
+  `0x0800`), and the four keyboard-navigation constants were scancode-mixing
+  wrong values. Now they carry the Multiversal values, and the arrow and
+  page-up/page-down character codes (KCHR behaviour, not header constants)
+  live in `macos9/scrollbar.h` instead of in a stub that lies about Apple
+  headers.
+
 ## Signatures are checked against Multiversal
 
 A stub that compiles proves nothing if its signature is invented. `signatures.tsv`

@@ -58,7 +58,7 @@ void TESetText(const void *text, long length, TEHandle hTE)
     (*hTE)->teLength = (short)length;
 }
 
-CharsHandle TEGetText(TEHandle hTE) { (void)hTE; return fake_text_handle; }
+CharsHandle TEGetText(TEHandle hTE) { (void)hTE; return (CharsHandle)fake_text_handle; }
 
 void TEKey(short key, TEHandle hTE)
 {

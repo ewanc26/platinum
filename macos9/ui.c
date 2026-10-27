@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "timeline.h"
+#include "scrollbar.h"
 
 #include <Quickdraw.h>
 #include <TextEdit.h>

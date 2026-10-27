@@ -263,7 +263,7 @@ OSErr platinum_compose_get_text(const platinum_compose *compose,
     if (length == 0)
         return paramErr;
     if (length > PLATINUM_COMPOSE_MAX_TEXT || length >= capacity)
-        return overrunErr;
+        return paramErr;
 
     if (platinum_textfield_copy(compose->text, buffer, capacity) < 0)
         return memFullErr;
