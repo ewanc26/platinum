@@ -131,7 +131,6 @@ typedef struct StubParamStructRec { long stub; } ParamStructRec;
 #define memFullErr -108
 #define dirFErr -64
 #define eofErr -39
-#define overrunErr -27
 
 #define systemFont 0
 #define smSystemScript (-1)
