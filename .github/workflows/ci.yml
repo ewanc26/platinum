@@ -68,7 +68,9 @@ jobs:
       - name: Install the C toolchain for Wolfram's addon
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake gcc
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            libcurl4-openssl-dev libssl-dev libsecp256k1-dev
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
@@ -315,7 +317,9 @@ jobs:
       - name: Install the C toolchain for Wolfram's addon
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake gcc
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            libcurl4-openssl-dev libssl-dev libsecp256k1-dev
       - uses: actions/checkout@v5
         with:
           repository: ewanc26/wolfram
