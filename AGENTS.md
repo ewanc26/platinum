@@ -271,16 +271,19 @@ Wolfram is the AT Protocol transport boundary used by Platinum.
 The Mac OS 9 transport is provided by the `0.26.0` release line and its Mac OS 9/Open Transport support; 0.26.0 is the minimum. CI builds the transport against v0.36.2 (`ref:` in `.github/workflows/ci.yml`) and diffs the bridge's vectors against that release's commit.
 
 The bridge runs its update contract (manifest parsing, version comparison,
-SHA-256, signature verification) in Wolfram's own C through Wolfram's Node
-addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`). The addon
+SHA-256, signature verification) and the parsers of the hosted OAuth node's
+pairing contract in Wolfram's own C through Wolfram's Node addon
+(`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`). The addon
 commit is pinned in `ci.yml` (the bridge and release-dry-run jobs) and that pin
 appears in README.md; bump the pin, README and this file together in the same
 PR. `tools/build-addon.sh` builds the module into `bridge/build/` and is what
-CI runs before the tests; the adapter over it is `bridge/src/update/wolfram.ts`.
-Run no port of Wolfram's update logic in TypeScript: the bridge calls the
-addon, and `bridge/test/update.test.ts` drives Wolfram's vectors through it.
-The files under `bridge/src/update/` are `bridge` rows in
-`tools/ownership.txt`, not `port` — the adapters hold no logic of their own.
+CI runs before the tests; `bridge/src/wolfram.ts` is the one loader for every
+contract, and the domain files are thin adapters over it.
+Run no port of Wolfram's update or pairing-parser logic in TypeScript: the
+bridge calls the addon, and `bridge/test/update.test.ts` and
+`bridge/test/oauth-node-pairing.test.ts` drive Wolfram's vectors through it.
+The files involved are `bridge` rows in `tools/ownership.txt`, not `port` —
+the adapters hold no logic of their own.
 
 When changing the Wolfram integration:
 
@@ -785,10 +788,14 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
 - Pairing has two halves. The Mac-to-bridge pairing (`/v1/pair`, `bridge/src/auth/pairing.ts`)
   is Platinum-specific because the Mac cannot do TLS; it is outside Wolfram's
   contract and stays. The bridge's own upstream sign-in is meant to go through a
-  Wolfram OAuth node: `bridge/src/auth/oauth-node-pairing.ts` ports
-  `oauth_pairing.h` and runs Wolfram's `oauth_pairing.json` vectors from
-  `bridge/test/vectors/`, byte-identical to Wolfram's at the pinned commit (CI
-  diffs them). It is not wired in yet (#75). Change behaviour in Wolfram first.
+  Wolfram OAuth node: `bridge/src/auth/oauth-node-pairing.ts` runs Wolfram's
+  `oauth_pairing.h` parsers through the Node addon and
+  `bridge/src/auth/oauth-node-pairing.test.ts` runs Wolfram's `oauth_pairing.json`
+  vectors from `bridge/test/vectors/` through the addon, byte-identical to
+  Wolfram's at the vector commit pinned in ci.yml (CI diffs them). The
+  begin/poll loop — transport, retry, timing — is Platinum glue and stays. It
+  is not wired in yet (#75). Change behaviour in Wolfram first, then bump the
+  addon pin.
 - Updates: the bridge self-updates from this repository's GitHub releases via
   `bridge/src/update/` (`npm run update`). It is opt-in and confirmed, verifies
   the SHA-256 in `update.json` before unpacking, keeps `previous` for rollback,

@@ -16,7 +16,7 @@ bridge/src/atproto/client.ts       bridge    # picks the session kind per instal
 bridge/src/atproto/errors.ts       bridge    # upstream error mapping to bridge errors
 bridge/src/auth/app-password.ts    bridge    # @atproto/api login; app-password is not in Wolfram's pairing contract
 bridge/src/auth/pairing.ts         bridge    # the Mac-to-bridge pairing code: Platinum-specific, the Mac cannot do TLS, outside Wolfram's contract
-bridge/src/auth/oauth-node-pairing.ts port   # port of oauth_pairing.h (wolfram#101), runs Wolfram's vectors; not wired in yet, see #75
+bridge/src/auth/oauth-node-pairing.ts bridge   # the parsing half runs in Wolfram's C through the Node addon (oauth_pairing.h); the driver (transport, retry, timing) is Platinum's and stays
 bridge/src/auth/tokens.ts          bridge    # bridge tokens are Platinum's own credential
 bridge/src/domain/api.ts           port      # post and notification shaping; Wolfram post_display.h owns the model (#39)
 bridge/src/domain/muted.ts         bridge    # muted-word filtering of Platinum responses; the matcher is the AT Protocol SDK's
@@ -29,7 +29,7 @@ bridge/src/storage/file.ts         bridge    # file-backed state
 bridge/src/storage/interfaces.ts   bridge    # storage contract
 bridge/src/update/cli.ts           bridge    # operator CLI
 bridge/src/update/install.ts       bridge    # fetch, unpack, swap; platform-specific by nature
-bridge/src/update/wolfram.ts       bridge    # loads Wolfram's Node addon (node/wolfram_core.c, pinned in ci.yml); glue only, the logic is Wolfram's C
+bridge/src/wolfram.ts              bridge    # loads Wolfram's Node addon (node/wolfram_core.c, pinned in ci.yml) for the update and oauth-pairing contracts; glue only, the logic is Wolfram's C
 bridge/src/update/signature.ts     bridge    # adapter over Wolfram's Node addon for wf_update_verify_signature (update.h); runs its ed25519 vectors
 bridge/src/update/update_key.ts     bridge    # Platinum's own release public key; nothing to share
 bridge/src/update/manifest.ts      bridge    # adapter over Wolfram's Node addon for wf_update_parse_manifest (update.h); runs its vectors

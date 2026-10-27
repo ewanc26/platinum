@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { DEFAULT_MAX_SIZE, parseManifest, type Asset, type Manifest } from './manifest.js'
 import { compareVersions } from './version.js'
 import { verifyManifestSignature } from './signature.js'
-import { wolfram } from './wolfram.js'
+import { wolfram } from '../wolfram.js'
 import { UPDATE_PUBLIC_KEY_HEX } from './update_key.js'
 
 const execFileAsync = promisify(execFile)

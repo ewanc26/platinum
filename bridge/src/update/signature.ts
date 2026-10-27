@@ -1,4 +1,4 @@
-import { statusCode, wolfram } from './wolfram.js'
+import { statusCode, wolfram } from '../wolfram.js'
 import { UPDATE_PUBLIC_KEY_HEX } from './update_key.js'
 
 // Verification of update.json.sig: a detached Ed25519 (RFC 8032) signature over
