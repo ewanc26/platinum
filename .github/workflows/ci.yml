@@ -59,6 +59,25 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: bridge/package.json
+
+      # The bridge runs its update contract (manifest parsing, version
+      # comparison, SHA-256, signature verification) in Wolfram's C through
+      # Wolfram's Node addon (node/wolfram_core.c); the tests need the module.
+      # The pin is a commit, bumped deliberately, like the transport ref in the
+      # Mac OS 9 job below, and it appears in README.md and AGENTS.md.
+      - name: Install the C toolchain for Wolfram's addon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake gcc
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: 0756e452ee7799164bb447ee5a518044b96cb83c
+          path: wolfram
+      - name: Build Wolfram's Node addon
+        run: tools/build-addon.sh wolfram
+        working-directory: ${{ github.workspace }}
+
       - run: npm install
       - run: npm run check
       - run: npm test
@@ -289,6 +308,22 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: bridge/package.json
+
+      # verify-release.mts checks the inputs with the updater's own parser,
+      # which runs in Wolfram's C through the Node addon, so build it from the
+      # same pinned commit as the bridge job above.
+      - name: Install the C toolchain for Wolfram's addon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake gcc
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: 0756e452ee7799164bb447ee5a518044b96cb83c
+          path: wolfram
+      - name: Build Wolfram's Node addon
+        run: tools/build-addon.sh wolfram
+
       - name: Build release inputs without tagging or publishing
         run: |
           version=$(node -p "require('./bridge/package.json').version")
