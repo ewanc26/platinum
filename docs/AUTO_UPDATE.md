@@ -47,8 +47,8 @@ the published `update.json` with an Ed25519 key that exists only as the
 repository secret `UPDATE_SIGNING_KEY` and attaches `update.json.sig`; the public
 half is committed. The manifest carries the archive's SHA-256, so the signature
 covers the download too. Replacing the key means shipping a bridge that carries
-the new one, signed with the old. Verification is Node's `crypto.verify`, run
-against Wolfram's Ed25519 vectors (`bridge/test/vectors/ed25519.json`). No
+the new one, signed with the old. Verification runs Wolfram's C (its Node
+addon), against Wolfram's Ed25519 vectors (`bridge/test/vectors/ed25519.json`). No
 release has been cut with this yet (releases are paused, #62), so the signing
 job has not run on a real release.
 
@@ -61,11 +61,14 @@ publishes nothing.
 
 Manifest format, version comparison and checksum verification should be shared
 with Cobalt and Indigo, so they are specified in
-[wolfram#106](https://github.com/ewanc26/wolfram/issues/106). The bridge is
-Node and cannot call Wolfram's C directly, so `bridge/src/update/` is a
-TypeScript port of `wolfram/update.h`, tested against Wolfram's own vectors
-(`bridge/test/vectors/update/`, copied verbatim and compared with Wolfram's in
-CI). If a Node binding appears, the port is deleted.
+[wolfram#106](https://github.com/ewanc26/wolfram/issues/106) and live in
+Wolfram's `update.h`. The bridge runs them in that C through Wolfram's Node
+addon (`node/wolfram_core.c`), built by `tools/build-addon.sh` from the
+Wolfram commit pinned in `.github/workflows/ci.yml`; that binding is what
+replaced the TypeScript port of `wolfram/update.h`. The contract stays
+testable from both sides:
+`bridge/test/vectors/` copies Wolfram's vectors verbatim (CI diffs them) and
+`bridge/test/update.test.ts` runs them through the addon.
 
 ## The Mac OS 9 client (not implemented)
 
