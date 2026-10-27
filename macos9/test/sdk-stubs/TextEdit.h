@@ -17,7 +17,7 @@ typedef struct StubTextEditRecord {
 
 typedef TERec *TEPtr;
 typedef TEPtr *TEHandle;
-typedef Handle CharsHandle;
+typedef unsigned char **CharsHandle;
 
 TEHandle TENew(const Rect *destRect, const Rect *viewRect);
 void TEDispose(TEHandle hTE);
