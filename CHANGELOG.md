@@ -12,6 +12,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
+- The record/embed half of post shaping runs in Wolfram's C through the Node addon too: the display model of `post_display.h` (post text, createdAt, validated facets, image list, embed kind, external card, video, quote) fills the wire post, with the text bounds, image references and card host kept as bridge policy on top. An embed Wolfram's model cannot type — no or lying `$type` — shows nothing, as every real AppView response is typed anyway. CI builds the addon from a bumped pin. ([#135](https://github.com/ewanc26/platinum/pull/135))
+
 - The bridge runs the parsers of the hosted OAuth node's pairing contract (Wolfram's `oauth_pairing.h`) in Wolfram's C through the Node addon too; the port under `bridge/src/auth/` is an adapter now, the begin/poll loop stays Platinum glue, and CI builds the addon from a bumped pin. ([#134](https://github.com/ewanc26/platinum/pull/134))
 
 - The bridge runs its updater's contract — manifest parsing, version comparison, SHA-256 and Ed25519 verification — in Wolfram's C through Wolfram's Node addon, built in CI from a pinned Wolfram commit. The TypeScript ports under `bridge/src/update/` are thin adapters over it, and the bridge tests drive Wolfram's vectors through the C unchanged. ([#133](https://github.com/ewanc26/platinum/pull/133))
