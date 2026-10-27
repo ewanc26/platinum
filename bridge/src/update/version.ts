@@ -1,4 +1,4 @@
-import { wolfram } from './wolfram.js'
+import { wolfram } from '../wolfram.js'
 
 // Semantic version order: Wolfram's wf_update_compare_versions (update.h),
 // running in Wolfram's C through the Node addon. Nothing is ported any more:
