@@ -41,6 +41,36 @@ export type PairPollResult =
   | { state: 'complete'; token: string; handle: string; did: string; service: string }
   | { state: 'error'; message: string }
 
+/** One validated richtext facet over the post's text. */
+export interface WolframFacet {
+  kind: 'link' | 'mention' | 'tag'
+  byteStart: number
+  byteEnd: number
+  target: string
+}
+
+/** One picture the author attached, in the author's order. */
+export interface WolframDisplayImage {
+  /** CDN thumbnail URL, or null: an image with none is still counted. */
+  thumb: string | null
+  alt: string | null
+  width: number
+  height: number
+}
+
+/** The display model wolfram/post_display.h fills from a post's record and embed. */
+export interface WolframPostDisplay {
+  text: string
+  createdAt: string | null
+  facets: WolframFacet[]
+  images: WolframDisplayImage[]
+  embedKind: 'none' | 'images' | 'video' | 'external' | 'record' | 'recordWithMedia' | 'unknown'
+  isReply: boolean
+  external: { title: string | null; uri: string | null; description: string | null; thumb: string | null }
+  video: { thumb: string | null; alt: string | null; width: number; height: number }
+  quote: { uri: string | null; authorHandle: string | null; text: string | null }
+}
+
 // The module throws Error values whose `code` is the wf_status name
 // (WF_ERR_PARSE, WF_ERR_VALIDATION, ...); read it, never its message, which is
 // Wolfram's call site and does not read as prose.
@@ -55,6 +85,12 @@ export interface Wolfram {
   buildPairBegin(handle: string): string
   parsePairBegin(body: Buffer | string): PairBeginResult
   parsePairPoll(body: Buffer | string): PairPollResult
+  // wolfram/post_display.h: the display model of a post from its raw
+  // record/embed JSON text. undefined or null arguments mean the member is
+  // absent; intake text that does not parse throws WF_ERR_PARSE before
+  // Wolfram's C ever sees it. Hostile data yields empty members, never a
+  // throw. Fetching (network) stays in the consumer.
+  postDisplay(record?: Buffer | string | null, embed?: Buffer | string | null): WolframPostDisplay
 }
 
 export function loadWolfram(): Wolfram {
