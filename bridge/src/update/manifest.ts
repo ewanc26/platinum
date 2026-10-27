@@ -1,4 +1,4 @@
-import { statusCode, wolfram, type WolframManifest } from './wolfram.js'
+import { statusCode, wolfram, type WolframManifest } from '../wolfram.js'
 
 // update.json: Wolfram's wf_update_parse_manifest (update.h, docs/update.md),
 // running in Wolfram's C through the Node addon. The adapter keeps the

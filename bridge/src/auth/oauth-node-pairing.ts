@@ -1,6 +1,11 @@
-// Client side of the hosted OAuth node's pairing contract: a port of Wolfram's
-// oauth_pairing.h (docs/oauth-pairing.md in ewanc26/wolfram), tested against
-// Wolfram's shared vectors in test/vectors/oauth_pairing.json.
+import { wolfram } from '../wolfram.js'
+
+// Client side of the hosted OAuth node's pairing contract: Wolfram's
+// oauth_pairing.h parsers (docs/oauth-pairing.md in ewanc26/wolfram), running
+// in Wolfram's C through the Node addon. tested against Wolfram's shared
+// vectors in test/vectors/oauth_pairing.json, which stay byte-identical and
+// CI-diffed. The begin/poll loop, its transport and its timing stay here: the
+// transport is Platinum's.
 //
 // This is NOT Platinum's Mac-to-bridge pairing (POST /v1/pair): the Mac client
 // cannot do TLS, so that stays Platinum-specific and is outside Wolfram's
@@ -8,17 +13,11 @@
 // Wolfram OAuth node instead of running its own OAuth client.
 //
 // The poll `token` is a bearer credential. Nothing here logs it, the pair code,
-// a poll URL or a raw reply, and errors never carry reply text.
+// a poll URL or a raw reply, and errors never carry reply text; the addon
+// wipes the C poll struct after every call.
 
 export const POLL_INTERVAL_MS = 1500
 export const MAX_POLLS = 360
-
-const CODE_MAX = 64
-const URL_MAX = 512
-const TOKEN_MAX = 256
-const HANDLE_MAX = 256
-const DID_MAX = 256
-const MESSAGE_MAX = 256
 
 export interface PairBegin {
   pairCode: string
@@ -39,8 +38,6 @@ export class PairingError extends Error {
   }
 }
 
-const fits = (v: unknown, cap: number): v is string =>
-  typeof v === 'string' && Buffer.byteLength(v) < cap
 const isHttp = (s: string) => s.startsWith('https://') || s.startsWith('http://')
 
 function object(text: string): Record<string, unknown> {
@@ -56,44 +53,26 @@ function object(text: string): Record<string, unknown> {
 
 /** The `begin` request body. An empty handle, or one with control characters, is refused. */
 export function buildBegin(handle: string): string {
-  if (!handle || /[\u0000-\u001f\u007f]/.test(handle)) throw new PairingParseError('handle is empty or has control characters')
-  return JSON.stringify({ handle })
+  try {
+    return wolfram.buildPairBegin(handle)
+  } catch {
+    throw new PairingParseError('handle is empty or has control characters')
+  }
 }
 
 export function parseBegin(text: string): PairBegin {
-  const o = object(text)
-  if (!fits(o.pair_code, CODE_MAX) || o.pair_code.length === 0) throw new PairingParseError('pair_code missing or too long')
-  if (!fits(o.pair_url, URL_MAX) || !isHttp(o.pair_url)) throw new PairingParseError('pair_url missing, too long or not http(s)')
-  let expiresAt = 0
-  if (o.expires_at !== undefined) {
-    if (typeof o.expires_at !== 'number' || !Number.isFinite(o.expires_at)) throw new PairingParseError('expires_at is not a number')
-    expiresAt = Math.trunc(o.expires_at)
+  try {
+    return wolfram.parsePairBegin(text)
+  } catch {
+    throw new PairingParseError('the reply is not a valid begin reply')
   }
-  return { pairCode: o.pair_code, pairUrl: o.pair_url, expiresAt }
 }
 
 export function parsePoll(text: string): PairPoll {
-  const o = object(text)
-  switch (o.status) {
-    case 'pending':
-      return { state: 'pending' }
-    case 'complete': {
-      const { token, handle, did, service } = o
-      if (!fits(token, TOKEN_MAX) || token.length === 0 ||
-          !fits(handle, HANDLE_MAX) || handle.length === 0 ||
-          !fits(did, DID_MAX) || !did.startsWith('did:') ||
-          !fits(service, URL_MAX) || !isHttp(service)) {
-        throw new PairingParseError('complete reply is missing a field or one is invalid')
-      }
-      return { state: 'complete', token, handle, did, service }
-    }
-    case 'error': {
-      // Only display text, so it is truncated rather than refused.
-      const m = typeof o.message === 'string' ? o.message : ''
-      return { state: 'error', message: Buffer.from(m).subarray(0, MESSAGE_MAX - 1).toString('utf8').replace(/�+$/, '') }
-    }
-    default:
-      throw new PairingParseError('unknown status')
+  try {
+    return wolfram.parsePairPoll(text)
+  } catch {
+    throw new PairingParseError('the reply is not a valid poll reply')
   }
 }
 
