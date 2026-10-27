@@ -1,24 +1,43 @@
 cmake_minimum_required(VERSION 3.16)
 project(Platinum C)
 
-# Classic Mac OS 9 application build for Retro68.
+# Classic Mac OS application build, for the Retro68 cross-compiler only.
 #
-# Retro68 is a GCC-based cross-compiler for Classic Mac OS (68k and PowerPC).
-# Install it from https://github.com/autc04/Retro68, then:
+# Retro68 (https://github.com/autc04/Retro68) supplies the toolchain files and
+# the add_application() command used below. With the prebuilt image
+# ghcr.io/autc04/retro68:
 #
-#   # 68k build (runs on any 68k Mac, System 7.1 through Mac OS 9.2.2):
-#   cmake -S macos9 -B build-macos9-68k \
-#     -DCMAKE_TOOLCHAIN_FILE=<retro68>/share/retro68/cmake/Toolchain-retro68-68k.cmake
-#   cmake --build build-macos9-68k
+#   docker run --rm -v "$PWD":/root -v /path/to/wolfram:/root/wolfram \
+#     -i ghcr.io/autc04/retro68 tools/build-macos9.sh
 #
-#   # PowerPC build (runs on PowerPC Macs, Mac OS 7.1.2 through Mac OS 9.2.2):
-#   cmake -S macos9 -B build-macos9-ppc \
-#     -DCMAKE_TOOLCHAIN_FILE=<retro68>/share/retro68/cmake/Toolchain-retro68-powerpc.cmake
-#   cmake --build build-macos9-ppc
+# or with a locally built toolchain, see tools/build-macos9.sh.
 #
-# Produces a Mac OS 9 application file (type APPL, creator PTLM) in the build
-# directory. Copy it to a Mac volume (real hardware, BasiliskII, SheepShaver or
-# Mini vMac) and double-click it.
+# The result is a real Mac application (type APPL, creator PTLM) that runs on
+# 68k and PowerPC Macs from System 7.1 through Mac OS 9.2.2. Compiling here
+# proves the sources build against real Classic Mac OS interfaces; it does
+# not prove the application runs, which needs an emulator or hardware.
+#
+# Host-side C89 checks do not use this file: CI compiles every source
+# directly with clang and gcc against the declaration-only stubs in
+# macos9/test/sdk-stubs/ (see .github/workflows/ci.yml).
+
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Retro")
+    message(FATAL_ERROR
+        "Platinum's macos9 CMake build targets Retro68, but CMAKE_SYSTEM_NAME "
+        "is '${CMAKE_SYSTEM_NAME}'. Point CMAKE_TOOLCHAIN_FILE at a Retro68 "
+        "toolchain file (retro68.toolchain.cmake or retroppc.toolchain.cmake).")
+endif()
+
+set(CMAKE_C_STANDARD 90)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# Same dialect rules as the CI C89 job. -Wno-multichar: 'PTLM' and 'PREF' are
+# OSType literals, multi-character constants by design on the Mac target.
+add_compile_options(
+    -Wall -Wextra -Werror
+    -Wno-unused-parameter -Wno-multichar
+    -Wdeclaration-after-statement -Wstrict-prototypes -Wvla
+)
 
 set(PLATINUM_SOURCES
     application.c
@@ -26,6 +45,8 @@ set(PLATINUM_SOURCES
     application_menus.c
     application_post.c
     application_views.c
+    apppw.c
+    apppw_input.c
     bridge_client.c
     compose.c
     compose_model.c
@@ -50,9 +71,9 @@ set(PLATINUM_SOURCES
     profile.c
     profile_feed.c
     scrollbar.c
-    secret.c
     search.c
     search_query.c
+    secret.c
     session.c
     text_codec.c
     textfield.c
@@ -62,83 +83,55 @@ set(PLATINUM_SOURCES
     ui.c
 )
 
-set(PLATINUM_HEADERS
-    application.h
-    application_internal.h
-    bridge_client.h
-    compose.h
-    compose_model.h
-    config.h
-    diag.h
-    diagwin.h
-    draft.h
-    drawutil.h
-    image_blob.h
-    image_encode.h
-    image_pix.h
-    json_min.h
-    pairing.h
-    people.h
-    post_media.h
-    preferences.h
-    prefs_file.h
-    profile.h
-    scrollbar.h
-    secret.h
-    search.h
-    session.h
-    text_codec.h
-    textfield.h
-    thread.h
-    timeline.h
-    ui.h
-)
-
-set(PLATINUM_RESOURCES
-    resources/icon.r
-)
-
-# Strict C89 for the CodeWarrior-era target. Retro68's toolchain sets the
-# cross-compiler and Mac OS system root.
-set(CMAKE_C_STANDARD 89)
-set(CMAKE_C_EXTENSIONS OFF)
-
-if(NOT CMAKE_C_COMPILER_ID STREQUAL "Retro68")
-    message(WARNING
-        "Platinum's Mac OS 9 application build targets Retro68. The detected "
-        "compiler is ${CMAKE_C_COMPILER_ID}. Set CMAKE_TOOLCHAIN_FILE to a "
-        "Retro68 toolchain file for a real Classic Mac OS build. Without "
-        "Retro68, this CMakeLists.txt still checks that every source compiles "
-        "as strict C89.")
+# Wolfram's public headers (wolfram/xrpc.h, wolfram/macos9_tls.h) are needed
+# at compile time; the transport itself is a separate build.
+set(WOLFRAM_INCLUDE_DIR "" CACHE PATH "Wolfram checkout's include/ directory")
+if(NOT WOLFRAM_INCLUDE_DIR)
+    message(FATAL_ERROR
+        "Set WOLFRAM_INCLUDE_DIR to a Wolfram checkout's include/ directory.")
 endif()
 
-# Warning flags mirror the host C89 CI job: every source must be clean under
-# -Werror, with no C99 constructs or POSIX conveniences.
-add_compile_options(
-    -Wall -Wextra -Werror
-    -Wdeclaration-after-statement -Wstrict-prototypes -Wvla
-)
-
-add_executable(Platinum
+add_application(Platinum
+    TYPE "APPL"
+    CREATOR "PTLM"
     ${PLATINUM_SOURCES}
-    ${PLATINUM_HEADERS}
-    ${PLATINUM_RESOURCES}
+    resources/icon.r
 )
 
 target_include_directories(Platinum PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/retro68-includes
+    ${WOLFRAM_INCLUDE_DIR}
 )
 
-# Wolfram public headers (xrpc.h, macos9_tls.h, update.h) are needed at
-# compile time. The Wolfram checkout is expected at a sibling path or passed
-# via -DWOLFRAM_INCLUDE_DIR.
-if(WOLFRAM_INCLUDE_DIR)
-    target_include_directories(Platinum PRIVATE ${WOLFRAM_INCLUDE_DIR})
+# The real transport is Wolfram's, built separately against Open Transport
+# and macTLS (AGENTS.md, "Build and validation"). CI has no Open Transport
+# headers (#41), so it links the test's transport stub instead: the same
+# wf_* entry points with no network behind them. Such a binary builds,
+# links and carries its resources; it cannot reach the bridge, so it must
+# never be shipped.
+#
+# For a real build, point -DPLATINUM_TRANSPORT_LIBS at the transport and
+# macTLS libraries built with the Retro68 toolchain, and set
+# PLATINUM_LINK_TRANSPORT_STUB=OFF.
+set(PLATINUM_TRANSPORT_LIBS ""
+    CACHE STRING "Wolfram Mac OS 9 transport libraries, real build only")
+set(PLATINUM_LINK_TRANSPORT_STUB ON
+    CACHE BOOL "Link the test transport stub (CI); builds, does not network")
+
+if(PLATINUM_LINK_TRANSPORT_STUB AND PLATINUM_TRANSPORT_LIBS)
+    message(FATAL_ERROR
+        "PLATINUM_LINK_TRANSPORT_STUB and PLATINUM_TRANSPORT_LIBS are "
+        "mutually exclusive: choose the stub or the real transport.")
 endif()
 
-# Retro68 embeds the resource fork (icon.r: icon family, 'BNDL', 'FREF',
-# signature 'PTLM', file type 'APPL') into the application file at link time.
-# The SIZE resource (32-bit clean, multiFinder aware) comes from the link step.
-
-# Tests are not built for the Mac target. They run on a modern host against
-# the SDK stubs in macos9/test/sdk-stubs/ instead. See ci.yml.
+if(PLATINUM_LINK_TRANSPORT_STUB)
+    target_sources(Platinum PRIVATE test/wolfram_stub.c)
+elseif("" STREQUAL "${PLATINUM_TRANSPORT_LIBS}")
+    message(FATAL_ERROR
+        "Without PLATINUM_LINK_TRANSPORT_STUB, set PLATINUM_TRANSPORT_LIBS "
+        "to the Wolfram Mac OS 9 transport and macTLS libraries built with "
+        "the Retro68 toolchain.")
+else()
+    target_link_libraries(Platinum ${PLATINUM_TRANSPORT_LIBS})
+endif()
