@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "wolfram/xrpc.h"
+#include "wolfram/macos9_tls.h"
 #include "wolfram_stub.h"
 
 /* ------------------------------------------------------------------ */
@@ -77,6 +78,21 @@ void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
 {
     (void)client;
     last_max_response_bytes = max_bytes;
+}
+
+/*
+ * The yield hook the Mac OS 9 transport pumps while blocking. The stub keeps
+ * the last installed hook so a test can install and remove it; the CI
+ * application build links this stub because Open Transport and macTLS are not
+ * available there (issue 41).
+ */
+static wf_macos9_yield_fn last_yield_fn = NULL;
+static void *last_yield_userdata = NULL;
+
+void wf_macos9_set_yield_callback(wf_macos9_yield_fn fn, void *userdata)
+{
+    last_yield_fn = fn;
+    last_yield_userdata = userdata;
 }
 
 void wf_response_free(wf_response *res)

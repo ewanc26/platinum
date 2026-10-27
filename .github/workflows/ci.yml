@@ -295,53 +295,44 @@ jobs:
           scripts/release.sh --dry-run "$version"
           (cd bridge && node --import tsx ../scripts/verify-release.mts "$version")
 
+  # Builds the real Mac OS 9 application with Retro68. The prebuilt image,
+  # pinned by digest, contains both complete toolchains, so nothing is
+  # compiled here except Platinum itself. This is the only job that compiles
+  # the sources against real Classic Mac OS interfaces rather than the host
+  # stubs; the resources in icon.r are compiled by the resource compiler.
+  # The Wolfram transport cannot be built here — that needs Open Transport
+  # and macTLS (#41) — so the application links the test transport stub: it
+  # proves the application compiles, links and carries its resources, not
+  # that it runs or reaches the bridge (no emulator or hardware in CI).
+  macos9-build:
+    name: Mac OS 9 application (Retro68)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/autc04/retro68@sha256:2c2ec5ca764c98b7460522be7327426e3b4d039a317c22d6ccdcc64e5247f21a
+    steps:
+      - uses: actions/checkout@v5
+
+      # The same pinned Wolfram headers as the C89 job.
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: v0.36.2
+          path: wolfram
+
+      - name: Build for 68k
+        run: tools/build-macos9.sh 68k
+
+      - name: Build for PowerPC
+        run: tools/build-macos9.sh ppc
+
   # The one check branch protection should require. Requiring the individual
   # jobs would let a renamed or added job silently drop out of the gate; this
   # job fails unless every job it needs succeeded, and the drift check fails if
   # a job is not listed here.
-  # Builds the Mac OS 9 application with Retro68 when the toolchain is
-  # available. Not in gate.needs yet: Retro68 is a self-built cross-compiler
-  # and may not be on every runner. Once it is reliably available, move it
-  # into gate.needs so a broken Mac build blocks merge.
-  macos9-build:
-    name: Mac OS 9 application (Retro68)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      # Wolfram public headers (xrpc.h, macos9_tls.h) are needed to compile.
-      - uses: actions/checkout@v5
-        with:
-          repository: ewanc26/wolfram
-          ref: df6ee1f4bc5b5f59760ec1a88ecb86ea59c8a048
-          path: wolfram
-
-      - name: Install Retro68 from source
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake git libboost-program-options-dev \
-            libboost-filesystem-dev libboost-system-dev
-          git clone --depth 1 https://github.com/autc04/Retro68.git /tmp/retro68
-          cmake -S /tmp/retro68 -B /tmp/retro68/build \
-            -DCMAKE_INSTALL_PREFIX=/usr/local
-          cmake --build /tmp/retro68/build -j"$(nproc)"
-          sudo cmake --install /tmp/retro68/build
-
-      - name: Build for 68k
-        run: |
-          WOLFRAM_INCLUDE_DIR=$PWD/wolfram/include \
-          tools/build-macos9.sh 68k /usr/local
-
-      - name: Build for PowerPC
-        run: |
-          WOLFRAM_INCLUDE_DIR=$PWD/wolfram/include \
-          tools/build-macos9.sh ppc /usr/local
-
   gate:
     name: CI gate
     if: always()
-    needs: [flow, bridge, macos9, release-dry-run]
+    needs: [flow, bridge, macos9, macos9-build, release-dry-run]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

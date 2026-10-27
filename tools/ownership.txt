@@ -104,3 +104,10 @@ macos9/timeline.c                  platform
 macos9/timeline.h                  platform
 macos9/ui.c                        platform
 macos9/ui.h                        platform
+
+# retro68-includes/ holds table-level wrappers, not logic: see that
+# directory's README.md. They name the standard header files for the
+# Retro68 build and pinned constants Apple's Multiversal Interfaces omit.
+macos9/retro68-includes/Controls.h platform  # Multiversal Interfaces wrapper: standard header name, plus scrollBarProc
+macos9/retro68-includes/Folders.h  platform  # Multiversal Interfaces wrapper: standard header name, plus kOnSystemDisk and kCreateFolder
+macos9/retro68-includes/Script.h   platform  # Multiversal Interfaces wrapper: standard header name
