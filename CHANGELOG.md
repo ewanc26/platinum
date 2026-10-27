@@ -12,6 +12,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
+- The bridge runs the parsers of the hosted OAuth node's pairing contract (Wolfram's `oauth_pairing.h`) in Wolfram's C through the Node addon too; the port under `bridge/src/auth/` is an adapter now, the begin/poll loop stays Platinum glue, and CI builds the addon from a bumped pin. ([#134](https://github.com/ewanc26/platinum/pull/134))
+
 - The bridge runs its updater's contract — manifest parsing, version comparison, SHA-256 and Ed25519 verification — in Wolfram's C through Wolfram's Node addon, built in CI from a pinned Wolfram commit. The TypeScript ports under `bridge/src/update/` are thin adapters over it, and the bridge tests drive Wolfram's vectors through the C unchanged. ([#133](https://github.com/ewanc26/platinum/pull/133))
 
 - The bridge writes its state files one at a time and atomically, and each write uses its own temporary file. Overlapping saves to the session, state and app-password stores no longer lose each other's updates. ([#117](https://github.com/ewanc26/platinum/issues/117))
