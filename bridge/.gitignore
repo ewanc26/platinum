@@ -1,6 +1,8 @@
 .platinum-bridge/
 dist/
 node_modules/
+# Wolfram's Node addon, built by tools/build-addon.sh for the tests.
+build/
 .env
 
 # npm writes this on install. It is deliberately not tracked: CI installs with

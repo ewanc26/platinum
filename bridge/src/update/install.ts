@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdir, readlink, rename, rm, symlink, writeFile, readFile, lstat } from 'node:fs/promises'
@@ -6,6 +5,7 @@ import { join } from 'node:path'
 import { DEFAULT_MAX_SIZE, parseManifest, type Asset, type Manifest } from './manifest.js'
 import { compareVersions } from './version.js'
 import { verifyManifestSignature } from './signature.js'
+import { wolfram } from './wolfram.js'
 import { UPDATE_PUBLIC_KEY_HEX } from './update_key.js'
 
 const execFileAsync = promisify(execFile)
@@ -67,7 +67,8 @@ export async function checkForUpdate(
 }
 
 export function sha256Hex(data: Buffer): string {
-  return createHash('sha256').update(data).digest('hex')
+  // Wolfram's wf_sha256_buffer, in its own C through the Node addon.
+  return wolfram.sha256Hex(data)
 }
 
 function pickArtifact(manifest: Manifest): Asset {
