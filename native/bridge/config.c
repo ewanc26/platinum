@@ -12,6 +12,7 @@
 #define PLATINUM_BRIDGE_DEFAULT_PORT 8787L
 #define PLATINUM_BRIDGE_DEFAULT_HOST "127.0.0.1"
 #define PLATINUM_BRIDGE_DEFAULT_DATA_DIR ".platinum-bridge"
+#define PLATINUM_BRIDGE_DEFAULT_OAUTH_NODE "https://oauth.croft.click"
 #define PLATINUM_BRIDGE_MAX_BODY_BYTES 65536L
 #define PLATINUM_BRIDGE_SERVICE "platinum-bridge"
 
@@ -109,6 +110,12 @@ int platinum_config_load(platinum_bridge_config *out, const char *const *env_nam
 
     value = env_get(env_names, env_values, env_count, "PLATINUM_BRIDGE_DATA_DIR");
     if (copy_bounded(cfg.data_dir, sizeof cfg.data_dir, value != NULL ? value : PLATINUM_BRIDGE_DEFAULT_DATA_DIR) != 0) {
+        return -1;
+    }
+
+    value = env_get(env_names, env_values, env_count, "PLATINUM_BRIDGE_OAUTH_NODE");
+    if (copy_bounded(cfg.oauth_node_url, sizeof cfg.oauth_node_url,
+                     value != NULL ? value : PLATINUM_BRIDGE_DEFAULT_OAUTH_NODE) != 0) {
         return -1;
     }
 

@@ -38,6 +38,10 @@
  */
 int platinum_fs_write_atomic(const char *dir, const char *name, const unsigned char *data, size_t len);
 
+/* Creates dir and any missing parents with mode 0700 on POSIX. Returns
+ * PLATINUM_FS_OK when the directory exists, or a negative error. */
+int platinum_fs_ensure_dir(const char *dir);
+
 /*
  * Reads all of dir/name into a newly allocated buffer and stores it in *out,
  * with its length in *out_len. The caller frees *out with free(). The buffer

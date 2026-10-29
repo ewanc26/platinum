@@ -98,6 +98,25 @@ test('notification responses are reduced to stable fields', async () => {
   assert.equal('extra' in result.notifications[0], false)
 })
 
+test('notification paging sends the cursor and returns the next one', async () => {
+  const calls: unknown[] = []
+  const agent = {
+    accountDid: 'did:plc:example',
+    listNotifications: async (input: unknown) => {
+      calls.push(input)
+      return { data: { cursor: 'page-3', notifications: [] } }
+    },
+  } as unknown as Agent
+
+  const result = await new DomainApi().notifications(agent, 10, 'page-2')
+
+  // The Mac pages by handing back exactly the cursor the bridge gave it, so a
+  // dropped or renamed cursor would silently stop the page chain.
+  assert.deepEqual(calls, [{ limit: 10, cursor: 'page-2' }])
+  assert.equal(result.cursor, 'page-3')
+  assert.equal(result.notifications.length, 0)
+})
+
 
 test('normalizer clips Unicode text by code point', async () => {
   const agent = {

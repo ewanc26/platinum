@@ -238,7 +238,7 @@ static void test_invalid_character_fails(void)
     char code[7];
     char bad[7];
     char did[128];
-    const char *bad_inputs[] = { "ABC0EF", "ABC1EF", "ABCIEF", "ABCOEF", "ABC-EF", "ABC EF", "ABC\xC3" "EF" };
+    const char *bad_inputs[] = { "ABC0EF", "ABC1EF", "ABCIEF", "ABCOEF", "ABC-EF", "ABC EF", ("ABC\xC3" "EF") };
     size_t i;
 
     platinum_pairing_init(&p);

@@ -5,6 +5,11 @@ resolution. The plan is a native C bridge that does the same jobs, built on
 Wolfram, so Platinum no longer needs Node. This file lists the parts, which
 ones can start now, and what is blocked.
 
+The direction is that the whole bridge ends up native: every route in
+`bridge/src/server.ts` must be served by `native/bridge`, and no feature is
+added to the Node bridge alone. The native binary can now sign in and hold a
+session, so Node is the runnable reference, not the destination.
+
 ## Parts
 
 Status as of the last update to this file. "Done" means implemented, tested in
@@ -17,21 +22,34 @@ Wolfram's library and a local server (`make live`).
 | 2 | Config and health (`GET /health`, env, version) | done | nothing |
 | 3 | Token store: CSPRNG, SHA-256 at rest, bounded lookup | done | #116 (storage design) |
 | 4 | Atomic file storage for every stored file | done | #117 |
-| 5 | Mac pairing code and `/v1/pair` (the code table) | done; the route needs Part 7 | Part 3 |
-| 6 | App-password policy, service-URL rules, failure limiter | done | Part 4 |
-| 7 | OAuth glue | deferred by decision on #75 | #75 |
-| 8 | Domain routes | route families done, see below | Wolfram typed headers |
+| 5 | Mac pairing code and `/v1/pair` (the code table) | done and served | Part 3 |
+| 6 | App-password policy, service-URL rules, failure limiter | done and served | Part 4 |
+| 7 | OAuth glue | done through the hosted Wolfram OAuth node; node sessions are still memory-only (#75) | #75 |
+| 8 | Domain routes | route families done, and the home timeline and notifications are live, see below | Wolfram typed headers |
 | 9 | Image route `GET /v1/image` | done, decision on #118 | nothing further |
-| 10 | HTTP server with the chosen transport | first slice done: private bind only, `/health`, live `/v1/profile` and `POST /v1/post`, bearer check in server.ts order; every other route answers 501 | the transport decision below |
+| 10 | HTTP server with the chosen transport | dispatch and sign-in complete: every route family is wired with full input validation, and the native `main` runs the server with the token store, session files and image CDN | the transport decision below |
 
 Part 8, route families. Done as pure handlers with tests: routing and the bearer rule,
 profile, the write routes (like, repost, follow, mute, block), notifications seen,
 muted words (set and list), post delete, search, feed, list, actor graph, post
 engagement, thread, and post creation (publish live, including every reply gate and
-replies). Live against Wolfram: profile fetch and post publishing. Not started: the
-notifications list and the other read routes that only need their typed Wolfram calls
-wired (timeline, notifications, conversations, messages, feeds, lists, author feed,
-image source fetch over the CDN).
+replies). Live against Wolfram: profile fetch, post publishing, the image source fetch
+over the CDN, the home timeline, the notification list and seen mark, the conversation
+list, one conversation's messages, sending a message, and actor search. Not started:
+the read routes that only need their typed Wolfram calls wired (feeds, lists, author
+feed, post engagement, thread, muted words), and post search, whose timeline post
+mapping is not yet shared with the search route.
+
+The timeline route keeps server.ts's decisions: the limit is 1 to 50 with 20 the
+default, the cursor is passed through, and muted words are applied before the page is
+built, so a page can come back short while its cursor still moves on. One native
+bound is added: a cursor over 255 bytes is refused with `400 invalid_cursor` rather
+than truncated, because the page model holds it in a fixed field and a cut cursor
+would page nowhere. Fetching the timeline reads the account's preferences once per
+page for the muted words; a preferences failure shows the page unfiltered. One mute
+rule is not honoured: a word's "exclude following" target, because the feed item's
+author view does not expose the viewer's following state through Wolfram, so such a
+word hides matching posts from followed accounts too.
 
 ## Decisions
 
@@ -45,11 +63,14 @@ can be revisited.
   TLS cannot be added on the Mac's side. For access from outside the LAN, the operator
   puts the bridge behind a VPN; the bridge does not ship a tunnel. Recorded in
   `docs/BRIDGE_PROTOCOL.md`.
-- **#75, upstream OAuth.** Not migrated. Wolfram's OAuth node keeps sessions only in
-  memory, so moving the bridge to it would break installations on every restart. The
-  Node bridge stays the OAuth owner. The native bridge signs in with an app password
-  only (Part 6, operator opt-in), until Wolfram persists node sessions. Part 7 is
-  deferred until then.
+- **#75, upstream OAuth.** The native bridge uses the shared hosted Wolfram OAuth
+  node at `https://oauth.croft.click`, the same node as Cobalt and Indigo, so the Mac
+  never receives a PDS password, OAuth refresh token or DPoP key. The node keeps
+  OAuth sessions in memory, so restarting it invalidates installations that signed
+  in through it until they pair again; the bridge keeps each node bearer in its
+  session file, but cannot refresh a session the node has forgotten. Persisting node
+  sessions in Wolfram remains the fix. App-password sign-in stays available as the
+  operator opt-in from Part 6.
 - **#118, image decode.** Flatten first, as the JavaScript does. The PLIM encoder
   flattens onto white and shrinks, and it matches the vectors byte for byte. The
   native path decodes the full image with Wolfram and never uses Wolfram's shrink,
@@ -62,11 +83,13 @@ can be revisited.
   The native bridge writes it with `putRecord` and the post's rkey, as the TypeScript
   does. Wolfram is not changed here; the gap is filed as ewanc26/wolfram#203.
 
-Part 10 remaining: wire the other route families through the server (each needs its
-live Wolfram call), sign-in (Part 7 is deferred, so pairing needs the app-password
-sign-in route), and token persistence (token records must survive restart, so the
-server needs Part 4 storage behind the token lookup). The server keeps tokens only as
-the caller provides them.
+Part 10 remaining: wire the live Wolfram calls for the read routes that only need their
+typed Wolfram calls (feeds, lists, author feed, post engagement, thread, muted words),
+and share the timeline post mapping with post search; replace the stub callbacks with
+real ones once those Wolfram calls are in place. The dispatch wiring, input validation, sign-in
+routes (hosted-node pairing, app-password login and revoke) and token persistence are
+complete. `native/bridge/main.c` links the server to the token store, session files,
+the OAuth node client and the image CDN client.
 
 ## Blocked
 

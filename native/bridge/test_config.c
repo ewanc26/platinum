@@ -17,7 +17,7 @@ static int checks_failed = 0;
         } \
     } while (0)
 
-#define ENV_COUNT 6
+#define ENV_COUNT 7
 
 static const char *const env_keys[ENV_COUNT] = {
     "PLATINUM_BRIDGE_PORT",
@@ -25,7 +25,8 @@ static const char *const env_keys[ENV_COUNT] = {
     "PLATINUM_BRIDGE_URL",
     "PLATINUM_BRIDGE_PUBLIC_URL",
     "PLATINUM_BRIDGE_DATA_DIR",
-    "PLATINUM_BRIDGE_ALLOW_APP_PASSWORD"
+    "PLATINUM_BRIDGE_ALLOW_APP_PASSWORD",
+    "PLATINUM_BRIDGE_OAUTH_NODE"
 };
 
 /* Loads config from the six known variables. Pass NULL for unset. */
@@ -39,6 +40,17 @@ static int load_env(platinum_bridge_config *cfg, const char *port, const char *h
     values[3] = public_url;
     values[4] = data_dir;
     values[5] = allow;
+    values[6] = NULL;
+    return platinum_config_load(cfg, env_keys, values, ENV_COUNT);
+}
+
+static int load_env_node(platinum_bridge_config *cfg, const char *node)
+{
+    const char *values[ENV_COUNT];
+    int i;
+
+    for (i = 0; i < ENV_COUNT; i++) values[i] = NULL;
+    values[6] = node;
     return platinum_config_load(cfg, env_keys, values, ENV_COUNT);
 }
 
@@ -64,6 +76,7 @@ static void test_defaults(void)
     CHECK(strcmp(cfg.base_url, "http://127.0.0.1:8787") == 0);
     CHECK(strcmp(cfg.public_url, "http://127.0.0.1:8787") == 0);
     CHECK(strcmp(cfg.data_dir, ".platinum-bridge") == 0);
+    CHECK(strcmp(cfg.oauth_node_url, "https://oauth.croft.click") == 0);
     CHECK(strcmp(cfg.version, "0.3.1") == 0);
     CHECK(cfg.max_body_bytes == 65536L);
     CHECK(cfg.allow_app_password == 0);
@@ -134,6 +147,16 @@ static void test_data_dir_override(void)
 
     CHECK(load_env(&cfg, NULL, NULL, NULL, NULL, "/var/lib/platinum", NULL) == 0);
     CHECK(strcmp(cfg.data_dir, "/var/lib/platinum") == 0);
+}
+
+static void test_oauth_node_override(void)
+{
+    platinum_bridge_config cfg;
+
+    CHECK(load_env_node(&cfg, "https://auth.example") == 0);
+    CHECK(strcmp(cfg.oauth_node_url, "https://auth.example") == 0);
+    CHECK(load_env_node(&cfg, repeat('n', 255)) == 0);
+    CHECK(load_env_node(&cfg, repeat('n', 256)) == -1);
 }
 
 static void test_allow_app_password_flag(void)
@@ -215,6 +238,7 @@ int main(void)
     test_failed_load_leaves_out_unchanged();
     test_url_overrides();
     test_data_dir_override();
+    test_oauth_node_override();
     test_allow_app_password_flag();
     test_buffer_limits();
     test_null_arguments();

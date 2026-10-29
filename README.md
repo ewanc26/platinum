@@ -27,7 +27,8 @@ Classic Mac OS 9  --HTTP + JSON-->  Platinum Bridge  --AT Protocol-->  PDS / App
 
 Early, and I'd rather say so plainly.
 
-- **The bridge works.** It does OAuth pairing, issues and revokes tokens, and serves a profile, a timeline, notifications and posting. App-password sign-in exists but is off unless you turn it on, and the Mac client has a window for it. The bridge has tests and they run in CI.
+- **The bridge works.** It does OAuth pairing, issues and revokes tokens, and serves a profile, a timeline, notifications and posting. App-password sign-in exists but is off unless you turn it on, and the Mac client has a window for it. The bridge has tests and they run in CI. Platinum, Cobalt and Indigo share one hosted Wolfram OAuth node at [https://oauth.croft.click](https://oauth.croft.click), run in the croft stack behind cloudflared.
+- **The bridge is moving to native C.** The Node service is the reference while the native bridge is built out on Wolfram in `native/bridge`: it has a runnable `main`, signs in through the shared OAuth node, and serves the timeline and notifications (list and seen), tested against a mock PDS. A node restart still ends hosted-node sessions until Wolfram persists them. The destination is the whole bridge, not a subset, and no feature is added to Node alone. Remaining parts and blockers are in [docs/NATIVE_BRIDGE.md](docs/NATIVE_BRIDGE.md).
 - **The Mac client is written but unproven.** It has a window, menus, a timeline, threads, profiles, people lists, search, notifications, compose (with replies, quotes and reply limits) and preferences. CI compiles every source as strict C89 against declaration-only stand-ins for the Mac SDK, and runs the pairing and JSON tests. That checks dialect and types. It is not a CodeWarrior build, and nothing in this repository records it running on a real Mac or an emulator.
 - **Much is missing.** The timeline and notifications page back now. You can like, repost, reply, quote, follow, mute and block. Images, deleting your own posts and a diagnostics window are still to come. [docs/PARITY.md](docs/PARITY.md) lists every gap against Cobalt and Indigo with an issue for each, and CI checks that table against the code so it can't claim more than exists.
 
@@ -35,7 +36,7 @@ Early, and I'd rather say so plainly.
 
 There is no packaged release of the Mac application yet. The bridge can be run from this repository (see below) or from a release archive, and it can update itself from this repository's releases when you ask it to: [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) says how, what the checksum does and doesn't protect against, and why the Mac client can't update itself yet.
 
-Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The Mac client is aimed at CodeWarrior-era tools, [Wolfram](https://github.com/ewanc26/wolfram) 0.26.0 or newer (CI builds against 0.36.2) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
+Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The shared OAuth node is already hosted at [https://oauth.croft.click](https://oauth.croft.click) for all three clients; it is reached only through cloudflared, so no inbound port is opened on the host. The Mac client is aimed at CodeWarrior-era tools, [Wolfram](https://github.com/ewanc26/wolfram) 0.26.0 or newer (CI builds against 0.36.2) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
 
 ## Use
 

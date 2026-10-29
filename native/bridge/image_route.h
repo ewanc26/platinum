@@ -21,6 +21,14 @@
  * feed_fullsize, then /plain/<did>/<cid>@jpeg or @png, at most 300 bytes. 0 ok, -1 not. */
 int platinum_valid_image_ref(const char *ref);
 
+/* The ref for a Bluesky CDN URL: the path after /img/, when it is one this route
+ * serves. 0 and a ref, or -1 for any other URL. */
+int platinum_cdn_ref(const char *url, char *out, size_t cap);
+
+/* api.ts serves avatars at thumbnail size, so an avatar/ ref becomes
+ * avatar_thumbnail/; anything else is not an avatar and is refused. */
+int platinum_avatar_ref(const char *url, char *out, size_t cap);
+
 /* w (16 to 320, default 320) and depth (4 or 8, default 4), as parseImageParams reads
  * them. w and depth may be NULL when absent. Returns 0 and fills the outputs, or -1. */
 int platinum_parse_image_params(const char *w, const char *depth, int *width, int *colours);

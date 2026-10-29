@@ -19,7 +19,10 @@ resolution or the full AT Protocol stack.
 
 1. Open the bridge's /login?handle=... URL in a modern browser.
 2. Complete AT Protocol OAuth.
-3. The bridge displays a short-lived pairing code.
+3. The bridge displays a short-lived pairing code. A bridge may show it on the
+   same page before step 2; until the browser step finishes, `POST /v1/pair`
+   answers `409 pairing_pending`, so retry after the browser says the account
+   is connected.
 4. Platinum sends POST /v1/pair with {"code":"..."}.
 5. The bridge returns protocol version 1, a bridge token, the account DID, and an installation ID.
 6. Platinum stores the bridge token and uses it for authenticated requests.

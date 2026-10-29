@@ -13,6 +13,7 @@ typedef struct platinum_bridge_config {
     char base_url[256];
     char public_url[256];
     char data_dir[512];
+    char oauth_node_url[256]; /* hosted Wolfram OAuth node */
     char version[32];
     long max_body_bytes;      /* 65536 */
     int allow_app_password;   /* 1 only when env value is exactly "1" */

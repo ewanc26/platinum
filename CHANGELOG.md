@@ -10,6 +10,10 @@ pull request.
 
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
+### Fixed
+
+- `GET /v1/image` over HTTP sends the whole bitmap. The transport framed every response by its string length, so a bitmap was cut at its first zero byte and the rest of the buffer could follow it; the body is now framed by the length the dispatcher reports, terminated for safety, and served as `application/x-platinum-image` as docs/IMAGES.md says. Tested over a real HTTP request against a fake image source. ([#100](https://github.com/ewanc26/platinum/issues/100))
+
 ### Changed
 
 - Signing in needs the handle and password: the bridge reads the account's PDS from its DID document (`#atproto_pds`) and logs in there, so the host the account lives on no longer has to be typed. It falls back to the entered host when the document cannot be read. ([#112](https://github.com/ewanc26/platinum/pull/112))
@@ -18,7 +22,13 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
-- The bridge can list the account's direct message conversations, read one conversation's messages and send a reply: `GET /v1/conversations`, `GET /v1/conversation?id=` and `POST /v1/conversation/message`, documented in docs/BRIDGE_PROTOCOL.md. The Mac client does not show them yet. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
+- The native bridge can sign in and run: `native/bridge/main.c` serves the whole dispatch table, keeps the token store and session files under `PLATINUM_BRIDGE_DATA_DIR`, and signs in through the shared hosted Wolfram OAuth node (`PLATINUM_BRIDGE_OAUTH_NODE`, default `https://oauth.croft.click`). `GET /login?handle=` starts a node pairing and shows the link and six-character bridge code; `POST /v1/pair` polls the node and issues the installation token, and app-password sign-in and revoke work too. A node restart still invalidates those sessions because Wolfram keeps them in memory.
+
+- The native bridge serves the home timeline: `GET /v1/timeline` reads it through Wolfram's typed feed parser and fills the same post JSON the TypeScript bridge returns (author, text and createdAt, counts and the viewer's liked/reposted flags, up to four image references with alt text, and a link card), with server.ts's limit rule (1 to 50, default 20) and its cursor paging. Muted words are applied before the page is built, so a page can come back short while the cursor still moves on; a preferences failure shows the page unfiltered. A cursor over 255 bytes is refused with `400 invalid_cursor` rather than truncated. Host-tested against a mock PDS, with a live Wolfram fetch; the Mac client still talks to the Node bridge.
+
+- The native bridge serves notifications, list and seen mark: `GET /v1/notifications` reads them through Wolfram's typed parser and fills the same JSON the TypeScript bridge returns (uri, cid, author with an avatar reference, reason, indexedAt, isRead and the cursor), with server.ts's limit rule (1 to 50, default 20) and a 255-byte cursor bound, and `POST /v1/notifications/seen` now calls Wolfram's updateSeen instead of a stub. Route-tested for the JSON and limits, live-tested against a mock PDS, and driven through the HTTP server with a token. The Mac client still talks to the Node bridge, and the native bridge is the destination for every route (docs/NATIVE_BRIDGE.md).
+
+- The native bridge serves the account's conversations, one conversation's messages and sending a message: `GET /v1/conversations`, `GET /v1/conversation?id=` and `POST /v1/conversation/message` now call Wolfram instead of answering 500, with server.ts's limits (1 to 50, 20 by default, a 255-byte cursor, at most 1000 characters in a message). `GET /v1/search/actors` searches accounts live too. Post search, feeds, lists, author feed, post engagement, thread and muted words still answer 500 until their Wolfram calls are wired, and the Mac client still talks to the Node bridge. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
 
 - The bridge now puts image references in its post JSON: `author.avatar` (the 128 px avatar), up to four `images` with their alt text, and a link `card` (address, title, host), on every post shape. They are references for `GET /v1/image`, never URLs, and only for images on the Bluesky CDN. The Mac client reads them into each post preview (`macos9/post_media.c`) but does not draw them yet. ([#106](https://github.com/ewanc26/platinum/pull/106))
 - The bridge's updater checks a signature. Each release's `update.json` gets a detached Ed25519 signature, `update.json.sig`, made by a GitHub Actions job with a key that exists only as a repository secret, and the updater verifies it against the public key built in before it reads the manifest, refusing a release that has none or a wrong one. It runs Wolfram's Ed25519 vectors. No release has been cut with it, because releases are paused. [#49](https://github.com/ewanc26/platinum/issues/49)

@@ -5,19 +5,20 @@ not edit by hand: CI regenerates it and fails on a difference.
 
 The Platinum column is checked against the code. An implemented row names a file
 and a string that has to be in it. An open row links the issue that tracks it.
-The Cobalt and Indigo columns are read from their READMEs and source trees on
-2026-10-05 and are not checked by this repository's CI.
+The Cobalt and Indigo columns come from their own parity pages, source trees and
+git history, checked on 2026-10-29, and are not checked by this repository's CI.
 
 Mac OS 9 gaps are designed for the platform (bounded memory, cooperative event
 loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 
 | Feature | Cobalt | Indigo | Platinum |
 | --- | --- | --- | --- |
-| OAuth sign-in (browser, paired) | no | yes | implemented (`macos9/bridge_client.c`) |
+| OAuth sign-in (browser, paired) | yes | yes | implemented (`macos9/bridge_client.c`) |
 | App-password sign-in (bridge endpoint) | yes | yes | implemented (`bridge/src/auth/app-password.ts`) |
 | App-password sign-in (Mac window) | yes | yes | implemented (`macos9/apppw.c`) |
 | Session survives restart | yes | yes | implemented (`macos9/session.c`) |
 | Sign out with server-side revocation | yes | yes | implemented (`macos9/session.c`) |
+| Settings (theme, text scale, contrast) | yes | yes | [#98](https://github.com/ewanc26/platinum/issues/98) |
 | Home timeline | yes | yes | implemented (`macos9/timeline.c`) |
 | Timeline paging | yes | yes | implemented (`macos9/timeline.c`) |
 | Notifications | yes | yes | implemented (`macos9/notifications_feed.c`) |
@@ -27,7 +28,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Post text | yes | yes | implemented (`macos9/application_post.c`) |
 | Reply | yes | yes | implemented (`macos9/compose_model.c`) |
 | Quote post | yes | yes | implemented (`macos9/application_post.c`) |
-| Reply gates | yes | no | implemented (`macos9/compose_model.c`) |
+| Reply gates | yes | yes | implemented (`macos9/compose_model.c`) |
 | Like and unlike | yes | yes | implemented (`macos9/timeline.c`) |
 | Repost and undo | yes | yes | implemented (`bridge/src/domain/api.ts`) |
 | Own profile | yes | yes | implemented (`macos9/profile_feed.c`) |
@@ -47,17 +48,18 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Custom feeds | yes | yes | implemented (`macos9/application_views.c`) |
 | Lists | yes | yes | implemented (`macos9/application_views.c`) |
 | Mute and block | yes | yes | implemented (`macos9/profile_feed.c`) |
-| Muted words | no | yes | implemented (`macos9/application_views.c`) |
-| Who liked or reposted | yes | no | implemented (`bridge/src/domain/api.ts`) |
-| Delete your own post | yes | no | implemented (`macos9/bridge_client.c`) |
-| Direct messages | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
-| Post a thread (multi-post compose) | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
-| Video poster and external-media embeds | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
-| Open links by QR code | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
-| Diagnostics window | yes | no | implemented (`macos9/diag.c`) |
+| Muted words | yes | yes | implemented (`macos9/application_views.c`) |
+| Who liked or reposted | yes | yes | implemented (`bridge/src/domain/api.ts`) |
+| Delete your own post | yes | yes | implemented (`macos9/bridge_client.c`) |
+| Direct messages | yes | yes | [#98](https://github.com/ewanc26/platinum/issues/98) |
+| Post a thread (multi-post compose) | yes | yes | [#98](https://github.com/ewanc26/platinum/issues/98) |
+| Video poster and duration | yes | yes | [#98](https://github.com/ewanc26/platinum/issues/98) |
+| External-media embeds (gallery, enriched cards) | yes | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
+| Open links by QR code | yes | yes | [#98](https://github.com/ewanc26/platinum/issues/98) |
+| Diagnostics window | yes | yes | implemented (`macos9/diag.c`) |
 | Post drafts | no | yes | implemented (`macos9/draft.c`) |
 | Auto-update (bridge, from GitHub releases) | no | no | implemented (`bridge/src/update/install.ts`) |
-| Auto-update (client, bridge-served, user-confirmed) | no | no | [#48](https://github.com/ewanc26/platinum/issues/48) |
+| Auto-update (client, user-confirmed) | no | yes | [#48](https://github.com/ewanc26/platinum/issues/48) |
 | Push notifications | no | no | not possible: No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9. |
 
-34 implemented, 11 tracked by an open issue, 1 not possible.
+34 implemented, 13 tracked by an open issue, 1 not possible.
