@@ -12,7 +12,7 @@ CJSON_PREFIX ?= /opt/homebrew
 CJSON_INCLUDE = $(CJSON_PREFIX)/include/cjson
 MHD_INCLUDE = $(CJSON_PREFIX)/include
 
-PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o post_routes.o plim.o image_route.o token_persist.o timeline_route.o notifications_route.o
+PARTS_OBJ = config.o token.o sha256.o fsstore.o pairing.o policy.o routes.o profile.o profile_route.o validate.o write_routes.o account_routes.o content_routes.o search_routes.o collection_routes.o named_routes.o post_routes.o plim.o image_route.o token_persist.o timeline_route.o notifications_route.o
 
 TESTS = test_config test_token test_fsstore test_pairing test_policy test_routes test_profile test_profile_route test_validate test_write_routes test_account_routes test_content_routes test_search_routes test_collection_routes test_post_routes test_image_route test_token_persist test_timeline_route test_notifications_route
 
@@ -67,7 +67,7 @@ test_timeline_live: test_timeline_live.c timeline_wolfram.c timeline_route.c sea
 test_notifications_live: test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o $(LIVE_LIBS) -o $@
 
-SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c content_routes.c search_routes.c search_live.c write_routes.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
+SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c named_routes.c named_live.c content_routes.c search_routes.c search_live.c write_routes.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
 
 test_server: test_server.c $(SERVER_SRCS) mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
