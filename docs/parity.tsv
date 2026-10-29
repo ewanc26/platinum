@@ -1,14 +1,18 @@
 # id|feature|cobalt|indigo|status|evidence
-# cobalt/indigo: yes|no, from their READMEs and source trees as of 2026-10-05 (read only, not CI-checked).
+# cobalt/indigo: yes|no, checked against their source trees, parity pages and git history on 2026-10-29
+# (read only, not CI-checked: a cell here is only as good as that audit).
 # status: implemented | issue | impossible
+# issue #98 is also used for the console-parity rows that have no separate issue of their own
+# (settings, profile tabs), because it is the open issue for what Cobalt has and Platinum does not.
 # evidence: implemented -> path::fixed string that must appear in that file
 #           issue       -> #number of the tracking issue (must be open; see tools/check-parity.sh)
 #           impossible  -> reason, with the primary source
-signin-oauth|OAuth sign-in (browser, paired)|no|yes|implemented|macos9/bridge_client.c::platinum_bridge_pair
+signin-oauth|OAuth sign-in (browser, paired)|yes|yes|implemented|macos9/bridge_client.c::platinum_bridge_pair
 signin-app-password|App-password sign-in (bridge endpoint)|yes|yes|implemented|bridge/src/auth/app-password.ts::class AppPasswordService
 signin-app-password-client|App-password sign-in (Mac window)|yes|yes|implemented|macos9/apppw.c::platinum_apppw_open
 session-persist|Session survives restart|yes|yes|implemented|macos9/session.c::platinum_session_load
 sign-out|Sign out with server-side revocation|yes|yes|implemented|macos9/session.c::platinum_bridge_revoke
+settings|Settings (theme, text scale, contrast)|yes|yes|issue|#98
 timeline|Home timeline|yes|yes|implemented|macos9/timeline.c::platinum_timeline_refresh
 timeline-paging|Timeline paging|yes|yes|implemented|macos9/timeline.c::platinum_timeline_load_older
 notifications|Notifications|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_refresh
@@ -18,7 +22,7 @@ thread|Thread view|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_loa
 post|Post text|yes|yes|implemented|macos9/application_post.c::platinum_application_submit_post
 reply|Reply|yes|yes|implemented|macos9/compose_model.c::platinum_compose_set_reply
 quote|Quote post|yes|yes|implemented|macos9/application_post.c::platinum_compose_set_quote
-reply-gate|Reply gates|yes|no|implemented|macos9/compose_model.c::platinum_compose_cycle_gate
+reply-gate|Reply gates|yes|yes|implemented|macos9/compose_model.c::platinum_compose_cycle_gate
 like|Like and unlike|yes|yes|implemented|macos9/timeline.c::platinum_timeline_set_engagement
 repost|Repost and undo|yes|yes|implemented|bridge/src/domain/api.ts::async toggle(
 profile-self|Own profile|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_refresh
@@ -38,15 +42,16 @@ search-posts|Post search|yes|yes|implemented|macos9/application_views.c::/v1/sea
 feeds|Custom feeds|yes|yes|implemented|macos9/application_views.c::/v1/feeds
 lists|Lists|yes|yes|implemented|macos9/application_views.c::/v1/lists
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
-muted-words|Muted words|no|yes|implemented|macos9/application_views.c::/v1/muted-words
-engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(
-delete-post|Delete your own post|yes|no|implemented|macos9/bridge_client.c::/v1/post/delete
-direct-messages|Direct messages|no|no|issue|#98
-post-thread|Post a thread (multi-post compose)|no|no|issue|#98
-external-embeds|Video poster and external-media embeds|no|no|issue|#98
-qr-links|Open links by QR code|no|no|issue|#98
-diagnostics|Diagnostics window|yes|no|implemented|macos9/diag.c::/health
+muted-words|Muted words|yes|yes|implemented|macos9/application_views.c::/v1/muted-words
+engagement-lists|Who liked or reposted|yes|yes|implemented|bridge/src/domain/api.ts::async engagement(
+delete-post|Delete your own post|yes|yes|implemented|macos9/bridge_client.c::/v1/post/delete
+direct-messages|Direct messages|yes|yes|issue|#98
+post-thread|Post a thread (multi-post compose)|yes|yes|issue|#98
+video-poster|Video poster and duration|yes|yes|issue|#98
+external-embeds|External-media embeds (gallery, enriched cards)|yes|no|issue|#98
+qr-links|Open links by QR code|yes|yes|issue|#98
+diagnostics|Diagnostics window|yes|yes|implemented|macos9/diag.c::/health
 drafts|Post drafts|no|yes|implemented|macos9/draft.c::platinum_draft_save
 auto-update-bridge|Auto-update (bridge, from GitHub releases)|no|no|implemented|bridge/src/update/install.ts::applyUpdate
-auto-update-client|Auto-update (client, bridge-served, user-confirmed)|no|no|issue|#48
+auto-update-client|Auto-update (client, user-confirmed)|no|yes|issue|#48
 push|Push notifications|no|no|impossible|No push service reaches a homebrew or OS 9 client; Cobalt README "Deliberately not planned". Platinum has no APNs-equivalent and the bridge cannot open a connection to OS 9.

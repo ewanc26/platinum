@@ -123,6 +123,8 @@ platinum/
 │   ├── application_menus.c
 │   ├── application_post.c
 │   ├── application_views.c
+│   ├── avatar_cache.c
+│   ├── avatar_cache.h
 │   ├── bridge_client.c
 │   ├── bridge_client.h
 │   ├── apppw.c

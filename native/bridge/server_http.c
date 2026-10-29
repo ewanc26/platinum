@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <sys/socket.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -81,6 +82,28 @@ build_target(struct MHD_Connection *conn, const char *url, char *out, size_t cap
     return a.overflow ? -1 : 0;
 }
 
+/* The client's numeric address, or NULL. The app-password limiter keys on this. */
+static const char *
+peer_address(struct MHD_Connection *conn, char *buf, size_t cap)
+{
+    const union MHD_ConnectionInfo *info;
+    const struct sockaddr *sa;
+
+    if (conn == NULL || buf == NULL || cap == 0) return NULL;
+    info = MHD_get_connection_info(conn, MHD_CONNECTION_INFO_CLIENT_ADDRESS);
+    if (info == NULL || info->client_addr == NULL) return NULL;
+    sa = info->client_addr;
+    if (sa->sa_family == AF_INET) {
+        return inet_ntop(AF_INET, &((const struct sockaddr_in *) sa)->sin_addr,
+                         buf, (socklen_t) cap);
+    }
+    if (sa->sa_family == AF_INET6) {
+        return inet_ntop(AF_INET6, &((const struct sockaddr_in6 *) sa)->sin6_addr,
+                         buf, (socklen_t) cap);
+    }
+    return NULL;
+}
+
 static enum MHD_Result
 handle(void *cls, struct MHD_Connection *conn, const char *url, const char *method,
        const char *version, const char *upload_data, size_t *upload_size, void **con_cls)
@@ -88,8 +111,16 @@ handle(void *cls, struct MHD_Connection *conn, const char *url, const char *meth
     platinum_http_server *srv = (platinum_http_server *) cls;
     platinum_conn *c = (platinum_conn *) *con_cls;
     char target[2048];
-    char out[16384];
+    /* A page of twenty posts with images and cards runs past 16 KB, so the
+     * response buffer is sized for the route's largest page rather than the
+     * smallest one. A route that still does not fit answers 500, never a cut
+     * body. */
+    char out[65536];
+    char peer_buf[64];
     const char *auth;
+    const char *peer;
+    const char *content_type = "application/json; charset=utf-8";
+    size_t body_len = 0;
     int status;
     struct MHD_Response *resp;
     enum MHD_Result ok;
@@ -125,17 +156,21 @@ handle(void *cls, struct MHD_Connection *conn, const char *url, const char *meth
         snprintf(out, sizeof out, "%s", "{\"error\":\"bridge_error\",\"message\":\"The backend could not complete the request.\"}");
     } else {
         auth = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
+        peer = peer_address(conn, peer_buf, sizeof peer_buf);
         if (c->too_big) {
             status = 413;
             snprintf(out, sizeof out, "%s", "{\"error\":\"invalid_json\",\"message\":\"The request body is too large.\"}");
         } else {
-            status = platinum_server_dispatch(&srv->ctx, method, target, auth,
-                                              c->body != NULL ? c->body : "", c->len, out, sizeof out);
+            status = platinum_server_dispatch_ex(&srv->ctx, method, target, auth, peer,
+                                                 c->body != NULL ? c->body : "", c->len,
+                                                 out, sizeof out, &content_type, &body_len);
         }
     }
 
-    resp = MHD_create_response_from_buffer(strlen(out), out, MHD_RESPMEM_MUST_COPY);
-    MHD_add_response_header(resp, "content-type", "application/json; charset=utf-8");
+    /* The body length is the dispatcher's, not strlen(out): an image is binary and
+     * a zero byte in it does not end the body. */
+    resp = MHD_create_response_from_buffer(body_len, out, MHD_RESPMEM_MUST_COPY);
+    MHD_add_response_header(resp, "content-type", content_type);
     MHD_add_response_header(resp, "cache-control", "no-store");
     ok = MHD_queue_response(conn, (unsigned int) status, resp);
     MHD_destroy_response(resp);

@@ -62,6 +62,50 @@ static int fs_fsync_dir(const char *dir)
 }
 #endif
 
+int platinum_fs_ensure_dir(const char *dir)
+{
+    char *copy;
+    char *p;
+    size_t len;
+
+    if (dir == NULL || dir[0] == '\0') return PLATINUM_FS_ERR_ARG;
+    len = strlen(dir);
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL) return PLATINUM_FS_ERR_NOMEM;
+    memcpy(copy, dir, len + 1);
+
+    /* Walk the path, creating each component. A leading slash is kept. */
+    for (p = copy + 1; *p != '\0'; p++) {
+        if (*p != '/') continue;
+        *p = '\0';
+#ifdef _POSIX_VERSION
+        if (mkdir(copy, 0700) != 0 && errno != EEXIST) {
+            free(copy);
+            return PLATINUM_FS_ERR_IO;
+        }
+#else
+        if (mkdir(copy) != 0 && errno != EEXIST) {
+            free(copy);
+            return PLATINUM_FS_ERR_IO;
+        }
+#endif
+        *p = '/';
+    }
+#ifdef _POSIX_VERSION
+    if (mkdir(copy, 0700) != 0 && errno != EEXIST) {
+        free(copy);
+        return PLATINUM_FS_ERR_IO;
+    }
+#else
+    if (mkdir(copy) != 0 && errno != EEXIST) {
+        free(copy);
+        return PLATINUM_FS_ERR_IO;
+    }
+#endif
+    free(copy);
+    return PLATINUM_FS_OK;
+}
+
 int platinum_fs_write_atomic(const char *dir, const char *name, const unsigned char *data, size_t len)
 {
     char *final_path = NULL;

@@ -25,8 +25,8 @@ not edit by hand: CI regenerates it and fails on a difference.
 
 The Platinum column is checked against the code. An implemented row names a file
 and a string that has to be in it. An open row links the issue that tracks it.
-The Cobalt and Indigo columns are read from their READMEs and source trees on
-2026-10-05 and are not checked by this repository's CI.
+The Cobalt and Indigo columns come from their own parity pages, source trees and
+git history, checked on 2026-10-29, and are not checked by this repository's CI.
 
 Mac OS 9 gaps are designed for the platform (bounded memory, cooperative event
 loop, 640x480, no decoding on the Mac) rather than ported from the consoles.

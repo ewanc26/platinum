@@ -66,6 +66,44 @@ platinum_valid_image_ref(const char *ref)
 }
 
 int
+platinum_cdn_ref(const char *url, char *out, size_t cap)
+{
+    static const char prefix[] = "https://cdn.bsky.app/img/";
+    const char *ref;
+    size_t n;
+
+    if (out == NULL || cap == 0) return -1;
+    out[0] = '\0';
+    if (url == NULL) return -1;
+    if (strncmp(url, prefix, sizeof prefix - 1) != 0) return -1;
+    ref = url + sizeof prefix - 1;
+    if (platinum_valid_image_ref(ref) != 0) return -1;
+    n = strlen(ref);
+    if (n >= cap) return -1;
+    memcpy(out, ref, n + 1);
+    return 0;
+}
+
+int
+platinum_avatar_ref(const char *url, char *out, size_t cap)
+{
+    static const char prefix[] = "avatar/";
+    static const char thumb[] = "avatar_thumbnail/";
+    char ref[301];
+    size_t n;
+
+    if (out == NULL || cap == 0) return -1;
+    out[0] = '\0';
+    if (platinum_cdn_ref(url, ref, sizeof ref) != 0) return -1;
+    if (strncmp(ref, prefix, sizeof prefix - 1) != 0) return -1;
+    n = strlen(ref + sizeof prefix - 1);
+    if (sizeof thumb - 1 + n >= cap) return -1;
+    memcpy(out, thumb, sizeof thumb - 1);
+    memcpy(out + sizeof thumb - 1, ref + sizeof prefix - 1, n + 1);
+    return 0;
+}
+
+int
 platinum_parse_image_params(const char *w, const char *depth, int *width, int *colours)
 {
     long v = 320;
