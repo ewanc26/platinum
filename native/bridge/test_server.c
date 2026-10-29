@@ -70,7 +70,11 @@ static int checks = 0;
     "{\"preferences\":[{\"$type\":\"app.bsky.actor.defs#savedFeedsPrefV2\",\"items\":[" \
     "{\"id\":\"1\",\"type\":\"feed\"," \
     "\"value\":\"at://did:plc:bob/app.bsky.feed.generator/whats-hot\",\"pinned\":true}," \
-    "{\"id\":\"2\",\"type\":\"timeline\",\"value\":\"following\",\"pinned\":true}]}]}"
+    "{\"id\":\"2\",\"type\":\"timeline\",\"value\":\"following\",\"pinned\":true}]}," \
+    "{\"$type\":\"app.bsky.actor.defs#adultContentPref\",\"enabled\":false}," \
+    "{\"$type\":\"app.bsky.actor.defs#mutedWordsPref\",\"items\":[" \
+    "{\"id\":\"m1\",\"value\":\"spoilers\",\"targets\":[\"content\",\"tag\"]," \
+    "\"actorTarget\":\"all\"}]}]}"
 #define GENERATORS_JSON \
     "{\"feeds\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.generator/whats-hot\"," \
     "\"displayName\":\"What's Hot\",\"creator\":{\"did\":\"did:plc:bob\"," \
@@ -101,6 +105,7 @@ static int checks = 0;
     "\"isRead\":false}],\"cursor\":\"n1\"}"
 
 static wf_agent *good_agent;
+static wf_mock_pds *mock_pds;
 
 /* Only the one token is valid, and it maps to the agent the mock PDS answers. */
 static void *
@@ -371,6 +376,60 @@ test_dispatch(void)
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_post_ref") != NULL);
 
+    /* Muted words are live: the list carries the stored word and its targets,
+     * and a write puts the whole preference array back, other prefs included. */
+    st = dispatch(&ctx, "GET", "/v1/muted-words", "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"words\":[{\"value\":\"spoilers\",\"targets\":[\"content\",\"tag\"]}]") != NULL);
+
+    st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
+                  "{\"value\":\"beans\",\"on\":true}", out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"value\":\"beans\"") != NULL);
+    CHECK(strstr(out, "\"on\":true") != NULL);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+
+        CHECK(wf_mock_pds_get_last_request(mock_pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(nsid != NULL && strcmp(nsid, "app.bsky.actor.putPreferences") == 0);
+        CHECK(method != NULL && strcmp(method, "POST") == 0);
+        CHECK(sent != NULL && strstr(sent, "\"value\":\"beans\"") != NULL);
+        /* The word already stored and an unrelated preference both survive. */
+        CHECK(sent != NULL && strstr(sent, "\"spoilers\"") != NULL);
+        CHECK(sent != NULL && strstr(sent, "adultContentPref") != NULL);
+    }
+
+    /* Removal ignores case and drops every match. */
+    st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
+                  "{\"value\":\"SPOILERS\",\"on\":false}", out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"on\":false") != NULL);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+
+        CHECK(wf_mock_pds_get_last_request(mock_pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(nsid != NULL && strcmp(nsid, "app.bsky.actor.putPreferences") == 0);
+        CHECK(sent != NULL && strstr(sent, "spoilers") == NULL);
+        CHECK(sent != NULL && strstr(sent, "adultContentPref") != NULL);
+    }
+
+    /* Adding a word that is already there writes nothing at all. */
+    st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
+                  "{\"value\":\"SPOILERS\",\"on\":true}", out, sizeof out, &st);
+    CHECK(st == 200);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+
+        CHECK(wf_mock_pds_get_last_request(mock_pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(nsid != NULL && strcmp(nsid, "app.bsky.actor.getPreferences") == 0);
+    }
+
     /* POST /v1/muted-words: missing word or on → 400. */
     st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
                   "{\"value\":\"bad\",\"on\":\"not-bool\"}", out, sizeof out, &st);
@@ -628,10 +687,12 @@ main(void)
     wf_mock_pds_register(pds, "app.bsky.feed.getLikes", LIKES_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getRepostedBy", REPOSTED_JSON);
     wf_mock_pds_register(pds, "app.bsky.actor.getPreferences", PREFS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.actor.putPreferences", "{}");
     wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators", GENERATORS_JSON);
     wf_mock_pds_register(pds, "app.bsky.graph.getLists", LISTS_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getPostThread", THREAD_JSON);
     snprintf(svc, sizeof svc, "http://127.0.0.1:%d", pds_port);
+    mock_pds = pds;
     good_agent = wf_agent_new(svc);
     CHECK(good_agent != NULL);
     if (good_agent != NULL) {

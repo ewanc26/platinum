@@ -67,7 +67,7 @@ test_timeline_live: test_timeline_live.c timeline_wolfram.c timeline_route.c sea
 test_notifications_live: test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o $(LIVE_LIBS) -o $@
 
-SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c named_routes.c named_live.c thread_route.c thread_live.c content_routes.c search_routes.c search_live.c write_routes.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
+SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c named_routes.c named_live.c muted_live.c thread_route.c thread_live.c content_routes.c search_routes.c search_live.c write_routes.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
 
 test_server: test_server.c $(SERVER_SRCS) mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
