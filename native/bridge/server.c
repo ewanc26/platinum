@@ -17,6 +17,7 @@
 #include "conversations_wolfram.h"
 #include "image_cdn.h"
 #include "image_route.h"
+#include "muted_live.h"
 #include "named_live.h"
 #include "notifications_route.h"
 #include "notifications_wolfram.h"
@@ -190,21 +191,6 @@ stub_subject(void *ctx, int kind, const char *did, int on)
 {
     (void) ctx; (void) kind; (void) did; (void) on;
     return PLATINUM_WRITE_ERROR;
-}
-
-static platinum_account_result
-stub_word(void *ctx, const char *word, int on)
-{
-    (void) ctx; (void) word; (void) on;
-    return PLATINUM_ACCOUNT_ERROR;
-}
-
-static platinum_content_result
-stub_muted_list(void *ctx, platinum_muted_view *views, size_t max, size_t *count)
-{
-    (void) ctx; (void) views; (void) max;
-    if (count) *count = 0;
-    return PLATINUM_CONTENT_ERROR;
 }
 
 static platinum_content_result
@@ -505,7 +491,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
     }
 
     if (id == PLATINUM_ROUTE_MUTED_WORDS_GET) {
-        return platinum_route_muted_list(agent, stub_muted_list, out, cap);
+        return platinum_route_muted_list(agent, platinum_muted_list_live, out, cap);
     }
 
     if (id == PLATINUM_ROUTE_LISTS) {
@@ -620,7 +606,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         on_item  = cJSON_GetObjectItemCaseSensitive(root, "on");
         on_valid = cJSON_IsBool(on_item);
         on       = cJSON_IsTrue(on_item) ? 1 : 0;
-        st = platinum_route_muted_set(agent, stub_word, word, on_valid, on, out, cap);
+        st = platinum_route_muted_set(agent, platinum_muted_set_live, word, on_valid, on, out, cap);
         cJSON_Delete(root);
         return st;
     }
