@@ -17,6 +17,7 @@
 #include "conversations_wolfram.h"
 #include "image_cdn.h"
 #include "image_route.h"
+#include "named_live.h"
 #include "notifications_route.h"
 #include "notifications_wolfram.h"
 #include "post_routes.h"
@@ -498,8 +499,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
     }
 
     if (id == PLATINUM_ROUTE_FEEDS) {
-        return write_json(out, cap,
-                          "{\"error\":\"bridge_error\",\"message\":\"The backend could not complete the request.\"}") == 0 ? 500 : 500;
+        return platinum_route_named(agent, platinum_named_feeds_live, out, cap);
     }
 
     if (id == PLATINUM_ROUTE_MUTED_WORDS_GET) {
@@ -507,8 +507,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
     }
 
     if (id == PLATINUM_ROUTE_LISTS) {
-        return write_json(out, cap,
-                          "{\"error\":\"bridge_error\",\"message\":\"The backend could not complete the request.\"}") == 0 ? 500 : 500;
+        return platinum_route_named(agent, platinum_named_lists_live, out, cap);
     }
 
     if (id == PLATINUM_ROUTE_FEED || id == PLATINUM_ROUTE_LIST) {

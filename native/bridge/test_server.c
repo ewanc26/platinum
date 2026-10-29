@@ -66,6 +66,18 @@ static int checks = 0;
 #define REPOSTED_JSON \
     "{\"repostedBy\":[{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"}]," \
     "\"cursor\":\"r1\"}"
+#define PREFS_JSON \
+    "{\"preferences\":[{\"$type\":\"app.bsky.actor.defs#savedFeedsPrefV2\",\"items\":[" \
+    "{\"id\":\"1\",\"type\":\"feed\"," \
+    "\"value\":\"at://did:plc:bob/app.bsky.feed.generator/whats-hot\",\"pinned\":true}," \
+    "{\"id\":\"2\",\"type\":\"timeline\",\"value\":\"following\",\"pinned\":true}]}]}"
+#define GENERATORS_JSON \
+    "{\"feeds\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.generator/whats-hot\"," \
+    "\"displayName\":\"What's Hot\",\"creator\":{\"did\":\"did:plc:bob\"," \
+    "\"handle\":\"bob.test\"}}]}"
+#define LISTS_JSON \
+    "{\"lists\":[{\"uri\":\"at://did:plc:bob/app.bsky.graph.list/3kl\"," \
+    "\"name\":\"Friends\",\"purpose\":\"app.bsky.graph.defs#curatelist\"}]}"
 #define NOTIFICATIONS_JSON \
     "{\"notifications\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kn\"," \
     "\"cid\":\"bafyn\",\"author\":{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}," \
@@ -277,6 +289,20 @@ test_dispatch(void)
     st = dispatch(&ctx, "GET", "/v1/search/actors", "Bearer good-token", NULL, out, sizeof out, &st);
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_query") != NULL);
+
+    /* /v1/feeds: the saved custom feeds are named from the preferences; the
+     * timeline entry in the same preference is not a custom feed. */
+    st = dispatch(&ctx, "GET", "/v1/feeds", "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"items\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.generator/whats-hot\"") != NULL);
+    CHECK(strstr(out, "\"name\":\"What's Hot\"") != NULL);
+    CHECK(strstr(out, "following") == NULL);
+
+    /* /v1/lists: the account's own lists, named. */
+    st = dispatch(&ctx, "GET", "/v1/lists", "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"uri\":\"at://did:plc:bob/app.bsky.graph.list/3kl\"") != NULL);
+    CHECK(strstr(out, "\"name\":\"Friends\"") != NULL);
 
     /* /v1/feed: missing uri → 400. */
     st = dispatch(&ctx, "GET", "/v1/feed", "Bearer good-token", NULL, out, sizeof out, &st);
@@ -572,6 +598,9 @@ main(void)
     wf_mock_pds_register(pds, "app.bsky.feed.getAuthorFeed", AUTHOR_FEED_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getLikes", LIKES_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getRepostedBy", REPOSTED_JSON);
+    wf_mock_pds_register(pds, "app.bsky.actor.getPreferences", PREFS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators", GENERATORS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.graph.getLists", LISTS_JSON);
     snprintf(svc, sizeof svc, "http://127.0.0.1:%d", pds_port);
     good_agent = wf_agent_new(svc);
     CHECK(good_agent != NULL);
