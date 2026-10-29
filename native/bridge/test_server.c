@@ -48,6 +48,24 @@ static int checks = 0;
 #define ACTORS_JSON \
     "{\"actors\":[{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"," \
     "\"displayName\":\"Alice\"}],\"cursor\":\"a1\"}"
+#define FOLLOWS_JSON \
+    "{\"follows\":[{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"," \
+    "\"displayName\":\"Alice\"}],\"cursor\":\"f1\"}"
+#define FOLLOWERS_JSON \
+    "{\"followers\":[{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"}]," \
+    "\"cursor\":\"fo1\"}"
+#define AUTHOR_FEED_JSON \
+    "{\"feed\":[{\"post\":{\"uri\":\"at://did:plc:alice/app.bsky.feed.post/3kaf\"," \
+    "\"cid\":\"bafyaf\",\"author\":{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"from the author\"," \
+    "\"createdAt\":\"2026-10-01T10:00:00.000Z\"},\"likeCount\":1}}],\"cursor\":\"af1\"}"
+#define LIKES_JSON \
+    "{\"likes\":[{\"actor\":{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"," \
+    "\"displayName\":\"Alice\"},\"createdAt\":\"2026-10-01T10:00:00.000Z\"," \
+    "\"indexedAt\":\"2026-10-01T10:00:00.000Z\"}],\"cursor\":\"l1\"}"
+#define REPOSTED_JSON \
+    "{\"repostedBy\":[{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"}]," \
+    "\"cursor\":\"r1\"}"
 #define NOTIFICATIONS_JSON \
     "{\"notifications\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kn\"," \
     "\"cid\":\"bafyn\",\"author\":{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}," \
@@ -189,6 +207,38 @@ test_dispatch(void)
     CHECK(strstr(out, "\"handle\":\"alice.test\"") != NULL);
     CHECK(strstr(out, "\"displayName\":\"Alice\"") != NULL);
 
+    /* The actor graph and engagement lists are live, in the account-list shape. */
+    st = dispatch(&ctx, "GET", "/v1/follows?actor=alice.test", "Bearer good-token",
+                  NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"displayName\":\"Alice\"") != NULL);
+    CHECK(strstr(out, "\"cursor\":\"f1\"") != NULL);
+
+    st = dispatch(&ctx, "GET", "/v1/followers?actor=alice.test", "Bearer good-token",
+                  NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"cursor\":\"fo1\"") != NULL);
+
+    st = dispatch(&ctx, "GET",
+                  "/v1/post/likes?uri=at://did:plc:bob/app.bsky.feed.post/3kpost",
+                  "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"displayName\":\"Alice\"") != NULL);
+    CHECK(strstr(out, "\"cursor\":\"l1\"") != NULL);
+
+    st = dispatch(&ctx, "GET",
+                  "/v1/post/reposts?uri=at://did:plc:bob/app.bsky.feed.post/3kpost",
+                  "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"cursor\":\"r1\"") != NULL);
+
+    /* The author feed is the timeline shape, cursor included. */
+    st = dispatch(&ctx, "GET", "/v1/author-feed?actor=alice.test", "Bearer good-token",
+                  NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"text\":\"from the author\"") != NULL);
+    CHECK(strstr(out, "\"cursor\":\"af1\"") != NULL);
+
     /* A cursor that cannot be echoed back is refused before the fetch. */
     {
         char target[400];
@@ -211,12 +261,12 @@ test_dispatch(void)
     CHECK(st == 501);
     CHECK(strstr(out, "not_implemented") != NULL);
 
-    /* /v1/follows: missing actor → 400; good actor → 500 via stub. */
+    /* /v1/follows: missing actor → 400; a good actor is served live. */
     st = dispatch(&ctx, "GET", "/v1/follows", "Bearer good-token", NULL, out, sizeof out, &st);
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_actor") != NULL);
     st = dispatch(&ctx, "GET", "/v1/follows?actor=bob.test", "Bearer good-token", NULL, out, sizeof out, &st);
-    CHECK(st == 500);
+    CHECK(st == 200);
 
     /* /v1/post/likes: missing uri → 400. */
     st = dispatch(&ctx, "GET", "/v1/post/likes", "Bearer good-token", NULL, out, sizeof out, &st);
@@ -517,6 +567,11 @@ main(void)
     wf_mock_pds_register(pds, "chat.bsky.convo.getMessages", MESSAGES_JSON);
     wf_mock_pds_register(pds, "chat.bsky.convo.sendMessage", SENT_MESSAGE_JSON);
     wf_mock_pds_register(pds, "app.bsky.actor.searchActors", ACTORS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.graph.getFollows", FOLLOWS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.graph.getFollowers", FOLLOWERS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.getAuthorFeed", AUTHOR_FEED_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.getLikes", LIKES_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.getRepostedBy", REPOSTED_JSON);
     snprintf(svc, sizeof svc, "http://127.0.0.1:%d", pds_port);
     good_agent = wf_agent_new(svc);
     CHECK(good_agent != NULL);

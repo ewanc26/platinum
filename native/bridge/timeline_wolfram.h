@@ -19,4 +19,10 @@ platinum_timeline_result platinum_timeline_fetch_live(void *ctx, int limit,
                                                       const char *cursor,
                                                       platinum_timeline *out);
 
+/* The author feed, in the same shape and with the same muted-word rule. ctx is a
+ * wf_agent *; actor is a validated handle or DID. */
+platinum_timeline_result platinum_author_feed_fetch_live(void *ctx, const char *actor,
+                                                         int limit, const char *cursor,
+                                                         platinum_timeline *out);
+
 #endif

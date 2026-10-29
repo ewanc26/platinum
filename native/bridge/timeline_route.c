@@ -188,13 +188,33 @@ append_post(char *body, size_t cap, size_t *len, const platinum_timeline_post *p
 }
 
 int
+platinum_write_posts(const platinum_timeline_post *posts, size_t count,
+                     const char *cursor, char *body, size_t cap)
+{
+    size_t len = 0;
+    size_t i;
+
+    if (body == NULL || cap == 0) return -1;
+    body[0] = '\0';
+    if (append_raw(body, cap, &len, "{\"posts\":[") != 0) return -1;
+    for (i = 0; i < count; i++) {
+        if (i > 0 && append_raw(body, cap, &len, ",") != 0) return -1;
+        if (append_post(body, cap, &len, &posts[i]) != 0) return -1;
+    }
+    if (append_raw(body, cap, &len, "]") != 0) return -1;
+    if (cursor != NULL && cursor[0] != '\0') {
+        if (append_key_string(body, cap, &len, "cursor", cursor) != 0) return -1;
+    }
+    if (append_raw(body, cap, &len, "}") != 0) return -1;
+    return 0;
+}
+
+int
 platinum_route_timeline(void *ctx, platinum_timeline_fetch_fn fetch,
                         const char *limit_param, const char *cursor_param,
                         char *body, size_t cap)
 {
     platinum_timeline page;
-    size_t len = 0;
-    size_t i;
     int count;
 
     if (body == NULL || cap == 0 || fetch == NULL) return 500;
@@ -220,16 +240,10 @@ platinum_route_timeline(void *ctx, platinum_timeline_fetch_fn fetch,
                            "The backend could not complete the request.");
     }
 
-    if (append_raw(body, cap, &len, "{\"posts\":[") != 0) goto too_big;
-    for (i = 0; i < page.post_count; i++) {
-        if (i > 0 && append_raw(body, cap, &len, ",") != 0) goto too_big;
-        if (append_post(body, cap, &len, &page.posts[i]) != 0) goto too_big;
+    if (platinum_write_posts(page.posts, page.post_count,
+                             page.has_cursor ? page.cursor : NULL, body, cap) != 0) {
+        goto too_big;
     }
-    if (append_raw(body, cap, &len, "]") != 0) goto too_big;
-    if (page.has_cursor && page.cursor[0] != '\0') {
-        if (append_key_string(body, cap, &len, "cursor", page.cursor) != 0) goto too_big;
-    }
-    if (append_raw(body, cap, &len, "}") != 0) goto too_big;
 
     platinum_timeline_free(&page);
     return 200;

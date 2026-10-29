@@ -151,14 +151,54 @@ fill_post(platinum_timeline_post *post, const wf_agent_post_view *view,
     }
 }
 
+/* Fills `out` from a parsed feed page, applying muted words. The caller frees
+ * the page; a post the display model cannot read is skipped, not fatal. */
+static platinum_timeline_result
+fill_from_feed(wf_agent *agent, const wf_agent_feed_list *page, platinum_timeline *out)
+{
+    wf_muted_list muted;
+    size_t i;
+
+    if (page->item_count > 0) {
+        size_t count = page->item_count < PLATINUM_TIMELINE_POSTS_MAX
+                          ? page->item_count
+                          : PLATINUM_TIMELINE_POSTS_MAX;
+
+        out->posts = calloc(count, sizeof *out->posts);
+        if (out->posts == NULL) return PLATINUM_TIMELINE_ERROR;
+
+        load_muted_words(agent, &muted);
+        for (i = 0; i < count; i++) {
+            wf_post_display display;
+
+            memset(&display, 0, sizeof display);
+            if (wf_agent_post_view_display(&page->items[i].post, &display) != WF_OK) {
+                wf_post_display_free(&display);
+                continue;
+            }
+            if (!post_is_muted(&muted, &display)) {
+                fill_post(&out->posts[out->post_count], &page->items[i].post, &display);
+                out->post_count++;
+            }
+            wf_post_display_free(&display);
+        }
+    }
+
+    if (page->cursor != NULL && page->cursor[0] != '\0' &&
+        strlen(page->cursor) < sizeof out->cursor) {
+        strcpy(out->cursor, page->cursor);
+        out->has_cursor = 1;
+    }
+    return PLATINUM_TIMELINE_OK;
+}
+
 platinum_timeline_result
 platinum_timeline_fetch_live(void *ctx, int limit, const char *cursor,
                              platinum_timeline *out)
 {
     wf_agent *agent = (wf_agent *) ctx;
     wf_agent_feed_list page;
-    wf_muted_list muted;
-    size_t i;
+    platinum_timeline_result result;
 
     if (agent == NULL || out == NULL) return PLATINUM_TIMELINE_ERROR;
     memset(&page, 0, sizeof page);
@@ -168,40 +208,28 @@ platinum_timeline_fetch_live(void *ctx, int limit, const char *cursor,
         return PLATINUM_TIMELINE_ERROR;
     }
 
-    if (page.item_count > 0) {
-        size_t count = page.item_count < PLATINUM_TIMELINE_POSTS_MAX
-                          ? page.item_count
-                          : PLATINUM_TIMELINE_POSTS_MAX;
-
-        out->posts = calloc(count, sizeof *out->posts);
-        if (out->posts == NULL) {
-            wf_agent_feed_list_free(&page);
-            return PLATINUM_TIMELINE_ERROR;
-        }
-
-        load_muted_words(agent, &muted);
-        for (i = 0; i < count; i++) {
-            wf_post_display display;
-
-            memset(&display, 0, sizeof display);
-            if (wf_agent_post_view_display(&page.items[i].post, &display) != WF_OK) {
-                wf_post_display_free(&display);
-                continue;
-            }
-            if (!post_is_muted(&muted, &display)) {
-                fill_post(&out->posts[out->post_count], &page.items[i].post, &display);
-                out->post_count++;
-            }
-            wf_post_display_free(&display);
-        }
-    }
-
-    if (page.cursor != NULL && page.cursor[0] != '\0' &&
-        strlen(page.cursor) < sizeof out->cursor) {
-        strcpy(out->cursor, page.cursor);
-        out->has_cursor = 1;
-    }
-
+    result = fill_from_feed(agent, &page, out);
     wf_agent_feed_list_free(&page);
-    return PLATINUM_TIMELINE_OK;
+    return result;
+}
+
+platinum_timeline_result
+platinum_author_feed_fetch_live(void *ctx, const char *actor, int limit,
+                                const char *cursor, platinum_timeline *out)
+{
+    wf_agent *agent = (wf_agent *) ctx;
+    wf_agent_feed_list page;
+    platinum_timeline_result result;
+
+    if (agent == NULL || actor == NULL || out == NULL) return PLATINUM_TIMELINE_ERROR;
+    memset(&page, 0, sizeof page);
+
+    if (wf_agent_get_author_feed_typed(agent, actor, limit, cursor, NULL, &page) != WF_OK) {
+        wf_agent_feed_list_free(&page);
+        return PLATINUM_TIMELINE_ERROR;
+    }
+
+    result = fill_from_feed(agent, &page, out);
+    wf_agent_feed_list_free(&page);
+    return result;
 }
