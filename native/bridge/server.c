@@ -28,6 +28,8 @@
 #include "routes.h"
 #include "search_live.h"
 #include "search_routes.h"
+#include "thread_live.h"
+#include "thread_route.h"
 #include "timeline_route.h"
 #include "timeline_wolfram.h"
 #include "write_routes.h"
@@ -525,7 +527,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
     if (id == PLATINUM_ROUTE_THREAD) {
         char uri_buf[512];
         const char *uri = query_value(target, "uri", uri_buf, sizeof uri_buf);
-        return platinum_route_thread(agent, stub_collection, uri, out, cap);
+        return platinum_route_thread_view(agent, platinum_thread_fetch_live, uri, out, cap);
     }
 
     /* --- POST routes --- */

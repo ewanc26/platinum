@@ -134,7 +134,8 @@ append_card(char *body, size_t cap, size_t *len, const platinum_timeline_card *c
 }
 
 static int
-append_post(char *body, size_t cap, size_t *len, const platinum_timeline_post *p)
+append_post(char *body, size_t cap, size_t *len, const platinum_timeline_post *p,
+            int depth, int has_depth)
 {
     int i;
     int images = 0;
@@ -184,6 +185,12 @@ append_post(char *body, size_t cap, size_t *len, const platinum_timeline_post *p
     }
 
     if (p->has_card && append_card(body, cap, len, &p->card) != 0) return -1;
+    if (has_depth) {
+        if (append_raw(body, cap, len, ",\"depth\":") != 0 ||
+            append_long(body, cap, len, (long) depth) != 0) {
+            return -1;
+        }
+    }
     return append_raw(body, cap, len, "}");
 }
 
@@ -199,11 +206,33 @@ platinum_write_posts(const platinum_timeline_post *posts, size_t count,
     if (append_raw(body, cap, &len, "{\"posts\":[") != 0) return -1;
     for (i = 0; i < count; i++) {
         if (i > 0 && append_raw(body, cap, &len, ",") != 0) return -1;
-        if (append_post(body, cap, &len, &posts[i]) != 0) return -1;
+        if (append_post(body, cap, &len, &posts[i], 0, 0) != 0) return -1;
     }
     if (append_raw(body, cap, &len, "]") != 0) return -1;
     if (cursor != NULL && cursor[0] != '\0') {
         if (append_key_string(body, cap, &len, "cursor", cursor) != 0) return -1;
+    }
+    if (append_raw(body, cap, &len, "}") != 0) return -1;
+    return 0;
+}
+
+int
+platinum_write_thread_posts(const platinum_timeline_post *posts, const int *depths,
+                            size_t count, int truncated, char *body, size_t cap)
+{
+    size_t len = 0;
+    size_t i;
+
+    if (body == NULL || cap == 0 || depths == NULL) return -1;
+    body[0] = '\0';
+    if (append_raw(body, cap, &len, "{\"posts\":[") != 0) return -1;
+    for (i = 0; i < count; i++) {
+        if (i > 0 && append_raw(body, cap, &len, ",") != 0) return -1;
+        if (append_post(body, cap, &len, &posts[i], depths[i], 1) != 0) return -1;
+    }
+    if (append_raw(body, cap, &len, "]") != 0) return -1;
+    if (append_raw(body, cap, &len, truncated ? ",\"truncated\":true" : ",\"truncated\":false") != 0) {
+        return -1;
     }
     if (append_raw(body, cap, &len, "}") != 0) return -1;
     return 0;
