@@ -84,6 +84,12 @@ typedef platinum_timeline_result (*platinum_timeline_fetch_fn)(void *ctx, int li
 /* Releases the posts and resets the page. NULL-safe. */
 void platinum_timeline_free(platinum_timeline *out);
 
+/* Writes the timeline shape — {"posts":[...],"cursor"} — from an already built
+ * page. cursor may be NULL. Returns 0, or -1 when the body does not fit `cap`;
+ * `body` is then empty. Shared with the author feed, which has the same shape. */
+int platinum_write_posts(const platinum_timeline_post *posts, size_t count,
+                         const char *cursor, char *body, size_t cap);
+
 /* GET /v1/timeline. limit_param and cursor_param are the raw query values, or
  * NULL when absent. Writes the JSON body and returns the HTTP status. */
 int platinum_route_timeline(void *ctx, platinum_timeline_fetch_fn fetch,

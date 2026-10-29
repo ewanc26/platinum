@@ -35,10 +35,10 @@ muted words (set and list), post delete, search, feed, list, actor graph, post
 engagement, thread, and post creation (publish live, including every reply gate and
 replies). Live against Wolfram: profile fetch, post publishing, the image source fetch
 over the CDN, the home timeline, the notification list and seen mark, the conversation
-list, one conversation's messages, sending a message, and actor search. Not started:
-the read routes that only need their typed Wolfram calls wired (feeds, lists, author
-feed, post engagement, thread, muted words), and post search, whose timeline post
-mapping is not yet shared with the search route.
+list, one conversation's messages, sending a message, actor search, the actor graph
+(follows and followers), post likes and reposts, and the author feed. Not started: the
+read routes that still need their live Wolfram call (feeds, lists, thread, muted words),
+and post search, whose timeline post mapping is not yet shared with the search route.
 
 The timeline route keeps server.ts's decisions: the limit is 1 to 50 with 20 the
 default, the cursor is passed through, and muted words are applied before the page is
@@ -83,10 +83,10 @@ can be revisited.
   The native bridge writes it with `putRecord` and the post's rkey, as the TypeScript
   does. Wolfram is not changed here; the gap is filed as ewanc26/wolfram#203.
 
-Part 10 remaining: wire the live Wolfram calls for the read routes that only need their
-typed Wolfram calls (feeds, lists, author feed, post engagement, thread, muted words),
-and share the timeline post mapping with post search; replace the stub callbacks with
-real ones once those Wolfram calls are in place. The dispatch wiring, input validation, sign-in
+Part 10 remaining: wire the live Wolfram calls for the read routes that still need one
+(feeds, lists, thread, muted words), and share the timeline post mapping with post
+search; replace the stub callbacks with real ones once those Wolfram calls are in
+place. The dispatch wiring, input validation, sign-in
 routes (hosted-node pairing, app-password login and revoke) and token persistence are
 complete. `native/bridge/main.c` links the server to the token store, session files,
 the OAuth node client and the image CDN client.

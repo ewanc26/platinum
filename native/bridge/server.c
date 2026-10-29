@@ -11,6 +11,7 @@
 #include "account_routes.h"
 #include "auth.h"
 #include "collection_routes.h"
+#include "collection_live.h"
 #include "content_routes.h"
 #include "conversations.h"
 #include "conversations_wolfram.h"
@@ -468,7 +469,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         const char *actor_q = query_value(target, "actor",  actor_raw,  sizeof actor_raw);
         const char *cursor  = query_value(target, "cursor", cursor_buf, sizeof cursor_buf);
         const char *limit   = query_value(target, "limit",  limit_buf,  sizeof limit_buf);
-        return platinum_route_actor_graph(agent, stub_collection, kind,
+        return platinum_route_actor_graph(agent, platinum_collection_graph_live, kind,
                                           actor_q, limit, cursor, out, cap);
     }
 
@@ -480,7 +481,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         const char *uri    = query_value(target, "uri",    uri_buf,    sizeof uri_buf);
         const char *cursor = query_value(target, "cursor", cursor_buf, sizeof cursor_buf);
         const char *limit  = query_value(target, "limit",  limit_buf,  sizeof limit_buf);
-        return platinum_route_engagement(agent, stub_collection, kind,
+        return platinum_route_engagement(agent, platinum_collection_engagement_live, kind,
                                          uri, limit, cursor, out, cap);
     }
 
