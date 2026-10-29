@@ -78,6 +78,22 @@ static int checks = 0;
 #define LISTS_JSON \
     "{\"lists\":[{\"uri\":\"at://did:plc:bob/app.bsky.graph.list/3kl\"," \
     "\"name\":\"Friends\",\"purpose\":\"app.bsky.graph.defs#curatelist\"}]}"
+#define THREAD_JSON \
+    "{\"thread\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\"," \
+    "\"post\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kroot\"," \
+    "\"cid\":\"bafyroot\",\"author\":{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"root post\"," \
+    "\"createdAt\":\"2026-10-01T10:00:00.000Z\"}}," \
+    "\"parent\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\"," \
+    "\"post\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kparent\"," \
+    "\"cid\":\"bafyparent\",\"author\":{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"parent post\"," \
+    "\"createdAt\":\"2026-10-01T09:00:00.000Z\"}}}," \
+    "\"replies\":[{\"$type\":\"app.bsky.feed.defs#threadViewPost\"," \
+    "\"post\":{\"uri\":\"at://did:plc:carol/app.bsky.feed.post/3kreply\"," \
+    "\"cid\":\"bafyreply\",\"author\":{\"did\":\"did:plc:carol\",\"handle\":\"carol.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"a reply\"," \
+    "\"createdAt\":\"2026-10-01T11:00:00.000Z\"}}}]}}"
 #define NOTIFICATIONS_JSON \
     "{\"notifications\":[{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kn\"," \
     "\"cid\":\"bafyn\",\"author\":{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\"}," \
@@ -309,10 +325,23 @@ test_dispatch(void)
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_uri") != NULL);
 
-    /* /v1/thread: missing uri → 400. */
+    /* /v1/thread: missing uri → 400; a good uri is flattened with depths. */
     st = dispatch(&ctx, "GET", "/v1/thread", "Bearer good-token", NULL, out, sizeof out, &st);
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_post_ref") != NULL);
+    st = dispatch(&ctx, "GET",
+                  "/v1/thread?uri=at://did:plc:bob/app.bsky.feed.post/3kroot",
+                  "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"text\":\"parent post\"") != NULL);
+    CHECK(strstr(out, "\"text\":\"root post\"") != NULL);
+    CHECK(strstr(out, "\"text\":\"a reply\"") != NULL);
+    CHECK(strstr(out, "\"depth\":-1") != NULL);
+    CHECK(strstr(out, "\"depth\":0") != NULL);
+    CHECK(strstr(out, "\"depth\":1") != NULL);
+    CHECK(strstr(out, "\"truncated\":false") != NULL);
+    CHECK(strstr(out, "parent post") < strstr(out, "root post"));
+    CHECK(strstr(out, "root post") < strstr(out, "a reply"));
 
     /* POST /v1/like: bad JSON → 400; missing on → 400. */
     st = dispatch(&ctx, "POST", "/v1/like", "Bearer good-token", "{not json", out, sizeof out, &st);
@@ -601,6 +630,7 @@ main(void)
     wf_mock_pds_register(pds, "app.bsky.actor.getPreferences", PREFS_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators", GENERATORS_JSON);
     wf_mock_pds_register(pds, "app.bsky.graph.getLists", LISTS_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.getPostThread", THREAD_JSON);
     snprintf(svc, sizeof svc, "http://127.0.0.1:%d", pds_port);
     good_agent = wf_agent_new(svc);
     CHECK(good_agent != NULL);

@@ -90,6 +90,12 @@ void platinum_timeline_free(platinum_timeline *out);
 int platinum_write_posts(const platinum_timeline_post *posts, size_t count,
                          const char *cursor, char *body, size_t cap);
 
+/* Writes the thread shape — {"posts":[...],"truncated":...}, each post with
+ * its `depth` — from an already flattened list. depths has count entries.
+ * Returns 0, or -1 when the body does not fit; `body` is then empty. */
+int platinum_write_thread_posts(const platinum_timeline_post *posts, const int *depths,
+                                size_t count, int truncated, char *body, size_t cap);
+
 /* GET /v1/timeline. limit_param and cursor_param are the raw query values, or
  * NULL when absent. Writes the JSON body and returns the HTTP status. */
 int platinum_route_timeline(void *ctx, platinum_timeline_fetch_fn fetch,

@@ -25,4 +25,12 @@ platinum_timeline_result platinum_author_feed_fetch_live(void *ctx, const char *
                                                          int limit, const char *cursor,
                                                          platinum_timeline *out);
 
+/* Fills one bridge post model from a parsed postView, applying the same text,
+ * image and card mapping as a timeline page. The view is borrowed, not owned.
+ * Shared with the thread flattener. Returns 0, or -1 when the display model
+ * cannot read the post. */
+struct wf_agent_post_view;
+int platinum_fill_post_live(platinum_timeline_post *post,
+                            const struct wf_agent_post_view *view);
+
 #endif

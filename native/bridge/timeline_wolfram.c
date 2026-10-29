@@ -151,6 +151,22 @@ fill_post(platinum_timeline_post *post, const wf_agent_post_view *view,
     }
 }
 
+int
+platinum_fill_post_live(platinum_timeline_post *post, const wf_agent_post_view *view)
+{
+    wf_post_display display;
+
+    if (post == NULL || view == NULL) return -1;
+    memset(&display, 0, sizeof display);
+    if (wf_agent_post_view_display(view, &display) != WF_OK) {
+        wf_post_display_free(&display);
+        return -1;
+    }
+    fill_post(post, view, &display);
+    wf_post_display_free(&display);
+    return 0;
+}
+
 /* Fills `out` from a parsed feed page, applying muted words. The caller frees
  * the page; a post the display model cannot read is skipped, not fatal. */
 static platinum_timeline_result
