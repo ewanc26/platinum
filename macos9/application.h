@@ -7,6 +7,7 @@
 #include "timeline.h"
 #include "profile.h"
 #include "notifications.h"
+#include "conversations.h"
 #include "thread.h"
 #include "people.h"
 #include "search.h"
@@ -30,6 +31,7 @@ typedef struct platinum_application {
     platinum_timeline timeline;
     platinum_profile profile;
     platinum_notifications notifications;
+    platinum_conversations conversations;
     platinum_thread thread;
     platinum_people people;
     platinum_search search;

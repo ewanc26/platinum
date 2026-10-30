@@ -626,3 +626,138 @@ void platinum_application_refresh_notifications(
     if (app->notifications.window != NULL)
         InvalRect(&app->notifications.window->portRect);
 }
+
+/* Conversations: the list, the open conversation and its composer. */
+
+void platinum_application_open_conversations(platinum_application *app)
+{
+    if (app == NULL)
+        return;
+
+    if (platinum_conversations_open_window(&app->conversations) != noErr)
+        return;
+
+    if (platinum_session_is_paired(&app->session))
+        platinum_application_refresh_conversations(app);
+    else
+        platinum_application_invalidate(app);
+}
+
+void platinum_application_refresh_conversations(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    if (app == NULL || app->conversations.window == NULL)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    status = platinum_conversations_refresh(&app->conversations, bridge);
+    platinum_application_recover_auth(app, status);
+    if (app->conversations.window != NULL)
+        InvalRect(&app->conversations.window->portRect);
+}
+
+void platinum_application_older_conversations(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    wf_status status;
+
+    if (app == NULL || app->conversations.window == NULL)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    dropped = 0;
+    status = platinum_conversations_load_older(&app->conversations, bridge,
+                                               &dropped);
+    platinum_application_recover_auth(app, status);
+    if (dropped > 0) {
+        app->conversations.list_row -= (short)dropped;
+        if (app->conversations.list_row < 0)
+            app->conversations.list_row = 0;
+    }
+    if (app->conversations.window != NULL)
+        InvalRect(&app->conversations.window->portRect);
+}
+
+void platinum_application_open_conversation(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    wf_status status;
+
+    if (app == NULL || app->conversations.window == NULL)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    status = platinum_conversations_open_selected(&app->conversations, bridge,
+                                                  -1);
+    platinum_application_recover_auth(app, status);
+    if (app->conversations.window != NULL)
+        InvalRect(&app->conversations.window->portRect);
+}
+
+void platinum_application_older_messages(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    unsigned short dropped;
+    wf_status status;
+
+    if (app == NULL || app->conversations.window == NULL)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    dropped = 0;
+    status = platinum_conversations_load_older_messages(&app->conversations,
+                                                        bridge, &dropped);
+    platinum_application_recover_auth(app, status);
+    if (dropped > 0) {
+        app->conversations.message_row -= (short)dropped;
+        if (app->conversations.message_row < 0)
+            app->conversations.message_row = 0;
+    }
+    if (app->conversations.window != NULL)
+        InvalRect(&app->conversations.window->portRect);
+}
+
+void platinum_application_send_message(platinum_application *app)
+{
+    char text[PLATINUM_CONVERSATION_SEND_MAX + 1];
+    platinum_bridge_client *bridge;
+    long length;
+    wf_status status;
+
+    if (app == NULL || app->conversations.window == NULL)
+        return;
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
+
+    length = platinum_conversations_composer_text(&app->conversations, text,
+                                                  sizeof(text));
+    if (length < 0) {
+        /* The composer refuses past the bridge's limit, so this is a field
+         * this client did not write: send nothing rather than a cut message. */
+        return;
+    }
+
+    status = platinum_conversations_send(&app->conversations, bridge, text);
+    if (status == WF_OK)
+        platinum_conversations_clear_composer(&app->conversations);
+    platinum_application_recover_auth(app, status);
+    if (app->conversations.window != NULL)
+        InvalRect(&app->conversations.window->portRect);
+}

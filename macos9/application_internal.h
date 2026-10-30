@@ -79,6 +79,12 @@ void platinum_application_open_profile(platinum_application *app);
 void platinum_application_open_notifications(platinum_application *app);
 void platinum_application_older_notifications( platinum_application *app);
 void platinum_application_refresh_notifications( platinum_application *app);
+void platinum_application_open_conversations(platinum_application *app);
+void platinum_application_refresh_conversations(platinum_application *app);
+void platinum_application_older_conversations(platinum_application *app);
+void platinum_application_open_conversation(platinum_application *app);
+void platinum_application_older_messages(platinum_application *app);
+void platinum_application_send_message(platinum_application *app);
 
 /* application_post.c */
 void platinum_application_reply(platinum_application *app);
