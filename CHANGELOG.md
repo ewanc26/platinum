@@ -20,6 +20,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Changed
 
+- A muted-word write is read back through the bridge's own preferences reader: the test serves the `putPreferences` body as the next `getPreferences`, so the new word appears beside the stored one and a removal leaves the other word and the unrelated preference intact. It still does not prove a live PDS kept the write. ([#148](https://github.com/ewanc26/platinum/pull/148))
+
 - The record/embed half of post shaping runs in Wolfram's C through the Node addon too: the display model of `post_display.h` (post text, createdAt, validated facets, image list, embed kind, external card, video, quote) fills the wire post, with the text bounds, image references and card host kept as bridge policy on top. An embed Wolfram's model cannot type — no or lying `$type` — shows nothing, as every real AppView response is typed anyway. CI builds the addon from a bumped pin. ([#135](https://github.com/ewanc26/platinum/pull/135))
 
 - The bridge runs the parsers of the hosted OAuth node's pairing contract (Wolfram's `oauth_pairing.h`) in Wolfram's C through the Node addon too; the port under `bridge/src/auth/` is an adapter now, the begin/poll loop stays Platinum glue, and CI builds the addon from a bumped pin. ([#134](https://github.com/ewanc26/platinum/pull/134))
