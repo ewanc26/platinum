@@ -117,6 +117,7 @@ platinum/
 │   └── .env.example
 ├── macos9/
 │   ├── application.c
+│   ├── avatar_cache.c
 │   ├── application.h
 │   ├── application_auth.c
 │   ├── application_internal.h
