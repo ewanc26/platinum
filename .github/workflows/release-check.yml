@@ -1,18 +1,38 @@
 name: release-check
 
-# A v* tag must match bridge/package.json and have a CHANGELOG section, so a tag
-# cannot be cut from a tree that reports a different version. Nothing here
-# publishes anything: Platinum has no registry release.
+# A v* tag must match bridge/package.json, have a CHANGELOG section, sit on
+# main and have a green CI gate. Wolfram hosts the shared check; Platinum only
+# reads the bridge's version. Nothing here publishes anything.
 on:
   push:
     tags: ["v*"]
 
 permissions:
   contents: read
+  checks: read
 
 jobs:
-  verify:
+  version:
+    name: read the version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
-      - run: tools/check-flow.sh release "$GITHUB_REF_NAME"
+      - uses: actions/checkout@v7
+      - id: version
+        name: Read bridge/package.json
+        run: |
+          version=$(grep -m1 '"version"' bridge/package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          [ -n "$version" ] || { echo "::error::no version in bridge/package.json"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: verify the release
+    needs: version
+    uses: ewanc26/wolfram/.github/workflows/release-check-reusable.yml@v0.44.1
+    with:
+      tag: ${{ github.ref_name }}
+      version: ${{ needs.version.outputs.version }}
+      canon_ref: v0.44.1
+      required_checks: CI gate
+      wait_seconds: 900
