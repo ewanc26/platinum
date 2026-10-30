@@ -46,9 +46,7 @@ OSErr platinum_diagwin_open(platinum_diagwin *diagwin)
         return noErr;
     }
     SetRect(&bounds, 90, 80, 600, 290);
-    diagwin->window = NewCWindow(NULL, &bounds, kTitle, 1, documentProc,
-                                 (WindowPtr)-1L, 1, 0L);
-    if (diagwin->window == NULL)
+    if (platinum_window_open(&diagwin->window, &bounds, kTitle) != noErr)
         return memFullErr;
     SetPort((GrafPtr)diagwin->window);
     platinum_diagwin_draw(diagwin);

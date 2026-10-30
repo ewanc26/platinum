@@ -34,9 +34,7 @@ OSErr platinum_profile_open(platinum_profile *profile)
     }
 
     SetRect(&bounds, 116, 70, 616, 390);
-    profile->window = NewCWindow(NULL, &bounds, kProfileTitle, 1,
-                                 documentProc, (WindowPtr)-1L, 1, 0L);
-    if (profile->window == NULL)
+    if (platinum_window_open(&profile->window, &bounds, kProfileTitle) != noErr)
         return memFullErr;
 
     SetPort((GrafPtr)profile->window);

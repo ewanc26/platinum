@@ -40,9 +40,7 @@ OSErr platinum_compose_open(platinum_compose *compose)
     memset(compose, 0, sizeof(*compose));
 
     SetRect(&bounds, 126, 84, 594, 396);
-    compose->window = NewCWindow(NULL, &bounds, kComposeTitle, 1,
-                                 documentProc, (WindowPtr)-1L, 1, 0L);
-    if (compose->window == NULL)
+    if (platinum_window_open(&compose->window, &bounds, kComposeTitle) != noErr)
         return memFullErr;
 
     text_rect.left = 14;

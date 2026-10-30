@@ -35,9 +35,7 @@ OSErr platinum_people_open(platinum_people *people)
     }
 
     SetRect(&bounds, 96, 74, 656, 434);
-    people->window = NewCWindow(NULL, &bounds, kPeopleTitle, 1,
-                                documentProc, (WindowPtr)-1L, 1, 0L);
-    if (people->window == NULL)
+    if (platinum_window_open(&people->window, &bounds, kPeopleTitle) != noErr)
         return memFullErr;
 
     scrollbar_bounds = people->window->portRect;
