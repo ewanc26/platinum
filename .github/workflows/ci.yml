@@ -135,6 +135,7 @@ jobs:
             macos9/diagwin.c \
             macos9/draft.c \
             macos9/drawutil.c \
+            macos9/fixture.c \
             macos9/apppw.c \
             macos9/apppw_input.c \
             macos9/avatar_cache.c \
@@ -189,6 +190,8 @@ jobs:
             macos9/test/test_textfield.c \
             macos9/test/test_thread.c \
             macos9/test/test_timeline.c \
+            macos9/test/test_ui.c \
+            macos9/test/ui_stubs.c \
             macos9/test/wolfram_stub.c
           do
             for cc in clang gcc; do
@@ -245,6 +248,13 @@ jobs:
             macos9/bridge_client.c macos9/json_min.c \
             macos9/test/wolfram_stub.c macos9/test/test_conversations.c
           /tmp/test_conversations
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_ui \
+            macos9/ui.c macos9/timeline.c macos9/post_media.c \
+            macos9/text_codec.c macos9/bridge_client.c macos9/json_min.c \
+            macos9/test/wolfram_stub.c macos9/test/ui_stubs.c \
+            macos9/test/test_ui.c
+          /tmp/test_ui
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_thread \
             macos9/thread_feed.c macos9/timeline.c macos9/post_media.c \
@@ -364,6 +374,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/autc04/retro68@sha256:2c2ec5ca764c98b7460522be7327426e3b4d039a317c22d6ccdcc64e5247f21a
+    env:
+      # The deterministic fixture for the QEMU runtime layer. It is never part
+      # of a release; this only proves it builds for both CPUs.
+      PLATINUM_BUILD_FIXTURE: "ON"
     steps:
       - uses: actions/checkout@v5
 
@@ -379,6 +393,11 @@ jobs:
 
       - name: Build for PowerPC
         run: tools/build-macos9.sh ppc
+
+      - name: Check the fixture application was built
+        run: |
+          ls build-macos9-ppc
+          test -f build-macos9-ppc/PlatinumFixture.bin
 
   # The native bridge under native/ is C, not the TypeScript service the bridge
   # job runs, and no other job compiles it: without this one a change to a

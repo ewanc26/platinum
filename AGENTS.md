@@ -144,6 +144,7 @@ platinum/
 │   ├── draft.c
 │   ├── drawutil.c
 │   ├── drawutil.h
+│   ├── fixture.c
 │   ├── diag.c
 │   ├── diagwin.c
 │   ├── preferences.h
@@ -729,7 +730,7 @@ When real Mac OS 9 hardware is available, validate:
 - recovery from network failure;
 - recovery from a bridge restart.
 
-Do not describe emulator or modern-host testing as hardware validation.
+Do not describe emulator or modern-host testing as hardware validation. The QEMU layer in `docs/TESTING_MACOS9.md` is a separate, recorded layer: it proves a Mac OS 9 guest booted, drew the application and accepted synthetic QMP input. It does not prove timing, Open Transport networking or behaviour on real hardware, and it needs an owner-supplied installation image that is never committed.
 
 ---
 

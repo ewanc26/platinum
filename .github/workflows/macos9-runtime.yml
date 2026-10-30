@@ -1,0 +1,72 @@
+name: Mac OS 9 runtime
+
+# Manual only, and deliberately not a required check: this needs an
+# owner-supplied Mac OS 9 installation and ROM on a self-hosted Mac, and a
+# public runner may not hold either. When the media are absent the job fails
+# with the missing input named; it never skips into a green runtime result.
+#
+# The runner exposes the paths as repository variables:
+#   PLATINUM_OS9_BASE      installed Mac OS 9.2.2 PowerPC image (required)
+#   PLATINUM_OS9_ROM       PowerPC Mac ROM (optional)
+#   PLATINUM_OS9_TRANSFER  HFS image already holding PlatinumFixture (required
+#                          for a UI run; without it the harness stops at
+#                          "boot-only" and this job fails)
+on:
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: Comma-separated fixture scenarios
+        required: false
+        default: populated,empty,one-post,long-text,selected-detail,size-640x480
+      launch_keys:
+        description: QMP key names the guest launcher needs
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: QEMU Mac OS 9 runtime
+    runs-on: [self-hosted, macos9]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Preflight the runtime inputs
+        env:
+          PLATINUM_OS9_BASE: ${{ vars.PLATINUM_OS9_BASE }}
+          PLATINUM_OS9_ROM: ${{ vars.PLATINUM_OS9_ROM }}
+          PLATINUM_OS9_TRANSFER: ${{ vars.PLATINUM_OS9_TRANSFER }}
+        run: python3 tools/macos9-qemu/harness.py check
+
+      - name: Boot, launch the fixture and capture the scenarios
+        env:
+          PLATINUM_OS9_BASE: ${{ vars.PLATINUM_OS9_BASE }}
+          PLATINUM_OS9_ROM: ${{ vars.PLATINUM_OS9_ROM }}
+          PLATINUM_OS9_TRANSFER: ${{ vars.PLATINUM_OS9_TRANSFER }}
+        run: |
+          python3 tools/macos9-qemu/harness.py run --out runtime \
+            --scenarios "${{ inputs.scenarios }}" \
+            --launch-keys "${{ inputs.launch_keys }}"
+
+      - name: Compare with the committed references
+        if: always()
+        run: |
+          set -uo pipefail
+          if compgen -G "macos9/test/visual/scenario-*.ppm" > /dev/null; then
+            python3 tools/macos9-qemu/compare.py \
+              --actual runtime --references macos9/test/visual \
+              --json runtime/compare.json --mask 0,0,16,16
+          else
+            echo "no references committed yet; this run is for inspection only"
+          fi
+
+      - name: Keep the evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos9-runtime
+          path: runtime/
+          if-no-files-found: warn

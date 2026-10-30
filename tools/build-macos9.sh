@@ -43,10 +43,14 @@ build_arch() {
     echo "==> Building Platinum for Mac OS 9 ($arch)"
     cmake -S macos9 -B "build-macos9-$arch" \
         -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
-        -DWOLFRAM_INCLUDE_DIR="$WOLFRAM_INCLUDE_DIR"
+        -DWOLFRAM_INCLUDE_DIR="$WOLFRAM_INCLUDE_DIR" \
+        -DPLATINUM_BUILD_FIXTURE="${PLATINUM_BUILD_FIXTURE:-OFF}"
     cmake --build "build-macos9-$arch"
     echo "==> $arch application: build-macos9-$arch/Platinum.bin (MacBinary)"
     echo "==> also: build-macos9-$arch/Platinum.APPL (BasiliskII/SheepShaver)"
+    if [ "${PLATINUM_BUILD_FIXTURE:-OFF}" = "ON" ]; then
+        echo "==> $arch fixture: build-macos9-$arch/PlatinumFixture.bin"
+    fi
 }
 
 if [ "$ARCH" = "68k" ] || [ "$ARCH" = "both" ]; then
