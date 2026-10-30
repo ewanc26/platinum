@@ -69,12 +69,10 @@ OSErr platinum_search_open(platinum_search *search, int mode)
                                                   : PLATINUM_SEARCH_ACCOUNTS;
 
     SetRect(&bounds, 136, 110, 576, 250);
-    search->window = NewCWindow(NULL, &bounds,
-                                search->mode == PLATINUM_SEARCH_POSTS ? kPostsTitle
-                                : search->mode == PLATINUM_SEARCH_WORD ? kWordTitle
-                                                                       : kAccountsTitle,
-                                1, documentProc, (WindowPtr)-1L, 1, 0L);
-    if (search->window == NULL)
+    if (platinum_window_open(&search->window, &bounds,
+                             search->mode == PLATINUM_SEARCH_POSTS ? kPostsTitle
+                             : search->mode == PLATINUM_SEARCH_WORD ? kWordTitle
+                                                                    : kAccountsTitle) != noErr)
         return memFullErr;
 
     SetRect(&field_rect, 14, 30, bounds.right - bounds.left - 14, 54);

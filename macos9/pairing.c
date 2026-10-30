@@ -36,9 +36,7 @@ OSErr platinum_pairing_open(platinum_pairing *pairing,
     memset(pairing, 0, sizeof(*pairing));
 
     SetRect(&bounds, 96, 66, 640, 376);
-    pairing->window = NewCWindow(NULL, &bounds, kPairingTitle, 1,
-                                 documentProc, (WindowPtr)-1L, 1, 0L);
-    if (pairing->window == NULL)
+    if (platinum_window_open(&pairing->window, &bounds, kPairingTitle) != noErr)
         return memFullErr;
 
     SetRect(&url_rect, 18, 50, bounds.right - bounds.left - 18, 72);

@@ -36,9 +36,7 @@ OSErr platinum_thread_open(platinum_thread *thread)
     }
 
     SetRect(&bounds, 76, 64, 676, 444);
-    thread->window = NewCWindow(NULL, &bounds, kThreadTitle, 1,
-                                documentProc, (WindowPtr)-1L, 1, 0L);
-    if (thread->window == NULL)
+    if (platinum_window_open(&thread->window, &bounds, kThreadTitle) != noErr)
         return memFullErr;
 
     scrollbar_bounds = thread->window->portRect;

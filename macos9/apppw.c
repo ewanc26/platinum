@@ -70,9 +70,7 @@ OSErr platinum_apppw_open(platinum_apppw *apppw, const char *bridge_url)
 
     platinum_apppw_init(apppw);
     SetRect(&bounds, 96, 66, 640, 340);
-    apppw->window = NewCWindow(NULL, &bounds, kTitle, 1, documentProc,
-                               (WindowPtr)-1L, 1, 0L);
-    if (apppw->window == NULL)
+    if (platinum_window_open(&apppw->window, &bounds, kTitle) != noErr)
         return memFullErr;
 
     SetRect(&url_rect, 18, 38, bounds.right - bounds.left - 18, 60);
