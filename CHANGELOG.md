@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Repository
+
+- CI builds and tests the native bridge in `native/`: it installs the C libraries, builds Wolfram's host library from a pinned commit and runs the C89 parts and the Wolfram-backed routes against a mock PDS. No job compiled `native/` before, so a header change could reach `main` without a build. ([#147](https://github.com/ewanc26/platinum/pull/147))
+
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
 ### Added
