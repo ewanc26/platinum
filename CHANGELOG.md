@@ -8,7 +8,7 @@ pull request.
 
 ## [Unreleased]
 
-### Repository
+### Changed
 
 - CI builds and tests the native bridge in `native/`: it installs the C libraries, builds Wolfram's host library from a pinned commit and runs the C89 parts and the Wolfram-backed routes against a mock PDS. No job compiled `native/` before, so a header change could reach `main` without a build. ([#147](https://github.com/ewanc26/platinum/pull/147))
 
