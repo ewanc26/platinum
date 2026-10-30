@@ -10,6 +10,10 @@ pull request.
 
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
+### Added
+
+- The native C bridge (`native/bridge`) is a standalone HTTP/JSON service that serves `docs/BRIDGE_PROTOCOL.md` through Wolfram's typed calls, so the Mac client no longer needs Node behind it. Every dispatched route answers live: profile, publishing and reply gates, timeline and feeds, thread flattening, notifications, actor and post search, follows and engagement, conversations, and muted words. Its C89 route modules and Wolfram adapters are host-tested against a mock PDS; it has not run on Mac OS 9. Refs [#120](https://github.com/ewanc26/platinum/issues/120).
+
 ### Changed
 
 - The record/embed half of post shaping runs in Wolfram's C through the Node addon too: the display model of `post_display.h` (post text, createdAt, validated facets, image list, embed kind, external card, video, quote) fills the wire post, with the text bounds, image references and card host kept as bridge policy on top. An embed Wolfram's model cannot type — no or lying `$type` — shows nothing, as every real AppView response is typed anyway. CI builds the addon from a bumped pin. ([#135](https://github.com/ewanc26/platinum/pull/135))
