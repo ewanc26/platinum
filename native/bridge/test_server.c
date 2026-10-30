@@ -82,6 +82,18 @@ static int checks = 0;
 #define LISTS_JSON \
     "{\"lists\":[{\"uri\":\"at://did:plc:bob/app.bsky.graph.list/3kl\"," \
     "\"name\":\"Friends\",\"purpose\":\"app.bsky.graph.defs#curatelist\"}]}"
+#define SEARCH_POSTS_JSON \
+    "{\"posts\":[" \
+    "{\"uri\":\"at://did:plc:carol/app.bsky.feed.post/3kspoil\",\"cid\":\"bafyspoil\"," \
+    "\"author\":{\"did\":\"did:plc:carol\",\"handle\":\"carol.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"spoilers here\"," \
+    "\"createdAt\":\"2026-10-01T10:00:00.000Z\"}}," \
+    "{\"uri\":\"at://did:plc:alice/app.bsky.feed.post/3khit\",\"cid\":\"bafyhit\"," \
+    "\"author\":{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\"}," \
+    "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"search hit\"," \
+    "\"createdAt\":\"2026-10-01T11:00:00.000Z\"},\"likeCount\":4," \
+    "\"viewer\":{\"like\":\"at://did:plc:bob/app.bsky.feed.like/3kl\"}}]," \
+    "\"cursor\":\"sp1\"}"
 #define THREAD_JSON \
     "{\"thread\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\"," \
     "\"post\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/3kroot\"," \
@@ -305,6 +317,16 @@ test_dispatch(void)
     st = dispatch(&ctx, "GET", "/v1/post/likes", "Bearer good-token", NULL, out, sizeof out, &st);
     CHECK(st == 400);
     CHECK(strstr(out, "invalid_post_ref") != NULL);
+
+    /* /v1/search/posts: the timeline shape, with the muted hit removed and the
+     * viewer state from the result's extra fields kept. */
+    st = dispatch(&ctx, "GET", "/v1/search/posts?q=rivers", "Bearer good-token", NULL,
+                  out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"text\":\"search hit\"") != NULL);
+    CHECK(strstr(out, "spoilers here") == NULL);
+    CHECK(strstr(out, "\"liked\":true") != NULL);
+    CHECK(strstr(out, "\"cursor\":\"sp1\"") != NULL);
 
     /* /v1/search/actors: missing q → 400. */
     st = dispatch(&ctx, "GET", "/v1/search/actors", "Bearer good-token", NULL, out, sizeof out, &st);
@@ -691,6 +713,7 @@ main(void)
     wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators", GENERATORS_JSON);
     wf_mock_pds_register(pds, "app.bsky.graph.getLists", LISTS_JSON);
     wf_mock_pds_register(pds, "app.bsky.feed.getPostThread", THREAD_JSON);
+    wf_mock_pds_register(pds, "app.bsky.feed.searchPosts", SEARCH_POSTS_JSON);
     snprintf(svc, sizeof svc, "http://127.0.0.1:%d", pds_port);
     mock_pds = pds;
     good_agent = wf_agent_new(svc);

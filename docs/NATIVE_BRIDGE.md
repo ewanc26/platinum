@@ -37,9 +37,9 @@ replies). Live against Wolfram: profile fetch, post publishing, the image source
 over the CDN, the home timeline, the notification list and seen mark, the conversation
 list, one conversation's messages, sending a message, actor search, the actor graph
 (follows and followers), post likes and reposts, the author feed, and the saved feed and
-list names, and the whole thread around a post, and the muted-word list and its
-edits. Not started: post search, whose timeline post mapping is not yet shared with
-the search route.
+list names, and the whole thread around a post, the muted-word list and its edits,
+and post search. Every route the Mac calls is now served by a live Wolfram call;
+the bridge no longer has a stubbed route family.
 
 The timeline route keeps server.ts's decisions: the limit is 1 to 50 with 20 the
 default, the cursor is passed through, and muted words are applied before the page is
@@ -84,10 +84,11 @@ can be revisited.
   The native bridge writes it with `putRecord` and the post's rkey, as the TypeScript
   does. Wolfram is not changed here; the gap is filed as ewanc26/wolfram#203.
 
-Part 10 remaining: share the timeline post mapping with post search and replace its
-stub callback once that is in place. Muted words are read and written through the
-same preferences call the timeline filter uses, so the list a user edits is the list
-that filters their timeline; a write leaves the account's other preferences alone. The dispatch wiring, input validation, sign-in
+With that, the whole dispatch table answers from a live call. Muted words are read
+and written through the same preferences call the timeline filter uses, so the list
+a user edits is the list that filters their timeline; a write leaves the account's
+other preferences alone. Search reuses the timeline post mapping, writer and muted
+filter rather than a second copy of them. The dispatch wiring, input validation, sign-in
 routes (hosted-node pairing, app-password login and revoke) and token persistence are
 complete. `native/bridge/main.c` links the server to the token store, session files,
 the OAuth node client and the image CDN client.
