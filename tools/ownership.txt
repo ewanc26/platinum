@@ -50,6 +50,7 @@ macos9/compose_model.c            platform  # what a compose window replies to o
 macos9/config.c                    platform  # Preferences file
 macos9/config.h                    platform
 macos9/conversations.c             platform  # the Conversations window: list, messages and composer
+macos9/fixture.c                   platform  # deterministic fixture application: production ui.c and timeline.c with compiled-in data and the stub transport, never shipped
 macos9/conversations.h             platform
 macos9/conversations_feed.c        platform  # conversation list, message paging and sending over the bridge protocol; no Toolbox, so it links on a host
 macos9/image_blob.c               platform  # reads docs/IMAGES.md's blob, no Toolbox so it links on a host; the format is Platinum's own

@@ -115,7 +115,7 @@ I don't have a CodeWarrior project yet; the Retro68 CMake build in
 strict C89 against the SDK stubs, which checks dialect and types but is not a
 native CodeWarrior build or Classic Mac OS 9 validation.
 
-CI's C89 job is the same check you can run locally against a Wolfram checkout; the flags are in [`ci.yml`](.github/workflows/ci.yml) and [`macos9/test/sdk-stubs/README.md`](macos9/test/sdk-stubs/README.md) explains exactly what a clean run does and doesn't prove. A host build is not Mac OS 9 compatibility.
+CI's C89 job is the same check you can run locally against a Wolfram checkout; the flags are in [`ci.yml`](.github/workflows/ci.yml) and [`macos9/test/sdk-stubs/README.md`](macos9/test/sdk-stubs/README.md) explains exactly what a clean run does and doesn't prove. A host build is not Mac OS 9 compatibility. The Mac target's four validation layers are described in [`docs/TESTING_MACOS9.md`](docs/TESTING_MACOS9.md): the C89 source sweep, host UI logic tests for layout and interaction, the Retro68 68k and PowerPC builds, and a QEMU harness that boots a Mac OS 9 guest headlessly for screenshots and synthetic input. Only the first three run on public CI; the runtime layer needs an owner-supplied Mac OS 9 installation that is never committed.
 
 ## Contributing
 

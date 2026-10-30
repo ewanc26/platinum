@@ -138,3 +138,30 @@ elseif("" STREQUAL "${PLATINUM_TRANSPORT_LIBS}")
 else()
     target_link_libraries(Platinum ${PLATINUM_TRANSPORT_LIBS})
 endif()
+
+# The deterministic fixture application for the headless runtime layer. Off by
+# default and never part of a release: it draws compiled-in fixture data through
+# the production ui.c and links the transport stub, so it has no token, no
+# preferences and no network. See docs/TESTING_MACOS9.md.
+option(PLATINUM_BUILD_FIXTURE "Build the deterministic Mac OS 9 UI fixture" OFF)
+if(PLATINUM_BUILD_FIXTURE)
+    add_application(PlatinumFixture
+        TYPE "APPL"
+        CREATOR "PTLF"
+        fixture.c
+        ui.c
+        timeline.c
+        post_media.c
+        text_codec.c
+        bridge_client.c
+        json_min.c
+        drawutil.c
+        test/wolfram_stub.c
+        resources/icon.r
+    )
+    target_include_directories(PlatinumFixture PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/retro68-includes
+        ${WOLFRAM_INCLUDE_DIR}
+    )
+endif()
