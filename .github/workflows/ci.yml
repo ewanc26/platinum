@@ -365,6 +365,66 @@ jobs:
       - name: Build for PowerPC
         run: tools/build-macos9.sh ppc
 
+  # The native bridge under native/ is C, not the TypeScript service the bridge
+  # job runs, and no other job compiles it: without this one a change to a
+  # Wolfram header or to the C89 parts could reach main without a build. It
+  # links Wolfram's host library, so the SDK is checked out at a commit and
+  # built first. A commit rather than a branch, because a job that follows main
+  # stops being reproducible the day main changes; bumping the pin is a
+  # deliberate change and updates the note in AGENTS.md and README.md in the
+  # same commit.
+  #
+  # This builds and runs the C parts and the Wolfram-backed routes against a
+  # mock PDS on the loopback interface. It is a host build: not a Mac OS 9 run,
+  # not a live PDS, and no hardware.
+  native-bridge:
+    name: Native bridge (C)
+    runs-on: ubuntu-latest
+    env:
+      WOLFRAM_ROOT: ${{ github.workspace }}/wolfram
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the C toolchain and the bridge's libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            libcurl4-openssl-dev libssl-dev libsecp256k1-dev \
+            libcjson-dev libmicrohttpd-dev
+
+      - uses: actions/checkout@v5
+        with:
+          repository: ewanc26/wolfram
+          ref: 7d81119781bac700957bb02ec807b2c1a2c8198f
+          path: wolfram
+
+      - name: Build Wolfram's host library
+        run: |
+          cmake -S wolfram -B "$WOLFRAM_ROOT/build-host" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWOLFRAM_BUILD_TESTS=OFF \
+            -DWOLFRAM_BUILD_EXAMPLES=OFF
+          cmake --build "$WOLFRAM_ROOT/build-host" --target wolfram -j"$(nproc)"
+
+      # libcjson-dev installs /usr/include/cjson/cJSON.h and libmicrohttpd-dev
+      # /usr/include/microhttpd.h, which is what CJSON_PREFIX=/usr means to the
+      # Makefile. WOLFRAM_HOST_BUILD defaults to $(WOLFRAM_ROOT)/build-host.
+      - name: The C89 parts build and pass
+        working-directory: native/bridge
+        env:
+          CJSON_PREFIX: /usr
+        run: make test
+
+      - name: The Wolfram-backed routes answer against a mock PDS
+        working-directory: native/bridge
+        env:
+          CJSON_PREFIX: /usr
+        run: |
+          make test_server test_conversations
+          ./test_server
+          ./test_conversations
+
   # The one check branch protection should require. Requiring the individual
   # jobs would let a renamed or added job silently drop out of the gate; this
   # job fails unless every job it needs succeeded, and the drift check fails if
@@ -372,7 +432,7 @@ jobs:
   gate:
     name: CI gate
     if: always()
-    needs: [flow, bridge, macos9, macos9-build, release-dry-run]
+    needs: [flow, bridge, macos9, macos9-build, native-bridge, release-dry-run]
     runs-on: ubuntu-latest
     steps:
       - name: Every required job succeeded

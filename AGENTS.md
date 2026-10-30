@@ -270,6 +270,8 @@ Wolfram is the AT Protocol transport boundary used by Platinum.
 
 The Mac OS 9 transport is provided by the `0.26.0` release line and its Mac OS 9/Open Transport support; 0.26.0 is the minimum. CI builds the transport against v0.36.2 (`ref:` in `.github/workflows/ci.yml`) and diffs the bridge's vectors against that release's commit.
 
+The native bridge in `native/` links Wolfram's host library, which CI builds from the commit the `native-bridge` job pins (`4bc597d`). That pin is separate from the transport and addon pins and moves on its own, but it is a commit for the same reason: a job that follows a branch stops being reproducible.
+
 The bridge runs its update contract (manifest parsing, version comparison,
 SHA-256, signature verification), the parsers of the hosted OAuth node's
 pairing contract and the record/embed half of post shaping (Wolfram's
@@ -550,6 +552,27 @@ Node 22, and builds Wolfram's Node addon from the commit pinned in `ci.yml`
 first, because the update contract runs through it.
 
 Do not claim tests passed if they were not actually run.
+
+### Native bridge
+
+From `native/bridge/`, against a Wolfram checkout and its host build:
+
+```sh
+make test                                  # the C89 parts and the adapters
+make test_server test_conversations        # the Wolfram-backed routes
+./test_server
+./test_conversations
+```
+
+The Makefile defaults `WOLFRAM_ROOT` to the sibling `../wolfram` and
+`WOLFRAM_HOST_BUILD` to its `build-host`; other layouts set both, and
+`CJSON_PREFIX` to the prefix holding `include/cjson`. The live tests link
+Wolfram's host library and talk to `wolfram/test/mock_pds.c` on the loopback
+interface, so they need no network and no account.
+
+The `native-bridge` job does exactly this, with Wolfram built from its pinned
+commit first. It is a host build against a mock PDS: it is not a live-PDS test
+and not a Mac OS 9 run.
 
 ### Mac OS 9 transport
 
