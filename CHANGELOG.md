@@ -17,6 +17,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 ### Added
 
 - The Mac client keeps avatars by reference in a bounded cache (`macos9/avatar_cache.c`): a reference is wanted once, fetched through the bridge, and parsed into a ready image, a failed one is not asked for again, and a fetch in progress is never evicted. Nothing draws an avatar yet. Refs [#32](https://github.com/ewanc26/platinum/issues/32).
+- The TypeScript bridge serves the account's conversations, one conversation's messages and sending a message: `GET /v1/conversations`, `GET /v1/conversation?id=` and `POST /v1/conversation/message` now call the chat service through the account's PDS, with the same limits as the native bridge (1 to 50 rows, 20 by default, a bounded cursor, and at most 1000 characters in a message). Deleted messages are skipped and a conversation with nobody but the viewer is left out. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
+
 - The native C bridge (`native/bridge`) is a standalone HTTP/JSON service that serves `docs/BRIDGE_PROTOCOL.md` through Wolfram's typed calls, so the Mac client no longer needs Node behind it. Every dispatched route answers live: profile, publishing and reply gates, timeline and feeds, thread flattening, notifications, actor and post search, follows and engagement, conversations, and muted words. Its C89 route modules and Wolfram adapters are host-tested against a mock PDS; it has not run on Mac OS 9. Refs [#120](https://github.com/ewanc26/platinum/issues/120).
 
 ### Changed

@@ -11,6 +11,7 @@ export type BridgeErrorCode =
   | 'app_password_disabled'
   | 'too_many_attempts'
   | 'invalid_request'
+  | 'invalid_conversation'
   | 'invalid_service'
   | 'invalid_credentials'
   | 'invalid_post_ref'

@@ -7,7 +7,7 @@ import { AtprotoClient } from './atproto/client.js'
 import { AppPasswordService, FailureLimiter, InvalidCredentialsError, InvalidServiceError, validateService } from './auth/app-password.js'
 import { PairingService } from './auth/pairing.js'
 import { TokenService } from './auth/tokens.js'
-import { DomainApi, validReplyGate, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
+import { DomainApi, validConvoId, validReplyGate, validReplyText, validActor, validCollectionUri, validPostRef, validQuery, validSeenAt } from './domain/api.js'
 import { ImageService, parseImageParams, validImageRef } from './image/fetch.js'
 import { ImageError } from './image/convert.js'
 import { validMutedWord } from './domain/muted.js'
@@ -252,6 +252,43 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'GET' && url.pathname === '/v1/timeline') {
     const cursor = url.searchParams.get('cursor') ?? undefined
     return json(res, 200, await domain.timeline(agent, limit(url.searchParams.get('limit')), cursor))
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/conversations') {
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    return json(res, 200, await domain.conversations(agent, limit(url.searchParams.get('limit')), cursor))
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/conversation/message') {
+    let input: { convoId?: unknown; text?: unknown }
+
+    try {
+      const body: unknown = JSON.parse(await readBody(req, config.maxBodyBytes))
+      input = typeof body === 'object' && body !== null ? (body as typeof input) : {}
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+
+    const convoId = validConvoId(input.convoId)
+    if (!convoId) return json(res, 400, errorBody('invalid_conversation', 'convoId must name a conversation.'))
+    const text = validReplyText(input.text)
+    if (text === undefined) {
+      if (typeof input.text === 'string' && Array.from(input.text).length > 1000) {
+        return json(res, 400, errorBody('text_too_long', 'A message must not exceed 1000 characters.'))
+      }
+      return json(res, 400, errorBody('missing_text', 'Message text is required.'))
+    }
+    return json(res, 200, await domain.sendConversationMessage(agent, convoId, text))
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/conversation') {
+    const convoId = validConvoId(url.searchParams.get('id'))
+    if (!convoId) return json(res, 400, errorBody('invalid_conversation', 'id must name a conversation.'))
+    const cursor = url.searchParams.get('cursor') ?? undefined
+    return json(res, 200, await domain.conversationMessages(agent, convoId, limit(url.searchParams.get('limit')), cursor))
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/notifications') {

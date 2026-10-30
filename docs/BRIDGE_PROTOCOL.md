@@ -62,6 +62,9 @@ POST /v1/mute
 POST /v1/block
 GET /v1/timeline?limit=20&cursor=...
 GET /v1/notifications?limit=20&cursor=...
+GET /v1/conversations?limit=20&cursor=...
+GET /v1/conversation?id=...&limit=20&cursor=...
+POST /v1/conversation/message
 GET /v1/thread?uri=...
 GET /v1/search/actors?q=...
 GET /v1/search/posts?q=...
@@ -210,6 +213,52 @@ notification you displayed, exactly as the bridge sent it, not the Mac's clock:
 notifications that arrive after the list was fetched then stay unread. A time in
 the future is clamped to the bridge's now. Returns `{"seenAt": "..."}`; `400
 invalid_seen_at` for anything that is not an ISO 8601 timestamp.
+
+### Conversations
+
+`GET /v1/conversations` returns one row per direct-message conversation:
+
+```json
+{
+  "conversations": [
+    {
+      "id": "...",
+      "name": "Bob",
+      "handle": "@bob.example",
+      "avatar": "avatar_thumbnail/...",
+      "group": false,
+      "preview": "See you Saturday.",
+      "unread": 2
+    }
+  ],
+  "cursor": "..."
+}
+```
+
+The other member names a one-to-one conversation; more than one other member is
+a group, named `Group` with no handle or avatar. A conversation with nobody but
+the viewer is left out. `limit` is 1 to 50, 20 by default. `cursor` pages the
+list.
+
+`GET /v1/conversation?id=` returns one page of messages, newest first:
+
+```json
+{
+  "messages": [
+    { "id": "...", "text": "Hello", "mine": true, "sentAt": "2026-10-01T09:00:00.000Z" }
+  ],
+  "cursor": "..."
+}
+```
+
+`mine` is true for the signed-in account's own messages. Deleted messages are
+left out. `id` is bounded to the characters the chat service uses; anything else
+is `400 invalid_conversation`.
+
+`POST /v1/conversation/message` with `{"convoId":"...","text":"..."}` sends a
+message and returns the stored message in the shape above. Text is 1 to 1000
+characters and must contain something other than spaces (`400 missing_text` or
+`400 text_too_long`); an invalid conversation id is `400 invalid_conversation`.
 
 ### Thread
 

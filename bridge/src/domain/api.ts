@@ -5,6 +5,10 @@ import type {
   Author,
   Notification,
   Notifications,
+  Conversation,
+  Conversations,
+  ConversationMessage,
+  ConversationMessages,
   ActorList,
   NamedList,
   FollowResult,
@@ -31,6 +35,81 @@ function authorFrom(value: {
       ? clipped(value.displayName, MAX_DISPLAY_NAME_LENGTH)
       : undefined,
     ...(avatarRef(value.avatar) ? { avatar: avatarRef(value.avatar) } : {}),
+  }
+}
+
+const MAX_CONVO_ID_LENGTH = 128
+const MAX_PREVIEW_LENGTH = 160
+const MAX_MESSAGE_LENGTH = 1000
+const CHAT_SERVICE = 'did:web:api.bsky.chat'
+
+/** A conversation id a client may ask for: bounded, and of the characters the chat service uses. */
+export function validConvoId(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value)) return undefined
+  return value
+}
+
+/**
+ * A reply the chat service will take: text with something other than spaces in
+ * it, and no more than 1000 characters. Returns the text, or undefined.
+ */
+export function validReplyText(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  if (Array.from(value).length > MAX_MESSAGE_LENGTH) return undefined
+  return value
+}
+
+/** The chat service, reached through the account's PDS. Only read calls go through it here. */
+function chatOf(agent: Agent) {
+  return agent.withProxy('bsky_chat', CHAT_SERVICE)
+}
+
+type ConvoMember = { did: string; handle?: string; displayName?: string; avatar?: string }
+
+/**
+ * One conversation for the Mac. Its counterpart is the member who is not the
+ * viewer; a conversation with nobody else in it is dropped, since there is no
+ * one to show. More than one other member is a group, named as such.
+ */
+export function normalizeConversation(
+  convo: { id: string; members: ConvoMember[]; lastMessage?: unknown; unreadCount?: number },
+  viewerDid: string,
+): Conversation | undefined {
+  const others = convo.members.filter(member => member.did !== viewerDid)
+  const who = others[0]
+  if (!who) return undefined
+
+  const group = others.length > 1
+  const last = convo.lastMessage as { text?: unknown } | undefined
+  const avatar = group ? undefined : avatarRef(who.avatar)
+
+  return {
+    id: clipped(convo.id, MAX_CONVO_ID_LENGTH),
+    name: group ? 'Group' : clipped(who.displayName || who.handle || who.did, MAX_DISPLAY_NAME_LENGTH),
+    ...(!group && who.handle ? { handle: `@${clipped(who.handle, MAX_HANDLE_LENGTH)}` } : {}),
+    ...(avatar ? { avatar } : {}),
+    group,
+    preview: typeof last?.text === 'string' ? clipped(last.text, MAX_PREVIEW_LENGTH) : '',
+    unread: Math.max(0, Math.trunc(convo.unreadCount ?? 0)),
+  }
+}
+
+/** A message view with text and a sender. A deleted message has neither, and is skipped. */
+export function isMessageView(value: unknown): value is { id: string; text: string; sender: { did: string }; sentAt: string } {
+  if (typeof value !== 'object' || value === null) return false
+  const message = value as { text?: unknown; sender?: { did?: unknown } }
+  return typeof message.text === 'string' && typeof message.sender?.did === 'string'
+}
+
+export function normalizeMessage(
+  message: { id: string; text: string; sender: { did: string }; sentAt: string },
+  viewerDid: string,
+): ConversationMessage {
+  return {
+    id: clipped(message.id, MAX_CONVO_ID_LENGTH),
+    text: clipped(message.text, MAX_MESSAGE_LENGTH),
+    mine: message.sender.did === viewerDid,
+    sentAt: clipped(message.sentAt, 64),
   }
 }
 
@@ -371,6 +450,33 @@ export class DomainApi {
       posts: (await this.unmuted(agent, result.data.feed)).map(normalizeTimelinePost),
       cursor: result.data.cursor,
     }
+  }
+
+  /** The account's conversations, one row each; a conversation with nobody else in it is left out. */
+  async conversations(agent: Agent, limit: number, cursor?: string): Promise<Conversations> {
+    const result = await chatOf(agent).chat.bsky.convo.listConvos({ limit, cursor })
+    const conversations: Conversation[] = []
+    for (const convo of result.data.convos) {
+      const normalized = normalizeConversation(convo as never, agent.accountDid)
+      if (normalized) conversations.push(normalized)
+    }
+    return { conversations, cursor: result.data.cursor }
+  }
+
+  /** Send `text` to a conversation and return the message as the service stored it. */
+  async sendConversationMessage(agent: Agent, convoId: string, text: string): Promise<ConversationMessage> {
+    const result = await chatOf(agent).chat.bsky.convo.sendMessage({ convoId, message: { text } })
+    return normalizeMessage(result.data as never, agent.accountDid)
+  }
+
+  /** One page of a conversation, newest first. Deleted messages are left out. */
+  async conversationMessages(agent: Agent, convoId: string, limit: number, cursor?: string): Promise<ConversationMessages> {
+    const result = await chatOf(agent).chat.bsky.convo.getMessages({ convoId, limit, cursor })
+    const messages: ConversationMessage[] = []
+    for (const message of result.data.messages) {
+      if (isMessageView(message)) messages.push(normalizeMessage(message, agent.accountDid))
+    }
+    return { messages, cursor: result.data.cursor }
   }
 
   async notifications(agent: Agent, limit: number, cursor?: string): Promise<Notifications> {
