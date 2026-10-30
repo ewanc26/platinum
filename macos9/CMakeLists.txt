@@ -51,6 +51,8 @@ set(PLATINUM_SOURCES
     bridge_client.c
     compose.c
     compose_model.c
+    conversations.c
+    conversations_feed.c
     config.c
     diag.c
     diagwin.c

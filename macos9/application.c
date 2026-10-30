@@ -22,6 +22,7 @@ OSErr platinum_application_init(platinum_application *app)
     platinum_timeline_init(&app->timeline);
     platinum_profile_init(&app->profile);
     platinum_notifications_init(&app->notifications);
+    platinum_conversations_init(&app->conversations);
     platinum_thread_init(&app->thread);
     platinum_people_init(&app->people);
     platinum_search_init(&app->search);
@@ -114,6 +115,7 @@ void platinum_application_dispose(platinum_application *app)
     platinum_apppw_close(&app->apppw);
     platinum_preferences_close(&app->preferences);
     platinum_notifications_close(&app->notifications);
+    platinum_conversations_close_window(&app->conversations);
     platinum_thread_close(&app->thread);
     platinum_people_close(&app->people);
     platinum_search_close(&app->search);
@@ -158,6 +160,8 @@ close_owned_window(platinum_application *app, WindowPtr window)
         platinum_profile_close(&app->profile);
     } else if (window_open_is(window, app->notifications.window)) {
         platinum_notifications_close(&app->notifications);
+    } else if (window_open_is(window, app->conversations.window)) {
+        platinum_conversations_close_window(&app->conversations);
     } else if (window_open_is(window, app->thread.window)) {
         platinum_thread_close(&app->thread);
     } else if (window_open_is(window, app->people.window)) {
@@ -283,6 +287,22 @@ handle_secondary_mouse(platinum_application *app, WindowPtr window,
             platinum_application_refresh_notifications(app);
         } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
             platinum_application_older_notifications(app);
+        }
+    } else if (window_open_is(window, app->conversations.window)) {
+        action = platinum_conversations_handle_event(&app->conversations, event);
+        if (action == PLATINUM_CONVERSATIONS_CLOSE) {
+            platinum_conversations_close_window(&app->conversations);
+            focus_main(app);
+        } else if (action == PLATINUM_CONVERSATIONS_REFRESH) {
+            platinum_application_refresh_conversations(app);
+        } else if (action == PLATINUM_CONVERSATIONS_LOAD_OLDER) {
+            platinum_application_older_conversations(app);
+        } else if (action == PLATINUM_CONVERSATIONS_OPEN) {
+            platinum_application_open_conversation(app);
+        } else if (action == PLATINUM_CONVERSATIONS_SEND) {
+            platinum_application_send_message(app);
+        } else if (action == PLATINUM_CONVERSATIONS_OLDER_MESSAGES) {
+            platinum_application_older_messages(app);
         }
     } else if (window_open_is(window, app->apppw.window)) {
         action = platinum_apppw_handle_event(&app->apppw, event);
@@ -451,6 +471,23 @@ handle_secondary_key(platinum_application *app, EventRecord *event)
             platinum_application_refresh_notifications(app);
         } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
             platinum_application_older_notifications(app);
+        }
+    } else if (app->conversations.window != NULL &&
+               FrontWindow() == app->conversations.window) {
+        action = platinum_conversations_handle_event(&app->conversations, event);
+        if (action == PLATINUM_CONVERSATIONS_CLOSE) {
+            platinum_conversations_close_window(&app->conversations);
+            focus_main(app);
+        } else if (action == PLATINUM_CONVERSATIONS_REFRESH) {
+            platinum_application_refresh_conversations(app);
+        } else if (action == PLATINUM_CONVERSATIONS_LOAD_OLDER) {
+            platinum_application_older_conversations(app);
+        } else if (action == PLATINUM_CONVERSATIONS_OPEN) {
+            platinum_application_open_conversation(app);
+        } else if (action == PLATINUM_CONVERSATIONS_SEND) {
+            platinum_application_send_message(app);
+        } else if (action == PLATINUM_CONVERSATIONS_OLDER_MESSAGES) {
+            platinum_application_older_messages(app);
         }
     } else if (app->profile.window != NULL && FrontWindow() == app->profile.window) {
         action = platinum_profile_handle_event(&app->profile, event);

@@ -18,6 +18,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The Mac client has a Conversations window: the direct-message list, the open conversation's messages, and a one-line composer with Send, an Older button for the next message page, Command-R to refresh and Command-O for older messages. `macos9/conversations_feed.c` is the protocol half and is host-tested against a mock PDS; `macos9/conversations.c` is the window, which has been compiled for Mac OS 9 but not run on it. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
 - The Mac client keeps avatars by reference in a bounded cache (`macos9/avatar_cache.c`): a reference is wanted once, fetched through the bridge, and parsed into a ready image, a failed one is not asked for again, and a fetch in progress is never evicted. Nothing draws an avatar yet. Refs [#32](https://github.com/ewanc26/platinum/issues/32).
 - The TypeScript bridge serves the account's conversations, one conversation's messages and sending a message: `GET /v1/conversations`, `GET /v1/conversation?id=` and `POST /v1/conversation/message` now call the chat service through the account's PDS, with the same limits as the native bridge (1 to 50 rows, 20 by default, a bounded cursor, and at most 1000 characters in a message). Deleted messages are skipped and a conversation with nobody but the viewer is left out. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
 
