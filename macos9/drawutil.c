@@ -1,6 +1,16 @@
 #include <string.h>
+#include <Windows.h>
 
 #include "drawutil.h"
+
+OSErr platinum_window_open(WindowPtr *window, const Rect *bounds, ConstStr255Param title)
+{
+    if (window == NULL || bounds == NULL || title == NULL)
+        return paramErr;
+
+    *window = NewCWindow(NULL, bounds, title, 1, documentProc, (WindowPtr)-1L, 1, 0L);
+    return *window != NULL ? noErr : memFullErr;
+}
 
 void platinum_draw_button(const Rect *bounds, StringPtr title)
 {

@@ -8,6 +8,11 @@
 extern "C" {
 #endif
 
+/* Open a standard document window, visible with a close box and the same
+ * colour/behind settings every Platinum window uses. Returns memFullErr when
+ * the Window Manager cannot allocate it. */
+OSErr platinum_window_open(WindowPtr *window, const Rect *bounds, ConstStr255Param title);
+
 /* A framed button with its title centred horizontally, in the current port. */
 void platinum_draw_button(const Rect *bounds, StringPtr title);
 
