@@ -164,6 +164,10 @@ static unsigned char kProfileWindow[] = {
     7, 'P', 'r', 'o', 'f', 'i', 'l', 'e'
 };
 
+static unsigned char kConversationsWindow[] = {
+    13, 'C', 'o', 'n', 'v', 'e', 'r', 's', 'a', 't', 'i', 'o', 'n', 's'
+};
+
 static unsigned char kBringAllToFront[] = {
     18, 'B', 'r', 'i', 'n', 'g', ' ', 'A', 'l', 'l', ' ', 't', 'o', ' ', 'F', 'r', 'o', 'n', 't'
 };
@@ -267,6 +271,7 @@ OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->window_menu, kTimelineWindow);
     AppendMenu(app->window_menu, kNotificationsWindow);
     AppendMenu(app->window_menu, kProfileWindow);
+    AppendMenu(app->window_menu, kConversationsWindow);
     AppendMenu(app->window_menu, kBringAllToFront);
 
     AppendMenu(app->help_menu, kAbout);
@@ -416,6 +421,8 @@ void platinum_application_handle_menu(platinum_application *app,
             platinum_application_open_notifications(app);
         else if (item == 3)
             platinum_application_open_profile(app);
+        else if (item == 4)
+            platinum_application_open_conversations(app);
         else
             platinum_application_invalidate(app);
     } else if (menu_id == kHelpMenuID) {
