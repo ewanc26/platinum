@@ -10,6 +10,8 @@ pull request.
 
 ### Changed
 
+- Release tag checks call Wolfram's reusable release-check workflow, pinned to v0.44.1. The bridge version is still read from `bridge/package.json`, but the tag/version/changelog, on-main and `CI gate` checks are shared rather than local. ([wolfram#232](https://github.com/ewanc26/wolfram/pull/232))
+
 - CI builds and tests the native bridge in `native/`: it installs the C libraries, builds Wolfram's host library from a pinned commit and runs the C89 parts and the Wolfram-backed routes against a mock PDS. No job compiled `native/` before, so a header change could reach `main` without a build. ([#147](https://github.com/ewanc26/platinum/pull/147))
 
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
