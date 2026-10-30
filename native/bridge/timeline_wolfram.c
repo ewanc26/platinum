@@ -70,8 +70,8 @@ card_domain(const char *uri, char *out, size_t cap)
 
 /* Best effort: a preferences failure leaves the list empty, so the page is shown
  * unfiltered rather than not at all. */
-static void
-load_muted_words(wf_agent *agent, wf_muted_list *list)
+void
+platinum_muted_words_load_live(wf_agent *agent, wf_muted_list *list)
 {
     wf_actor_preferences prefs;
     wf_status st;
@@ -152,6 +152,24 @@ fill_post(platinum_timeline_post *post, const wf_agent_post_view *view,
 }
 
 int
+platinum_post_view_is_muted_live(const wf_muted_list *muted,
+                                 const wf_agent_post_view *view)
+{
+    wf_post_display display;
+    int hidden;
+
+    if (muted == NULL || view == NULL) return 0;
+    memset(&display, 0, sizeof display);
+    if (wf_agent_post_view_display(view, &display) != WF_OK) {
+        wf_post_display_free(&display);
+        return 0;
+    }
+    hidden = post_is_muted(muted, &display);
+    wf_post_display_free(&display);
+    return hidden;
+}
+
+int
 platinum_fill_post_live(platinum_timeline_post *post, const wf_agent_post_view *view)
 {
     wf_post_display display;
@@ -183,7 +201,7 @@ fill_from_feed(wf_agent *agent, const wf_agent_feed_list *page, platinum_timelin
         out->posts = calloc(count, sizeof *out->posts);
         if (out->posts == NULL) return PLATINUM_TIMELINE_ERROR;
 
-        load_muted_words(agent, &muted);
+        platinum_muted_words_load_live(agent, &muted);
         for (i = 0; i < count; i++) {
             wf_post_display display;
 

@@ -11,6 +11,9 @@
 #ifndef PLATINUM_NATIVE_TIMELINE_WOLFRAM_H
 #define PLATINUM_NATIVE_TIMELINE_WOLFRAM_H
 
+#include <wolfram/agent.h>
+#include <wolfram/muted_words.h>
+
 #include "timeline_route.h"
 
 /* A platinum_timeline_fetch_fn whose ctx is a wf_agent *. The posts are malloc'd
@@ -32,5 +35,15 @@ platinum_timeline_result platinum_author_feed_fetch_live(void *ctx, const char *
 struct wf_agent_post_view;
 int platinum_fill_post_live(platinum_timeline_post *post,
                             const struct wf_agent_post_view *view);
+
+/* The account's muted words, as the timeline filter reads them. A preferences
+ * failure leaves the list empty, so a page is shown unfiltered rather than not
+ * at all. Shared with search. */
+void platinum_muted_words_load_live(wf_agent *agent, wf_muted_list *out);
+
+/* True when a muted word hides this post, using its validated tag facets the way
+ * the AppView's own matcher reads them. Shared with search. */
+int platinum_post_view_is_muted_live(const wf_muted_list *muted,
+                                     const struct wf_agent_post_view *view);
 
 #endif
