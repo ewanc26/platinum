@@ -133,6 +133,9 @@ platinum/
 │   ├── compose.h
 │   ├── compose_model.c
 │   ├── config.c
+│   ├── conversations.c
+│   ├── conversations_feed.c
+│   ├── conversations.h
 │   ├── notifications.c
 │   ├── notifications_feed.c
 │   ├── notifications.h
