@@ -452,6 +452,48 @@ test_dispatch(void)
         CHECK(nsid != NULL && strcmp(nsid, "app.bsky.actor.getPreferences") == 0);
     }
 
+    /* A write is a preferences document the reader accepts: serve the body it
+     * sent back as the next getPreferences and the new word appears, with the
+     * word already stored still beside it. The mock keeps no state, so this
+     * proves the round trip through the bridge's own reader, not that a live
+     * server kept the write. */
+    st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
+                  "{\"value\":\"circles\",\"on\":true}", out, sizeof out, &st);
+    CHECK(st == 200);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+
+        CHECK(wf_mock_pds_get_last_request(mock_pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(nsid != NULL && strcmp(nsid, "app.bsky.actor.putPreferences") == 0);
+        CHECK(sent != NULL && strstr(sent, "\"value\":\"circles\"") != NULL);
+        CHECK(sent != NULL && strstr(sent, "\"value\":\"spoilers\"") != NULL);
+        CHECK(sent != NULL && strstr(sent, "adultContentPref") != NULL);
+        if (sent != NULL) {
+            CHECK(wf_mock_pds_register(mock_pds, "app.bsky.actor.getPreferences", sent) == WF_OK);
+        }
+    }
+    st = dispatch(&ctx, "GET", "/v1/muted-words", "Bearer good-token", NULL, out, sizeof out, &st);
+    CHECK(st == 200);
+    CHECK(strstr(out, "\"value\":\"spoilers\"") != NULL);
+    CHECK(strstr(out, "\"value\":\"circles\"") != NULL);
+
+    /* Removing one of the two leaves the other in the document written back. */
+    st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
+                  "{\"value\":\"SPOILERS\",\"on\":false}", out, sizeof out, &st);
+    CHECK(st == 200);
+    {
+        const char *nsid = NULL;
+        const char *method = NULL;
+        const char *sent = NULL;
+
+        CHECK(wf_mock_pds_get_last_request(mock_pds, &nsid, &method, &sent) == WF_OK);
+        CHECK(sent != NULL && strstr(sent, "\"value\":\"circles\"") != NULL);
+        CHECK(sent != NULL && strstr(sent, "spoilers") == NULL);
+        CHECK(sent != NULL && strstr(sent, "adultContentPref") != NULL);
+    }
+
     /* POST /v1/muted-words: missing word or on → 400. */
     st = dispatch(&ctx, "POST", "/v1/muted-words", "Bearer good-token",
                   "{\"value\":\"bad\",\"on\":\"not-bool\"}", out, sizeof out, &st);
