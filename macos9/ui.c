@@ -72,12 +72,17 @@ void platinum_ui_layout_compute(const Rect *content,
     short nav_width;
     short toolbar_height;
     short detail_height;
+    short available;
 
     if (content == NULL || layout == NULL)
         return;
 
     width = content->right - content->left;
     height = content->bottom - content->top;
+    if (width < 0)
+        width = 0;
+    if (height < 0)
+        height = 0;
 
     nav_width = 116;
     toolbar_height = 30;
@@ -85,10 +90,25 @@ void platinum_ui_layout_compute(const Rect *content,
 
     if (width < 480)
         nav_width = 96;
+    if (nav_width > width)
+        nav_width = width;
     if (height < 360)
         detail_height = 96;
     if (height < 300)
         detail_height = 72;
+    if (toolbar_height > height)
+        toolbar_height = height;
+
+    /* The inspector is the part that gives way when the window is shorter than
+     * the documented minimum: it may reach zero height, but it may not push the
+     * navigation or the timeline inside out. A negative rect is a drawing bug
+     * waiting to happen, so every region is kept non-negative and ordered here
+     * rather than at each of its uses. */
+    available = height - toolbar_height - 2;
+    if (available < 0)
+        available = 0;
+    if (detail_height > available)
+        detail_height = available;
 
     layout->toolbar = *content;
     layout->toolbar.bottom = layout->toolbar.top + toolbar_height;
@@ -97,18 +117,26 @@ void platinum_ui_layout_compute(const Rect *content,
     layout->navigation.top = layout->toolbar.bottom + 1;
     layout->navigation.right = layout->navigation.left + nav_width;
     layout->navigation.bottom = content->bottom - detail_height - 1;
+    if (layout->navigation.bottom < layout->navigation.top)
+        layout->navigation.bottom = layout->navigation.top;
 
     layout->timeline = *content;
-    layout->timeline.top = layout->toolbar.bottom + 1;
+    layout->timeline.top = layout->navigation.top;
     layout->timeline.left = layout->navigation.right + 1;
-    layout->timeline.bottom = content->bottom - detail_height - 1;
+    layout->timeline.bottom = layout->navigation.bottom;
 
     layout->timeline_scrollbar = layout->timeline;
     layout->timeline_scrollbar.left = layout->timeline_scrollbar.right - 15;
+    if (layout->timeline_scrollbar.left < layout->timeline.left)
+        layout->timeline_scrollbar.left = layout->timeline.left;
     layout->timeline.right = layout->timeline_scrollbar.left - 1;
+    if (layout->timeline.right < layout->timeline.left)
+        layout->timeline.right = layout->timeline.left;
 
     layout->detail = *content;
-    layout->detail.top = content->bottom - detail_height;
+    layout->detail.top = layout->navigation.bottom + 1;
+    if (layout->detail.top > layout->detail.bottom)
+        layout->detail.top = layout->detail.bottom;
 }
 
 static void platinum_ui_draw_post(const platinum_ui_layout *layout,
@@ -366,12 +394,16 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
 
     if (PtInRect(where, &layout->timeline)) {
         content_top = layout->timeline.top + 6;
-        row = state->scroll_row +
-              (where.v - content_top) / 64;
-        count = platinum_timeline_post_count(timeline);
-        if (row >= 0 && row < (short)count) {
-            state->selected_post = row;
-            state->show_detail = 1;
+        /* The six points above the first row hold the "Timeline" heading.
+         * Integer division would fold a click there into row zero, silently
+         * selecting a post the reader did not click. */
+        if (where.v >= content_top) {
+            row = state->scroll_row + (where.v - content_top) / 64;
+            count = platinum_timeline_post_count(timeline);
+            if (row >= 0 && row < (short)count) {
+                state->selected_post = row;
+                state->show_detail = 1;
+            }
         }
     }
 
