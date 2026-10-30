@@ -68,3 +68,9 @@ Icon?
 *.swp
 *~
 release/
+
+# Native bridge build output: the test binaries and the bridge itself. The test
+# sources are test_*.c, so they are un-ignored explicitly.
+native/bridge/test_*
+!native/bridge/test_*.c
+native/bridge/platinum-bridge
