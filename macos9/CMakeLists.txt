@@ -43,6 +43,7 @@ set(PLATINUM_SOURCES
     application.c
     atproto_bootstrap.c
     atproto_client.c
+    atproto_feed.c
     atproto_identity.c
     atproto_session.c
     atproto_url.c

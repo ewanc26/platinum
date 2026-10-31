@@ -18,6 +18,8 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
+- The timeline has a native data source: `app.bsky.feed.getTimeline` through the authenticated session client, with the AppView postView shape (text and timestamp from `record`, counts and `viewer` state from the view), the same 40-row cap and drop-from-the-front paging as the bridge path, and the same failure and empty-state messages. It is host-tested; the window still calls the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 - The Mac client can find and sign in to an account's own PDS: the handle's HTTPS well-known document, a `resolveHandle` fallback, the DID document and its `#atproto_pds` endpoint, then `createSession` on the discovered server. The DID document must name the handle in `alsoKnownAs`, so a document for another account cannot be used. 37 host checks drive the request order, the fallbacks and the refusals through a scripted fetch; nothing calls it from the UI yet, so the bridge remains the runtime. Native networking is PowerPC-only (ADR 0010). ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The Mac client has the authenticated XRPC session layer: `createSession` with a wiped password scratch, authenticated GET and POST, one `refreshSession` and retry when the access token expires, and a save hook for the refresh material. 48 host checks drive success, refusal, refresh, failed refresh, a non-auth error and a malformed POST body through a scripted transport. No screen calls it yet, so the bridge remains the runtime. ([#156](https://github.com/ewanc26/platinum/pull/156))
