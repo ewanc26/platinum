@@ -52,7 +52,7 @@ goes through the bridge.
 | `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
-| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `timeline.c` | `test_timeline` (to rewrite) | pending: the parser takes the post object, but the `feed[].post` wrapper and viewer state are not wired |
+| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline.c` | `test_timeline` | native request and postView parsing done, with paging, viewer state and the same commit rules; the window still calls the bridge |
 | `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `timeline.c` | `test_timeline` | pending |
 | `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `timeline.c` | `test_timeline` | pending |
 | `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` (to rewrite) | pending |
@@ -136,9 +136,10 @@ lookup is deliberately not used (ADR 0003).
    mapping, token wiping. Host-tested. Bridge untouched.
 2. **Client (in progress).** The transport-facing XRPC call layer is done:
    authenticated GET/POST, createSession, one refresh-and-retry, a save hook,
-   and the handle-to-PDS bootstrap with native sign-in. It is host-tested but
-   no screen calls it. Next is the timeline as the first vertical slice that
-   removes a screen from the bridge.
+   and the handle-to-PDS bootstrap with native sign-in. The timeline's native
+   data source (getTimeline, postView parsing, paging) is also done and
+   host-tested. No screen calls either yet; next is switching the window and
+   sign-in flow over, which removes the first screen from the bridge.
 3. **Screens.** Notifications, profile, thread, search, feeds, lists, compose
    and conversations, each with its existing test rewritten against recorded
    AppView fixtures.
