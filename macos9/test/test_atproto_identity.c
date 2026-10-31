@@ -127,6 +127,36 @@ static void test_resolve_handle_url(void)
                  WF_ERR_INVALID_ARG, "plain http base refused");
 }
 
+static void test_handle_wellknown(void)
+{
+    char out[PLATINUM_ATPROTO_URL_MAX];
+
+    check_status(platinum_atproto_handle_wellknown_url("Example.Test", out,
+                                                       sizeof(out)),
+                 WF_OK, "well-known handle URL");
+    check_str(out, "https://example.test/.well-known/atproto-did",
+              "well-known URL lowercases the host");
+
+    check_status(platinum_atproto_handle_wellknown_did(
+                     " did:plc:z72i7hdynmk6r22z27h6tvur\r\n", out,
+                     sizeof(out)),
+                 WF_OK, "well-known DID with surrounding whitespace");
+    check_str(out, "did:plc:z72i7hdynmk6r22z27h6tvur",
+              "well-known DID value");
+    check_status(platinum_atproto_handle_wellknown_did("at://bsky.app", out,
+                                                       sizeof(out)),
+                 WF_ERR_PARSE, "non-DID body refused");
+    check_status(platinum_atproto_handle_wellknown_did("did:plc:a\ndid:plc:b",
+                                                       out, sizeof(out)),
+                 WF_ERR_PARSE, "two DIDs refused");
+    check_status(platinum_atproto_handle_wellknown_did("  \r\n", out,
+                                                       sizeof(out)),
+                 WF_ERR_PARSE, "empty body refused");
+    check_status(platinum_atproto_handle_wellknown_url("not a handle", out,
+                                                       sizeof(out)),
+                 WF_ERR_INVALID_ARG, "invalid handle refused");
+}
+
 static void test_did_document_pds(void)
 {
     static char document[4096];
@@ -174,6 +204,7 @@ int main(void)
 {
     test_document_urls();
     test_resolve_handle_url();
+    test_handle_wellknown();
     test_did_document_pds();
 
     if (failures != 0) {
