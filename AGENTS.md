@@ -124,6 +124,8 @@ platinum/
 │   ├── application_menus.c
 │   ├── application_post.c
 │   ├── application_views.c
+│   ├── atproto_client.c
+│   ├── atproto_client.h
 │   ├── atproto_identity.c
 │   ├── atproto_session.c
 │   ├── atproto_url.c
