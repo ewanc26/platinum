@@ -1,5 +1,6 @@
 #include "search.h"
 #include "drawutil.h"
+#include "state_panel.h"
 #include "textfield.h"
 
 #include <Quickdraw.h>
@@ -30,6 +31,29 @@ static void search_buttons(const platinum_search *search, Rect *cancel,
     *go = *cancel;
     go->left = cancel->right + 8;
     go->right = go->left + 64;
+}
+
+static Rect search_panel_content(const platinum_search *search)
+{
+    Rect content;
+
+    content = search->window->portRect;
+    InsetRect(&content, 8, 8);
+    return content;
+}
+
+static void search_panel(const platinum_search *search, platinum_panel *panel)
+{
+    (void)platinum_panel_from_message(search->status, panel);
+}
+
+static void search_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
 }
 
 void platinum_search_init(platinum_search *search)
@@ -111,6 +135,7 @@ void platinum_search_draw(platinum_search *search)
     Rect cancel;
     Rect go;
     Rect frame;
+    platinum_panel panel;
 
     if (search == NULL || search->window == NULL || search->field == NULL)
         return;
@@ -118,6 +143,30 @@ void platinum_search_draw(platinum_search *search)
     GetPort(&old_port);
     SetPort((GrafPtr)search->window);
     EraseRect(&search->window->portRect);
+
+    search_panel(search, &panel);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
+
+        content = search_panel_content(search);
+        platinum_panel_draw(&content, &panel);
+        if (search->focus == 3) {
+            platinum_panel_rects rects;
+            char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+            short count;
+
+            count = platinum_panel_wrap(panel.message,
+                                        platinum_panel_columns(&content),
+                                        lines, PLATINUM_PANEL_LINES);
+            platinum_panel_rects_compute(
+                &content, count,
+                panel.action != PLATINUM_PANEL_ACTION_NONE, &rects);
+            if (rects.button_visible)
+                search_draw_focus(&rects.button);
+        }
+        SetPort(old_port);
+        return;
+    }
 
     platinum_draw_text(search->mode == PLATINUM_SEARCH_POSTS ? "Search posts for:"
                 : search->mode == PLATINUM_SEARCH_WORD
@@ -133,7 +182,11 @@ void platinum_search_draw(platinum_search *search)
 
     search_buttons(search, &cancel, &go);
     platinum_draw_button(&cancel, kCancel);
+    if (search->focus == 1)
+        search_draw_focus(&cancel);
     platinum_draw_button(&go, search->mode == PLATINUM_SEARCH_WORD ? kAdd : kSearch);
+    if (search->focus == 2)
+        search_draw_focus(&go);
     SetPort(old_port);
 }
 
@@ -143,6 +196,9 @@ int platinum_search_handle_event(platinum_search *search, EventRecord *event)
     Rect cancel;
     Rect go;
     unsigned char key;
+    platinum_panel panel;
+    Rect panel_content;
+    int panel_action;
 
     if (search == NULL || event == NULL || search->window == NULL)
         return PLATINUM_SEARCH_NONE;
@@ -168,6 +224,17 @@ int platinum_search_handle_event(platinum_search *search, EventRecord *event)
         case mouseDown:
             where = event->where;
             GlobalToLocal(&where);
+            search_panel(search, &panel);
+            if (platinum_panel_is_active(&panel)) {
+                panel_content = search_panel_content(search);
+                panel_action = platinum_panel_action_at(&panel_content, &panel,
+                                                        where);
+                if (panel_action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                    return PLATINUM_SEARCH_SIGN_IN;
+                if (panel_action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                    return PLATINUM_SEARCH_PAIR;
+                return PLATINUM_SEARCH_NONE;
+            }
             search_buttons(search, &cancel, &go);
             if (PtInRect(where, &cancel))
                 return PLATINUM_SEARCH_CANCEL;
@@ -181,6 +248,34 @@ int platinum_search_handle_event(platinum_search *search, EventRecord *event)
         case keyDown:
         case autoKey:
             key = (unsigned char)(event->message & charCodeMask);
+            search_panel(search, &panel);
+            if (platinum_panel_key_is_cancel(event))
+                return PLATINUM_SEARCH_CANCEL;
+            if (key == '\t') {
+                short last = platinum_panel_is_active(&panel) ? 3 : 2;
+
+                if ((event->modifiers & shiftKey) != 0)
+                    search->focus = search->focus <= 0
+                                        ? last
+                                        : (short)(search->focus - 1);
+                else
+                    search->focus = search->focus >= last
+                                        ? 0
+                                        : (short)(search->focus + 1);
+                if (search->focus == 0)
+                    TEActivate(search->field);
+                else
+                    TEDeactivate(search->field);
+                InvalRect(&search->window->portRect);
+                return PLATINUM_SEARCH_NONE;
+            }
+            if (platinum_panel_key_is_return(event) &&
+                platinum_panel_is_active(&panel)) {
+                if (panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                    return PLATINUM_SEARCH_SIGN_IN;
+                if (panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                    return PLATINUM_SEARCH_PAIR;
+            }
             if ((event->modifiers & cmdKey) != 0 && (key == 'w' || key == 'W'))
                 return PLATINUM_SEARCH_CANCEL;
             if (key == '\r' || key == 3)

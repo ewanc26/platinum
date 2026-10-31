@@ -387,13 +387,23 @@ void platinum_application_handle_menu(platinum_application *app,
         } else if (item == 9) {
             platinum_application_show_words(app);
         } else if (item == 10) {
-            if (platinum_search_open(&app->search, PLATINUM_SEARCH_WORD) == noErr)
+            if (platinum_search_open(&app->search, PLATINUM_SEARCH_WORD) == noErr) {
+                const char *notice = platinum_application_bridge_notice(app);
+
+                if (notice != NULL)
+                    platinum_search_set_status(&app->search, notice);
                 SelectWindow(app->search.window);
+            }
         } else if (item == 11) {
             platinum_application_remove_word(app);
         } else if (item == 7 || item == 8) {
-            if (platinum_search_open(&app->search, item == 8 ? PLATINUM_SEARCH_POSTS : PLATINUM_SEARCH_ACCOUNTS) == noErr)
+            if (platinum_search_open(&app->search, item == 8 ? PLATINUM_SEARCH_POSTS : PLATINUM_SEARCH_ACCOUNTS) == noErr) {
+                const char *notice = platinum_application_bridge_notice(app);
+
+                if (notice != NULL)
+                    platinum_search_set_status(&app->search, notice);
                 SelectWindow(app->search.window);
+            }
         }
     } else if (menu_id == kPostMenuID) {
         if (item == 14)
