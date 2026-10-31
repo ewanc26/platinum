@@ -89,6 +89,7 @@ set(PLATINUM_SOURCES
     thread.c
     thread_feed.c
     timeline.c
+    timeline_native.c
     ui.c
 )
 
