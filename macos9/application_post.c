@@ -167,8 +167,12 @@ void platinum_application_engage(platinum_application *app, int repost)
     if (index < 0 || index >= (short)app->timeline.count)
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    if (bridge == NULL) {
+        strcpy(app->timeline.status,
+               "Likes and reposts are not on the native session yet.");
+        platinum_application_invalidate(app);
         return;
+    }
 
     post = &app->timeline.posts[index];
     status = platinum_timeline_set_engagement(

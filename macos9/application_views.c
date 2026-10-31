@@ -4,7 +4,9 @@
 
 void platinum_application_refresh_timeline(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
+    wf_status status;
 
     if (app == NULL)
         return;
@@ -15,19 +17,21 @@ void platinum_application_refresh_timeline(platinum_application *app)
         return;
     }
 
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL) {
+    /* The native session first. The bridge is only a fallback while screens
+     * that still depend on it have not migrated. */
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
+    if (client == NULL && bridge == NULL) {
         platinum_timeline_init(&app->timeline);
         return;
     }
 
     app->ui.scroll_row = 0;
     app->ui.selected_post = 0;
-    {
-        wf_status status;
-        status = platinum_timeline_refresh(&app->timeline, bridge);
-        platinum_application_recover_auth(app, status);
-    }
+    status = client != NULL
+                 ? platinum_timeline_refresh_native(&app->timeline, client)
+                 : platinum_timeline_refresh(&app->timeline, bridge);
+    platinum_application_recover_auth(app, status);
     if (app->timeline.count == 0) {
         app->ui.scroll_row = 0;
         app->ui.selected_post = 0;
@@ -488,6 +492,7 @@ void platinum_application_check_diag(platinum_application *app)
 
 void platinum_application_load_older(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     unsigned short dropped;
     short old_count;
@@ -497,12 +502,17 @@ void platinum_application_load_older(platinum_application *app)
         !platinum_session_is_paired(&app->session))
         return;
 
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
+    if (client == NULL && bridge == NULL)
         return;
 
     old_count = (short)app->timeline.count;
-    status = platinum_timeline_load_older(&app->timeline, bridge, &dropped);
+    status = client != NULL
+                 ? platinum_timeline_load_older_native(&app->timeline, client,
+                                                       &dropped)
+                 : platinum_timeline_load_older(&app->timeline, bridge,
+                                                &dropped);
     platinum_application_recover_auth(app, status);
 
     if (status == WF_OK) {
