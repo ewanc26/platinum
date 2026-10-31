@@ -321,7 +321,7 @@ static wf_status client_bootstrap_fetch(void *userdata, const char *url,
 wf_status platinum_atproto_client_connect(
     const char *handle, const char *password, const char *fallback_service,
     platinum_atproto_save_fn save, void *userdata,
-    platinum_atproto_client **out)
+    platinum_atproto_client **out, platinum_atproto_entryway *entryway)
 {
     char origin[PLATINUM_ATPROTO_URL_MAX];
     char did[PLATINUM_ATPROTO_DID_MAX + 1];
@@ -333,6 +333,8 @@ wf_status platinum_atproto_client_connect(
     if (out == NULL)
         return WF_ERR_INVALID_ARG;
     *out = NULL;
+    if (entryway != NULL)
+        *entryway = PLATINUM_ATPROTO_ENTRY_NONE;
 
     if (handle == NULL || password == NULL)
         return WF_ERR_INVALID_ARG;
@@ -348,9 +350,10 @@ wf_status platinum_atproto_client_connect(
     if (fetch == NULL)
         return WF_ERR_ALLOC;
 
-    status = platinum_atproto_bootstrap(client_bootstrap_fetch, fetch, handle,
-                                        fallback_service, did, sizeof(did),
-                                        pds, sizeof(pds));
+    status = platinum_atproto_bootstrap_ex(client_bootstrap_fetch, fetch,
+                                           handle, fallback_service, did,
+                                           sizeof(did), pds, sizeof(pds),
+                                           entryway);
     wf_xrpc_client_free(fetch);
     if (status != WF_OK)
         return status;

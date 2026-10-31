@@ -52,6 +52,15 @@ typedef wf_status (*platinum_atproto_fetch_fn)(void *userdata, const char *url,
                                                size_t max_bytes,
                                                wf_response *out);
 
+/* Which of the two handle methods produced the DID. Reported so the sign-in
+ * window and Preferences can say how the account was found instead of implying
+ * one route was used. */
+typedef enum {
+    PLATINUM_ATPROTO_ENTRY_NONE = 0,
+    PLATINUM_ATPROTO_ENTRY_WELLKNOWN = 1,
+    PLATINUM_ATPROTO_ENTRY_RESOLVE_HANDLE = 2
+} platinum_atproto_entryway;
+
 /*
  * Resolve `handle` to `did_out` and its PDS to `pds_out`.
  *
@@ -74,6 +83,16 @@ wf_status platinum_atproto_bootstrap(platinum_atproto_fetch_fn fetch,
                                      const char *fallback_service,
                                      char *did_out, size_t did_cap,
                                      char *pds_out, size_t pds_cap);
+
+/*
+ * As platinum_atproto_bootstrap, also writing the handle method that produced
+ * the DID to `*entryway` (NONE on failure). `entryway` may be NULL when the
+ * caller does not care. The two functions are otherwise identical.
+ */
+wf_status platinum_atproto_bootstrap_ex(
+    platinum_atproto_fetch_fn fetch, void *userdata, const char *handle,
+    const char *fallback_service, char *did_out, size_t did_cap,
+    char *pds_out, size_t pds_cap, platinum_atproto_entryway *entryway);
 
 #ifdef __cplusplus
 }

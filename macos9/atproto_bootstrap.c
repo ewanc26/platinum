@@ -120,6 +120,16 @@ wf_status platinum_atproto_bootstrap(platinum_atproto_fetch_fn fetch,
                                      char *did_out, size_t did_cap,
                                      char *pds_out, size_t pds_cap)
 {
+    return platinum_atproto_bootstrap_ex(fetch, userdata, handle,
+                                         fallback_service, did_out, did_cap,
+                                         pds_out, pds_cap, NULL);
+}
+
+wf_status platinum_atproto_bootstrap_ex(
+    platinum_atproto_fetch_fn fetch, void *userdata, const char *handle,
+    const char *fallback_service, char *did_out, size_t did_cap,
+    char *pds_out, size_t pds_cap, platinum_atproto_entryway *entryway)
+{
     char url[PLATINUM_ATPROTO_URL_MAX];
     char did[PLATINUM_ATPROTO_DID_MAX + 1];
     char pds[PLATINUM_ATPROTO_URL_MAX];
@@ -134,6 +144,8 @@ wf_status platinum_atproto_bootstrap(platinum_atproto_fetch_fn fetch,
 
     did_out[0] = '\0';
     pds_out[0] = '\0';
+    if (entryway != NULL)
+        *entryway = PLATINUM_ATPROTO_ENTRY_NONE;
 
     if (!platinum_atproto_valid_handle(handle))
         return WF_ERR_INVALID_ARG;
@@ -151,6 +163,10 @@ wf_status platinum_atproto_bootstrap(platinum_atproto_fetch_fn fetch,
                                           fallback_service, did, sizeof(did));
         if (status != WF_OK)
             return status;
+        if (entryway != NULL)
+            *entryway = PLATINUM_ATPROTO_ENTRY_RESOLVE_HANDLE;
+    } else if (entryway != NULL) {
+        *entryway = PLATINUM_ATPROTO_ENTRY_WELLKNOWN;
     }
 
     status = platinum_atproto_did_document_url(did, url, sizeof(url));
