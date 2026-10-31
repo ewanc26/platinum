@@ -183,8 +183,7 @@ void platinum_application_run_search(platinum_application *app)
     int posts;
     wf_status status;
 
-    if (app == NULL || app->search.window == NULL ||
-        !platinum_session_is_paired(&app->session))
+    if (app == NULL || app->search.window == NULL)
         return;
     bridge = platinum_session_bridge(&app->session);
     notice = platinum_application_bridge_notice(app);
@@ -562,6 +561,8 @@ void platinum_application_check_diag(platinum_application *app)
 
     if (app == NULL || app->diagwin.window == NULL)
         return;
+    platinum_diagwin_set_status(&app->diagwin,
+                                platinum_application_bridge_notice(app));
     config = platinum_session_config(&app->session);
     (void)platinum_diag_check(&app->diagwin.diag,
                               platinum_session_bridge(&app->session),
