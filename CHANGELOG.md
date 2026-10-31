@@ -12,6 +12,11 @@ pull request.
 
 - Likes and reposts now use the Mac's native AT Protocol session alongside the native timeline. Platinum creates `app.bsky.feed.like` and `app.bsky.feed.repost` records with UTC timestamps, retains the URIs AppView reports, and deletes only the signed-in account's exact interaction record when undone. Host tests cover create, undo, URI ownership checks and row-state updates. The bridge path remains for bridge-paired sessions. ([#159](https://github.com/ewanc26/platinum/pull/159))
 
+- Thread, People, Conversations, Search, Notifications, the main timeline and Connection Status adopt the shared state panel (ADR 0012): a window with nothing to show draws the framed panel with its action button, and a window that already has rows keeps them and reports a failure on one line at the bottom. The panel's Sign In and Pair a Bridge open their own window and leave the current one open behind it. ([#158](https://github.com/ewanc26/platinum/pull/158))
+
+- Every adopted window follows one keyboard rule (ADR 0012): Return activates the default action (the panel's button when a panel is showing), Escape and Command-period cancel or close, and Tab and Shift-Tab move focus in drawing order. ([#158](https://github.com/ewanc26/platinum/pull/158))
+
+- The timeline and the notifications list say when the 40-row cap has dropped older rows, instead of losing them silently. ([#158](https://github.com/ewanc26/platinum/pull/158))
 
 - A shared empty-and-state panel replaces bare error sentences: one framed panel with a title, wrapped message and an action button, laid out with the existing text and button helpers. Profile uses it first for the sign-in and bridge notices, with Sign In opening the app-password window and Pair a Bridge opening the pairing window; the other windows keep their existing status lines until they adopt it. Layout and wrapping are host-tested at 640x480 and 800x600 and at narrow and short sizes. ([#156](https://github.com/ewanc26/platinum/pull/156))
 

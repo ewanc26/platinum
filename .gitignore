@@ -10,8 +10,9 @@
 
 # Local dependency checkouts. The Mac transport is built from a Wolfram
 # checkout and a macTLS checkout; both are separate repositories that are
-# cloned wherever is convenient rather than vendored here.
-/wolfram/
+# cloned wherever is convenient rather than vendored here. The rule has no
+# trailing slash so a local symlink named wolfram is covered too.
+/wolfram
 /macTLS/
 
 # CodeWarrior build output. The .cw project file is the project definition and
