@@ -39,6 +39,8 @@ bridge/src/update/signature.ts     bridge    # adapter over Wolfram's Node addon
 bridge/src/update/update_key.ts     bridge    # Platinum's own release public key; nothing to share
 bridge/src/update/manifest.ts      bridge    # adapter over Wolfram's Node addon for wf_update_parse_manifest (update.h); runs its vectors
 bridge/src/update/version.ts       bridge    # adapter over Wolfram's Node addon for wf_update_compare_versions (update.h); runs its vectors
+macos9/atproto_client.c            atproto   # authenticated XRPC calls, createSession/refreshSession, one refresh-and-retry; password scratch wiped after use
+macos9/atproto_client.h            atproto
 macos9/atproto_identity.c          atproto   # DID document URLs, handle resolution and the #atproto_pds endpoint; no Toolbox, so it links on a host
 macos9/atproto_identity.h          atproto
 macos9/atproto_session.c           atproto   # createSession/refreshSession parsing, JWT expiry hint, XRPC error mapping; tokens are wiped on clear
