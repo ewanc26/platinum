@@ -1,16 +1,19 @@
 # 0005: Entropy, DPoP and OAuth
 
-- Status: blocked for OAuth; phase 1 (app password) proceeds without DPoP keys
+- Status: revised 2026-10-31; OAuth/DPoP still blocked, for integration and review reasons
 - Date: 2026-10-31
 - Release gate: no OAuth or DPoP code may ship until this ADR is revised
 
 ## Context
 
-Classic Mac OS has no hardware random number generator. ClassicNet's security
-documentation states plainly that its base entropy source is weak, and this is
-not unique to ClassicNet: macTLS has the same platform problem and seeds
-BearSSL from the Time Manager and Open Transport. TLS handshakes need
-unpredictable client randoms and ephemeral keys.
+Classic Mac OS has no hardware random number generator. When this ADR was
+first written, the available note was that macTLS seeded BearSSL from a weak
+platform source. Research on 2026-10-31 found that current macTLS ships
+`macEntropy`: a SHA-256 pool fed by timer jitter, mouse movement, stack noise,
+packet-arrival timing and optional live input, with a Preferences seed file and
+an HMAC-DRBG, reported as hardware-validated on a G3. That is better evidence
+than the original premise, but it is a vendor claim about a revision Platinum
+has not yet pinned, built or run.
 
 AT Protocol OAuth with DPoP needs more: a long-lived P-256 private key created
 on the device and used to sign every token request. A weak key is not a
@@ -29,9 +32,13 @@ exists.
    the first key, and a test that the output is not predictable across boots on
    the same hardware.
 4. TLS still matters in phase 1. The handshake's entropy comes from macTLS;
-   that dependency's seeding must be reviewed on real hardware before the
-   client is trusted with a real account. This is a release checklist item, not
-   something this change can prove on a host.
+   the linked revision must include `macEntropy`, and the seed path must be
+   exercised on real PowerPC hardware (including a cold boot and an
+   `EntropyFail` test) before the client is trusted with a real account. This is
+   a release checklist item, not something this change can prove on a host.
+5. A passphrase-derived key is not an acceptable substitute for a hardware or
+   well-seeded DRBG just because it is available; the KDF and the seed still
+   need the same review.
 
 ## Consequences
 

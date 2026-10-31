@@ -1,7 +1,6 @@
 # 0004: Session storage
 
-- Status: accepted
-- Date: 2026-10-31
+- Status: superseded by ADR 0007 on 2026-10-31; the "no Keychain" premise was wrong
 
 ## Context
 

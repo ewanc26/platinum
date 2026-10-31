@@ -1,6 +1,6 @@
 # 0003: DID and handle resolution
 
-- Status: accepted
+- Status: revised 2026-10-31 by ADR 0008; HTTPS well-known is primary
 - Date: 2026-10-31
 
 ## Context
@@ -12,8 +12,9 @@ do it with HTTPS requests and no DNS TXT dependency.
 
 ## Decision
 
-1. Resolve a handle with `com.atproto.identity.resolveHandle` on a service the
-   client already trusts (a PDS or the public AppView), over verified TLS.
+1. Resolve a handle with `https://<handle>/.well-known/atproto-did` first, then
+   fall back to `com.atproto.identity.resolveHandle` on a service the client
+   already trusts, over verified TLS. See ADR 0008.
 2. Resolve `did:plc` documents at `https://plc.directory/<did>`.
 3. Resolve `did:web` documents using the method rules: the first
    colon-separated segment is the host (a port is `%3A`-encoded), later
