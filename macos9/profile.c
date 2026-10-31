@@ -12,13 +12,29 @@ static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
 
-/* The model sets status text only; the window repaints here. */
+/* The model sets status text only; the window repaints here. A screen-state
+ * sentence also becomes the shared panel, so the notice looks like Platinum
+ * rather than like an error string. */
 void platinum_profile_set_status(platinum_profile *profile,
                                  const char *status)
 {
+    if (profile == NULL)
+        return;
     platinum_profile_status_text(profile, status);
-    if (profile != NULL && profile->window != NULL)
+    memset(&profile->panel, 0, sizeof profile->panel);
+    if (status != NULL)
+        (void)platinum_panel_from_message(status, &profile->panel);
+    if (profile->window != NULL)
         InvalRect(&profile->window->portRect);
+}
+
+static void profile_close_rect(const platinum_profile *profile, Rect *rect)
+{
+    *rect = profile->window->portRect;
+    rect->left = rect->right - 78;
+    rect->right -= 10;
+    rect->top = rect->bottom - 34;
+    rect->bottom -= 10;
 }
 
 OSErr platinum_profile_open(platinum_profile *profile)
@@ -67,6 +83,20 @@ void platinum_profile_draw(platinum_profile *profile)
     SetPort((GrafPtr)profile->window);
     EraseRect(&profile->window->portRect);
 
+    if (profile->panel.kind != PLATINUM_PANEL_NONE) {
+        Rect content;
+        content = profile->window->portRect;
+        content.left += 8;
+        content.right -= 8;
+        content.top += 8;
+        content.bottom -= 44;
+        platinum_panel_draw(&content, &profile->panel);
+        profile_close_rect(profile, &close_rect);
+        platinum_draw_button(&close_rect, kClose);
+        SetPort(old_port);
+        return;
+    }
+
     if (profile->display_name[0] != '\0')
         platinum_draw_text(profile->display_name, 16, 28);
     else
@@ -105,11 +135,7 @@ void platinum_profile_draw(platinum_profile *profile)
         platinum_draw_text(profile->pinned.line2, 16, 234);
     }
 
-    close_rect = profile->window->portRect;
-    close_rect.left = close_rect.right - 78;
-    close_rect.right -= 10;
-    close_rect.top = close_rect.bottom - 34;
-    close_rect.bottom -= 10;
+    profile_close_rect(profile, &close_rect);
     platinum_draw_button(&close_rect, kClose);
 
     SetPort(old_port);
@@ -143,14 +169,35 @@ int platinum_profile_handle_event(platinum_profile *profile,
             where = event->where;
             GlobalToLocal(&where);
 
-            close_rect = profile->window->portRect;
-            close_rect.left = close_rect.right - 78;
-            close_rect.right -= 10;
-            close_rect.top = close_rect.bottom - 34;
-            close_rect.bottom -= 10;
-
+            profile_close_rect(profile, &close_rect);
             if (PtInRect(where, &close_rect))
                 return PLATINUM_PROFILE_CLOSE;
+
+            if (profile->panel.kind != PLATINUM_PANEL_NONE) {
+                platinum_panel_rects panel_rects;
+                char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+                Rect content;
+                short count;
+
+                content = profile->window->portRect;
+                content.left += 8;
+                content.right -= 8;
+                content.top += 8;
+                content.bottom -= 44;
+                count = platinum_panel_wrap(profile->panel.message, 48, lines,
+                                            PLATINUM_PANEL_LINES);
+                platinum_panel_rects_compute(
+                    &content, count,
+                    profile->panel.action != PLATINUM_PANEL_ACTION_NONE,
+                    &panel_rects);
+                if (panel_rects.button_visible &&
+                    PtInRect(where, &panel_rects.button)) {
+                    if (profile->panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                        return PLATINUM_PROFILE_SIGN_IN;
+                    if (profile->panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                        return PLATINUM_PROFILE_PAIR;
+                }
+            }
             return PLATINUM_PROFILE_NONE;
 
         case keyDown:

@@ -5,6 +5,10 @@
 #   platform  Mac UI, input, storage or event loop; nothing to share.
 #   bridge    the bridge's own service code (HTTP, storage, the Platinum protocol).
 #   protocol  the Platinum bridge protocol; Platinum owns the contract, not Wolfram.
+#   atproto   the native AT Protocol client (URLs, identity, session, XRPC); no
+#             bridge is in the path, so these files are the only place the Mac may
+#             hold an AT Protocol method string. Marking a file atproto is what lets
+#             tools/check-flow.sh duplication accept an NSID there.
 #   port      a port of something Wolfram owns, kept only because the bridge is Node
 #             and cannot call C. Must name the Wolfram issue or file it follows, and
 #             is deleted when a binding exists.
@@ -35,6 +39,20 @@ bridge/src/update/signature.ts     bridge    # adapter over Wolfram's Node addon
 bridge/src/update/update_key.ts     bridge    # Platinum's own release public key; nothing to share
 bridge/src/update/manifest.ts      bridge    # adapter over Wolfram's Node addon for wf_update_parse_manifest (update.h); runs its vectors
 bridge/src/update/version.ts       bridge    # adapter over Wolfram's Node addon for wf_update_compare_versions (update.h); runs its vectors
+macos9/atproto_bootstrap.c         atproto   # handle well-known, resolveHandle fallback, DID document and #atproto_pds, over a caller-supplied fetch; no Toolbox, so it links on a host
+macos9/atproto_bootstrap.h         atproto
+macos9/atproto_client.c            atproto   # authenticated XRPC calls, createSession/refreshSession, one refresh-and-retry, bootstrap-then-sign-in; password scratch wiped after use
+macos9/atproto_client.h            atproto
+macos9/atproto_feed.c              atproto   # AppView feed requests (getTimeline) and their NSIDs; no Toolbox, so it links on a host
+macos9/atproto_feed.h              atproto
+macos9/atproto_identity.c          atproto   # DID document URLs, handle resolution, the #atproto_pds endpoint and the bidirectional handle claim; no Toolbox, so it links on a host
+macos9/atproto_identity.h          atproto
+macos9/atproto_session.c           atproto   # createSession/refreshSession parsing, JWT expiry hint, XRPC error mapping; tokens are wiped on clear
+macos9/atproto_session.h           atproto
+macos9/atproto_url.c               atproto   # https-only service base, XRPC URLs, DID/handle/NSID/AT URI validation; no Toolbox
+macos9/atproto_url.h               atproto
+macos9/muted_words.c               atproto   # C89 port of Wolfram's muted-word rules; Wolfram's header needs C99, so it cannot be included here (docs/research/2026-10-31-siblings.md)
+macos9/muted_words.h               atproto
 macos9/application.c               platform  # event loop, dispatch and drawing
 macos9/application.h               platform
 macos9/application_auth.c          platform  # signing in with a pairing code or an app password, signing out
@@ -98,6 +116,10 @@ macos9/apppw.h                    platform
 macos9/apppw_input.c              platform  # plain-http check and handle preparation, no Toolbox so it links on a host
 macos9/secret.c                   platform  # masked password buffer, wiped on use; no Toolbox so it links on a host
 macos9/secret.h                   platform
+macos9/screen_state.c              platform  # which screens each session can serve, and the honest text when it cannot; no Toolbox so it links on a host
+macos9/screen_state.h              platform
+macos9/state_panel.c               platform  # one framed empty/loading/error/sign-in panel; no protocol logic, host-tested layout
+macos9/state_panel.h               platform
 macos9/search_query.c              platform  # trims and converts a typed query, no Toolbox so it links on a host
 macos9/session.c                   platform  # stored token and revocation
 macos9/session.h                   platform
@@ -110,6 +132,7 @@ macos9/thread.h                    platform
 macos9/thread_feed.c               platform  # view model of a bridge thread, no QuickDraw so it links on a host
 macos9/timeline.c                  platform
 macos9/timeline.h                  platform
+macos9/timeline_native.c            atproto   # the native getTimeline page fetch into the timeline model; separated so bridge-only tests and the fixture do not link the session stack
 macos9/ui.c                        platform
 macos9/ui.h                        platform
 

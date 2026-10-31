@@ -177,6 +177,15 @@ wf_status platinum_json_string(platinum_json object,
                               char *dst,
                               size_t cap);
 
+/*
+ * Read a string value the cursor already points at (for example an element of
+ * a `alsoKnownAs` array). Same decoding and capacity rules as
+ * platinum_json_string; WF_ERR_PARSE when the cursor is not on a string.
+ */
+wf_status platinum_json_value_string(platinum_json value,
+                                     char *dst,
+                                     size_t cap);
+
 wf_status platinum_json_string_truncating(platinum_json object,
                                           const char *name,
                                           char *dst,

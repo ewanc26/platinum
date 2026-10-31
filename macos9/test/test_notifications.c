@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "atproto_client.h"
 #include "notifications.h"
 #include "wolfram_stub.h"
 
@@ -114,9 +115,113 @@ static void test_paging_and_seen(void)
     platinum_bridge_client_free(bridge);
 }
 
+static platinum_atproto_client *native_client(void)
+{
+    platinum_atproto_client *client;
+    platinum_atproto_session session;
+
+    memset(&session, 0, sizeof(session));
+    strcpy(session.access_jwt, "access.jwt");
+    strcpy(session.refresh_jwt, "refresh.jwt");
+    strcpy(session.did, "did:plc:testaccount");
+    strcpy(session.handle, "example.test");
+    strcpy(session.pds_url, "https://pds.example");
+
+    client = platinum_atproto_client_new("https://pds.example");
+    if (client != NULL)
+        (void)platinum_atproto_client_set_session(client, &session);
+    return client;
+}
+
+static void reset_transport(void)
+{
+    fake_script = NULL;
+    fake_body = NULL;
+    fake_body_len = 0;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    fake_call_count = 0;
+    last_nsid[0] = '\0';
+    last_auth[0] = '\0';
+    last_url[0] = '\0';
+    last_body[0] = '\0';
+    last_param_count = 0;
+    last_method = 0;
+    auth_set = 0;
+}
+
+static void test_native_paging_and_seen(void)
+{
+    static platinum_notifications n;
+    platinum_atproto_client *client;
+    unsigned short dropped;
+
+    reset_transport();
+    client = native_client();
+    if (client == NULL) {
+        check(0, "native client created");
+        return;
+    }
+    platinum_notifications_init(&n);
+
+    respond(WF_OK, make_page(0, 20, 2, "2026-10-05T00:00:00Z"));
+    check(platinum_notifications_refresh_native(&n, client) == WF_OK,
+          "native first page loads");
+    check(n.count == 20 && platinum_notifications_has_older(&n),
+          "native 20 rows and more to come");
+    check(strcmp(n.newest_at, "2026-10-05T00:59:00.000Z") == 0,
+          "native newest timestamp kept exactly");
+    check(n.any_unread == 1, "native unread noticed");
+    check(strcmp(last_nsid, "app.bsky.notification.listNotifications") == 0,
+          "native list NSID");
+    check(strcmp(last_param_values[0], "20") == 0, "native page size");
+    check(strcmp(last_auth, "access.jwt") == 0,
+          "native access token attached");
+
+    respond(WF_OK, "{}");
+    check(platinum_notifications_mark_seen_native(&n, client) == WF_OK,
+          "native mark seen");
+    check(strcmp(last_nsid, "app.bsky.notification.updateSeen") == 0,
+          "native updateSeen NSID");
+    check(strstr(last_body, "2026-10-05T00:59:00.000Z") != NULL,
+          "native seen mark is the newest item's own timestamp");
+
+    respond(WF_OK, make_page(20, 20, 20, "c2"));
+    check(platinum_notifications_load_older_native(&n, client, &dropped) ==
+              WF_OK,
+          "native second page");
+    check(strcmp(last_param_names[1], "cursor") == 0 &&
+              strcmp(last_param_values[1], "2026-10-05T00:00:00Z") == 0,
+          "native cursor sent");
+    check(n.count == 40 && dropped == 0, "native appended");
+    check(n.any_unread == 0 &&
+              strcmp(n.newest_at, "2026-10-05T00:59:00.000Z") == 0,
+          "a native older page never moves the seen mark");
+
+    respond(WF_OK, make_page(40, 20, 0, NULL));
+    check(platinum_notifications_load_older_native(&n, client, &dropped) ==
+              WF_OK && dropped == 20 && n.count == 40,
+          "native cap of 40 holds");
+    check(strcmp(n.items[0].uri, "at://n/20") == 0,
+          "native newest rows dropped from the front");
+
+    respond(WF_ERR_HTTP, "{}");
+    check(platinum_notifications_refresh_native(&n, client) != WF_OK &&
+              n.count == 40,
+          "a failed native refresh keeps the rows");
+
+    respond(WF_OK, make_page(0, 1, 0, "x"));
+    check(platinum_notifications_load_older_native(&n, client, &dropped) ==
+              WF_ERR_INVALID_ARG && last_method == 0,
+          "no native request when nothing is older");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_paging_and_seen();
+    test_native_paging_and_seen();
     if (failures != 0) {
         printf("test_notifications: %d of %d checks failed\n", failures, checks);
         return 1;

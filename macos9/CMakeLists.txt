@@ -41,6 +41,12 @@ add_compile_options(
 
 set(PLATINUM_SOURCES
     application.c
+    atproto_bootstrap.c
+    atproto_client.c
+    atproto_feed.c
+    atproto_identity.c
+    atproto_session.c
+    atproto_url.c
         avatar_cache.c
     application_auth.c
     application_menus.c
@@ -63,6 +69,7 @@ set(PLATINUM_SOURCES
     image_pix.c
     json_min.c
     main.c
+    muted_words.c
     notifications.c
     notifications_feed.c
     pairing.c
@@ -74,6 +81,8 @@ set(PLATINUM_SOURCES
     profile.c
     profile_feed.c
     scrollbar.c
+    screen_state.c
+    state_panel.c
     search.c
     search_query.c
     secret.c
@@ -83,6 +92,7 @@ set(PLATINUM_SOURCES
     thread.c
     thread_feed.c
     timeline.c
+    timeline_native.c
     ui.c
 )
 

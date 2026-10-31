@@ -8,6 +8,26 @@ pull request.
 
 ## [Unreleased]
 
+### Added
+
+- A shared empty-and-state panel replaces bare error sentences: one framed panel with a title, wrapped message and an action button, laid out with the existing text and button helpers. Profile uses it first for the sign-in and bridge notices, with Sign In opening the app-password window and Pair a Bridge opening the pairing window; the other windows keep their existing status lines until they adopt it. Layout and wrapping are host-tested at 640x480 and 800x600 and at narrow and short sizes. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The native client has a C89 muted-word matcher: the same rules as Wolfram and the bridge (whole words versus substrings, content and tag targets, exclude-following, expiry judged at a caller-supplied clock), with 39 host checks. It is not wired to the Muted Words screen yet, which still reads through the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- Notifications are fetched by the Mac itself: the window, Command-R and page-back go through `app.bsky.notification.listNotifications`, and opening or refreshing it marks the newest loaded item seen through `app.bsky.notification.updateSeen`. Paging, the 40-row cap and the seen mark keep the bridge's rules. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- A screen that still needs the bridge now says so instead of failing silently: "This screen still uses the bridge. Pair one under File > Pair Account." With no session it says "Sign in first: choose File > Sign In with App Password." `macos9/screen_state.c` decides and is host-tested; Profile, Thread, Search, Feeds and Lists, Conversations and Compose use it. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The home timeline is fetched by the Mac itself: the window, Refresh and Load Older Posts go through the native session to `app.bsky.feed.getTimeline`, with the same 40-post cap, paging and failure rules as before. Likes and reposts still use the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- Signing in no longer needs a bridge address: File > Sign In with App Password asks for the handle and the app password, finds the account's own PDS from the handle, and signs in there. Preferences says which handle method found it (the handle's well-known document, or `resolveHandle` on the public AppView). The session is memory-only until Keychain persistence can be built, so a restart asks again. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+### Changed
+
+- Verified the Keychain question against the pinned Retro68 image: it ships no `Keychain.h`, `CarbonLib` or `KeychainLib`, so the refresh token cannot be persisted without an untested shim. ADR 0007 and `docs/research/2026-10-31-keychain-surface.md` record the check and the smallest shim that would unblock it. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The app-password window has no bridge URL field any more; it is a handle field, a password field and Sign In. The plain-http warning went with the field, because every native request is https. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 ### Changed
 
 - Release tag checks call Wolfram's reusable release-check workflow, pinned to v0.44.1. The bridge version is still read from `bridge/package.json`, but the tag/version/changelog, on-main and `CI gate` checks are shared rather than local. ([wolfram#232](https://github.com/ewanc26/wolfram/pull/232))
@@ -17,6 +37,14 @@ pull request.
 Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.com/ewanc26/platinum/issues/62)). Every pull request that changes something you'd notice adds a line here.
 
 ### Added
+
+- The timeline has a native data source: `app.bsky.feed.getTimeline` through the authenticated session client, with the AppView postView shape (text and timestamp from `record`, counts and `viewer` state from the view), the same 40-row cap and drop-from-the-front paging as the bridge path, and the same failure and empty-state messages. It is host-tested; the window still calls the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The Mac client can find and sign in to an account's own PDS: the handle's HTTPS well-known document, a `resolveHandle` fallback, the DID document and its `#atproto_pds` endpoint, then `createSession` on the discovered server. The DID document must name the handle in `alsoKnownAs`, so a document for another account cannot be used. 37 host checks drive the request order, the fallbacks and the refusals through a scripted fetch; nothing calls it from the UI yet, so the bridge remains the runtime. Native networking is PowerPC-only (ADR 0010). ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The Mac client has the authenticated XRPC session layer: `createSession` with a wiped password scratch, authenticated GET and POST, one `refreshSession` and retry when the access token expires, and a save hook for the refresh material. 48 host checks drive success, refusal, refresh, failed refresh, a non-auth error and a malformed POST body through a scripted transport. No screen calls it yet, so the bridge remains the runtime. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The Mac client has the first native AT Protocol core: https-only service bases, encoded XRPC URLs, `did:plc` and `did:web` resolution, and `createSession`/`refreshSession` parsing with expiry checks and token wiping. 148 host checks cover it. No screen uses it yet, so the bridge remains the runtime; the migration map and ADRs are in [docs/architecture/native-client-migration.md](docs/architecture/native-client-migration.md). ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The Mac target's test layers are written down and partly built: `macos9/test/test_ui.c` covers layout geometry, hit-testing, selection, scrolling and every keyboard shortcut on the host; a deterministic `PlatinumFixture` application (built only with `-DPLATINUM_BUILD_FIXTURE=ON`) draws fixture data through the production UI for a Mac OS 9 guest; and `tools/macos9-qemu/harness.py` boots that guest headlessly with QMP, sends keys and pointer events and captures screenshots. The runtime layer has not run here: no owner-supplied Mac OS 9 installation is present, and nothing is downloaded. See [docs/TESTING_MACOS9.md](docs/TESTING_MACOS9.md). ([#155](https://github.com/ewanc26/platinum/pull/155))
 - The Mac client has a Conversations window: the direct-message list, the open conversation's messages, and a one-line composer with Send, an Older button for the next message page, Command-R to refresh and Command-O for older messages. `macos9/conversations_feed.c` is the protocol half and is host-tested against a mock PDS; `macos9/conversations.c` is the window, which has been compiled for Mac OS 9 but not run on it. Refs [#98](https://github.com/ewanc26/platinum/issues/98).
