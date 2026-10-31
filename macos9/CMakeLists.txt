@@ -41,6 +41,9 @@ add_compile_options(
 
 set(PLATINUM_SOURCES
     application.c
+    atproto_identity.c
+    atproto_session.c
+    atproto_url.c
         avatar_cache.c
     application_auth.c
     application_menus.c

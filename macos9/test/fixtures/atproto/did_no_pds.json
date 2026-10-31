@@ -1,0 +1,10 @@
+{
+  "id": "did:plc:testaccount",
+  "service": [
+    {
+      "id": "#atproto_pds",
+      "type": "AtprotoPersonalDataServer",
+      "serviceEndpoint": "http://insecure.example"
+    }
+  ]
+}

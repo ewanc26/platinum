@@ -1,0 +1,6 @@
+{
+  "accessJwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImNvbS5hdHByb3RvLmFjY2VzcyIsInN1YiI6ImRpZDpwbGM6dGVzdGFjY291bnQiLCJleHAiOjE5MDAwMDAwMDAsImlhdCI6MTg5OTk5MjgwMH0.eyJzaWciOiJ0ZXN0LW9ubHkifQ",
+  "refreshJwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImNvbS5hdHByb3RvLnJlZnJlc2giLCJzdWIiOiJkaWQ6cGxjOnRlc3RhY2NvdW50IiwiZXhwIjoxOTAyNTkyMDAwLCJpYXQiOjE4OTk5OTI4MDB9.eyJzaWciOiJ0ZXN0LW9ubHkifQ",
+  "handle": "example.test",
+  "did": "did:plc:testaccount"
+}

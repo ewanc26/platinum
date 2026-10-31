@@ -1,0 +1,9 @@
+{
+  "service": [
+    {
+      "id": "#atproto_pds",
+      "type": "AtprotoPersonalDataServer",
+      "serviceEndpoint": "https://pds.example"
+    }
+  ]
+}
