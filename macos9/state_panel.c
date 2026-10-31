@@ -70,6 +70,93 @@ void platinum_panel_set(platinum_panel *panel, int kind, const char *message)
     }
 }
 
+int platinum_panel_is_active(const platinum_panel *panel)
+{
+    return panel != NULL && panel->kind != PLATINUM_PANEL_NONE;
+}
+
+int platinum_panel_message_is_empty(const char *message)
+{
+    if (message == NULL)
+        return 0;
+    if (strncmp(message, "No ", 3) == 0)
+        return 1;
+    if (strncmp(message, "Nobody", 6) == 0)
+        return 1;
+    if (strncmp(message, "Choose ", 7) == 0)
+        return 1;
+    if (strstr(message, " is empty") != NULL)
+        return 1;
+    if (strstr(message, "Nothing here") != NULL)
+        return 1;
+    if (strstr(message, "Type one below") != NULL)
+        return 1;
+    return 0;
+}
+
+int platinum_panel_for_screen(platinum_panel *panel, const char *message,
+                              int loading, int has_content)
+{
+    if (panel == NULL)
+        return 0;
+    memset(panel, 0, sizeof *panel);
+
+    if (message != NULL && platinum_panel_from_message(message, panel)) {
+        if (has_content) {
+            memset(panel, 0, sizeof *panel);
+            return 0;
+        }
+        return 1;
+    }
+
+    if (has_content)
+        return 0;
+
+    if (loading) {
+        platinum_panel_set(panel, PLATINUM_PANEL_LOADING,
+                           message != NULL && message[0] != '\0'
+                               ? message
+                               : "Loading...");
+        return 1;
+    }
+
+    if (message != NULL && message[0] != '\0') {
+        platinum_panel_set(panel,
+                           platinum_panel_message_is_empty(message)
+                               ? PLATINUM_PANEL_EMPTY
+                               : PLATINUM_PANEL_FAILED,
+                           message);
+        return 1;
+    }
+
+    platinum_panel_set(panel, PLATINUM_PANEL_EMPTY, "Nothing here yet.");
+    return 1;
+}
+
+short platinum_panel_columns(const Rect *content)
+{
+    short width, panel_width, columns;
+
+    if (content == NULL)
+        return 0;
+    width = (short)(content->right - content->left);
+    if (width <= 0)
+        return 0;
+
+    panel_width = (short)(width - 2 * kPanelInset);
+    if (panel_width > 360)
+        panel_width = 360;
+    if (panel_width < 120)
+        panel_width = width;
+    if (panel_width <= 2 * kPanelPadding)
+        return 0;
+
+    columns = (short)((panel_width - 2 * kPanelPadding) / kPanelCharWidth);
+    if (columns < 1)
+        columns = 1;
+    return columns;
+}
+
 static void append_line(char *line, short capacity, const char *start,
                         short length)
 {
@@ -204,6 +291,53 @@ void platinum_panel_rects_compute(const Rect *content, short lines,
     }
 }
 
+int platinum_panel_action_at(const Rect *content, const platinum_panel *panel,
+                             Point where)
+{
+    platinum_panel_rects rects;
+    char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+    short columns, count;
+
+    if (content == NULL || panel == NULL || !platinum_panel_is_active(panel))
+        return PLATINUM_PANEL_ACTION_NONE;
+    if (panel->action == PLATINUM_PANEL_ACTION_NONE)
+        return PLATINUM_PANEL_ACTION_NONE;
+
+    columns = platinum_panel_columns(content);
+    count = platinum_panel_wrap(panel->message, columns, lines,
+                                PLATINUM_PANEL_LINES);
+    platinum_panel_rects_compute(content, count, 1, &rects);
+    if (rects.button_visible && PtInRect(where, &rects.button))
+        return panel->action;
+    return PLATINUM_PANEL_ACTION_NONE;
+}
+
+int platinum_panel_key_is_return(const EventRecord *event)
+{
+    unsigned char key;
+
+    if (event == NULL ||
+        (event->what != keyDown && event->what != autoKey))
+        return 0;
+    if ((event->modifiers & cmdKey) != 0)
+        return 0;
+    key = (unsigned char)(event->message & charCodeMask);
+    return key == '\r' || key == '\n' || key == 3;
+}
+
+int platinum_panel_key_is_cancel(const EventRecord *event)
+{
+    unsigned char key;
+
+    if (event == NULL ||
+        (event->what != keyDown && event->what != autoKey))
+        return 0;
+    key = (unsigned char)(event->message & charCodeMask);
+    if (key == 27)
+        return 1;
+    return (event->modifiers & cmdKey) != 0 && key == '.';
+}
+
 void platinum_panel_draw(const Rect *content, const platinum_panel *panel)
 {
     platinum_panel_rects rects;
@@ -213,7 +347,7 @@ void platinum_panel_draw(const Rect *content, const platinum_panel *panel)
     if (content == NULL || panel == NULL || panel->kind == PLATINUM_PANEL_NONE)
         return;
 
-    columns = (short)((360 - 2 * kPanelPadding) / kPanelCharWidth);
+    columns = platinum_panel_columns(content);
     count = platinum_panel_wrap(panel->message, columns, lines,
                                 PLATINUM_PANEL_LINES);
     platinum_panel_rects_compute(content, count,
