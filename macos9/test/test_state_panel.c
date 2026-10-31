@@ -9,20 +9,8 @@
 #include "screen_state.h"
 #include "state_panel.h"
 
-/* Drawing is not checked on a host; these satisfy state_panel.c's calls so the
- * test links without the Window Manager or the rest of drawutil. */
-void platinum_draw_text(const char *text, short x, short y)
-{
-    (void)text;
-    (void)x;
-    (void)y;
-}
-
-void platinum_draw_button(const Rect *bounds, StringPtr title)
-{
-    (void)bounds;
-    (void)title;
-}
+/* Drawing is not checked on a host; ui_stubs.c satisfies state_panel.c's
+ * calls so the test links without the Window Manager or the rest of drawutil. */
 
 static int failures;
 static int checks;
@@ -87,6 +75,40 @@ int main(void)
     check(panel.kind == PLATINUM_PANEL_EMPTY, "an empty panel kind is kept");
     check(panel.title != NULL && panel.title[0] != '\0', "an empty panel has a title");
     check(panel.action == PLATINUM_PANEL_ACTION_NONE, "an empty panel has no action");
+    check(platinum_panel_is_active(&panel), "an empty panel is active");
+    check(!platinum_panel_is_active(NULL), "no panel is not active");
+
+    /* Ordinary screens: content wins over every panel; otherwise loading,
+     * empty and failed are told apart. */
+    check(platinum_panel_for_screen(&panel, "No posts to show.", 0, 0) == 1,
+          "an empty list gets a panel");
+    check(panel.kind == PLATINUM_PANEL_EMPTY, "an empty sentence is an empty panel");
+    check(platinum_panel_for_screen(&panel, "Loading thread...", 1, 0) == 1,
+          "a loading list gets a panel");
+    check(panel.kind == PLATINUM_PANEL_LOADING, "a loading sentence is a loading panel");
+    check(platinum_panel_for_screen(&panel, "The thread could not be loaded.",
+                                    0, 0) == 1,
+          "a failed list gets a panel");
+    check(panel.kind == PLATINUM_PANEL_FAILED, "a failed sentence is a failed panel");
+    check(platinum_panel_for_screen(&panel, "No posts to show.", 0, 1) == 0,
+          "content keeps its rows and no panel");
+    check(panel.kind == PLATINUM_PANEL_NONE, "content leaves no panel");
+    check(platinum_panel_for_screen(
+              &panel,
+              platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN),
+              0, 0) == 1,
+          "a sign-in sentence still becomes its own panel");
+    check(platinum_panel_for_screen(
+              &panel,
+              platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN),
+              0, 1) == 0,
+          "content keeps its rows even when the session is missing");
+    check(platinum_panel_message_is_empty("The timeline is empty."),
+          "an empty timeline sentence is recognised");
+    check(platinum_panel_message_is_empty("Nobody to show."),
+          "an empty people sentence is recognised");
+    check(!platinum_panel_message_is_empty("The thread could not be loaded."),
+          "a failure sentence is not empty");
 
     /* Wrapping. */
     count = platinum_panel_wrap("short message", 40, lines, PLATINUM_PANEL_LINES);
@@ -152,6 +174,75 @@ int main(void)
 
     platinum_panel_rects_compute(NULL, 2, 1, &rects);
     check(rects.panel.right == rects.panel.left, "a NULL content rect yields no panel");
+
+    /* Narrow content must wrap inside the panel rather than at a fixed 48. */
+    SetRect(&content, 0, 0, 220, 240);
+    check(platinum_panel_columns(&content) > 0 &&
+              platinum_panel_columns(&content) < 48,
+          "a narrow content rect gets fewer columns");
+    platinum_panel_set(&panel, PLATINUM_PANEL_EMPTY,
+                       "A message that is long enough to need more than one line "
+                       "in a narrow window.");
+    count = platinum_panel_wrap(panel.message,
+                                platinum_panel_columns(&content), lines,
+                                PLATINUM_PANEL_LINES);
+    check(count > 1, "the narrow panel wraps its message");
+    for (i = 0; i < count; i++)
+        check((int)strlen(lines[i]) <=
+                  (int)platinum_panel_columns(&content),
+              "a narrow wrapped line fits its columns");
+
+    /* The action button is where the helper says it is. */
+    SetRect(&content, 0, 0, 640, 480);
+    platinum_panel_set(&panel, PLATINUM_PANEL_EMPTY, "No posts to show.");
+    panel.action = PLATINUM_PANEL_ACTION_SIGN_IN;
+    panel.action_title = "Sign In";
+    count = platinum_panel_wrap(panel.message,
+                                platinum_panel_columns(&content), lines,
+                                PLATINUM_PANEL_LINES);
+    platinum_panel_rects_compute(&content, count, 1, &rects);
+    check(rects.button_visible, "the action button is laid out");
+    {
+        Point on_button;
+        Point away;
+        on_button.h = (short)(rects.button.left + 2);
+        on_button.v = (short)(rects.button.top + 2);
+        away.h = (short)(content.right - 2);
+        away.v = (short)(content.bottom - 2);
+        check(platinum_panel_action_at(&content, &panel, on_button) ==
+                  PLATINUM_PANEL_ACTION_SIGN_IN,
+              "a click in the button returns its action");
+        check(platinum_panel_action_at(&content, &panel, away) ==
+                  PLATINUM_PANEL_ACTION_NONE,
+              "a click outside the button returns no action");
+        panel.action = PLATINUM_PANEL_ACTION_NONE;
+        check(platinum_panel_action_at(&content, &panel, on_button) ==
+                  PLATINUM_PANEL_ACTION_NONE,
+              "a panel with no action has no hit target");
+    }
+
+    /* Return, Escape and Command-period. */
+    {
+        EventRecord event;
+        memset(&event, 0, sizeof event);
+        event.what = keyDown;
+        event.message = '\r';
+        check(platinum_panel_key_is_return(&event), "Return is the default action");
+        event.message = 3;
+        check(platinum_panel_key_is_return(&event), "Enter is the default action");
+        event.modifiers = cmdKey;
+        check(!platinum_panel_key_is_return(&event),
+              "Command-Return is not the default action");
+        event.modifiers = 0;
+        event.message = 27;
+        check(platinum_panel_key_is_cancel(&event), "Escape cancels");
+        event.message = '.';
+        event.modifiers = cmdKey;
+        check(platinum_panel_key_is_cancel(&event), "Command-period cancels");
+        event.modifiers = 0;
+        check(!platinum_panel_key_is_cancel(&event),
+              "a bare period does not cancel");
+    }
 
     if (failures != 0) {
         printf("test_state_panel: %d of %d checks failed\n", failures, checks);
