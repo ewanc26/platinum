@@ -3,6 +3,7 @@
 
 #include "bridge_client.h"
 #include "scrollbar.h"
+#include "state_panel.h"
 #include "textfield.h"
 
 #include <Events.h>
@@ -83,6 +84,8 @@ typedef struct platinum_conversations {
     int loading;
     int sending;
     char status[PLATINUM_CONVERSATIONS_STATUS_MAX + 1];
+    /* 0 the content, 1 Close, 2 Send, 3 Older, 4 the panel action. */
+    short focus;
 } platinum_conversations;
 
 enum {
@@ -92,7 +95,9 @@ enum {
     PLATINUM_CONVERSATIONS_LOAD_OLDER = 3,
     PLATINUM_CONVERSATIONS_OPEN = 4,
     PLATINUM_CONVERSATIONS_SEND = 5,
-    PLATINUM_CONVERSATIONS_OLDER_MESSAGES = 6
+    PLATINUM_CONVERSATIONS_OLDER_MESSAGES = 6,
+    PLATINUM_CONVERSATIONS_SIGN_IN = 7,
+    PLATINUM_CONVERSATIONS_PAIR = 8
 };
 
 void platinum_conversations_init(platinum_conversations *conversations);

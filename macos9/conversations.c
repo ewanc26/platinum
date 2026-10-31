@@ -96,6 +96,35 @@ static Rect composer_rect(const platinum_conversations *conversations)
     return rect;
 }
 
+static Rect panel_content_rect(const platinum_conversations *conversations)
+{
+    Rect rect;
+
+    rect = conversations->window->portRect;
+    rect.left += 8;
+    rect.right -= 8;
+    rect.top += 8;
+    rect.bottom -= 44;
+    return rect;
+}
+
+static void conversations_panel(const platinum_conversations *conversations,
+                                platinum_panel *panel)
+{
+    (void)platinum_panel_for_screen(
+        panel, conversations->status, conversations->loading,
+        conversations->count != 0 || conversations->selected_id[0] != '\0');
+}
+
+static void conversations_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
+}
+
 OSErr platinum_conversations_open_window(
     platinum_conversations *conversations)
 {
@@ -301,6 +330,7 @@ void platinum_conversations_draw(platinum_conversations *conversations)
     GrafPtr old_port;
     Rect field_bounds;
     Rect button;
+    platinum_panel panel;
 
     if (conversations == NULL || conversations->window == NULL)
         return;
@@ -308,6 +338,34 @@ void platinum_conversations_draw(platinum_conversations *conversations)
     GetPort(&old_port);
     SetPort((GrafPtr)conversations->window);
     EraseRect(&conversations->window->portRect);
+
+    conversations_panel(conversations, &panel);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
+
+        content = panel_content_rect(conversations);
+        platinum_panel_draw(&content, &panel);
+        if (conversations->focus == 4) {
+            platinum_panel_rects rects;
+            char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+            short count;
+
+            count = platinum_panel_wrap(panel.message,
+                                        platinum_panel_columns(&content),
+                                        lines, PLATINUM_PANEL_LINES);
+            platinum_panel_rects_compute(
+                &content, count,
+                panel.action != PLATINUM_PANEL_ACTION_NONE, &rects);
+            if (rects.button_visible)
+                conversations_draw_focus(&rects.button);
+        }
+        button = close_rect(conversations);
+        platinum_draw_button(&button, kClose);
+        if (conversations->focus == 1)
+            conversations_draw_focus(&button);
+        SetPort(old_port);
+        return;
+    }
 
     platinum_draw_text("Conversations", 12, 22);
     platinum_draw_text("Messages", 268, 22);
@@ -324,11 +382,17 @@ void platinum_conversations_draw(platinum_conversations *conversations)
 
     button = close_rect(conversations);
     platinum_draw_button(&button, kClose);
+    if (conversations->focus == 1)
+        conversations_draw_focus(&button);
     button = send_rect(conversations);
     platinum_draw_button(&button, kSend);
+    if (conversations->focus == 2)
+        conversations_draw_focus(&button);
     if (platinum_conversations_has_older_messages(conversations)) {
         button = older_rect(conversations);
         platinum_draw_button(&button, kOlder);
+        if (conversations->focus == 3)
+            conversations_draw_focus(&button);
     }
 
     platinum_scrollbar_draw(&conversations->list_scrollbar);
@@ -343,6 +407,24 @@ static int conversations_click(platinum_conversations *conversations,
     short visible;
     short row;
     Rect rect;
+    platinum_panel panel;
+    int panel_action;
+
+    conversations_panel(conversations, &panel);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
+
+        content = panel_content_rect(conversations);
+        panel_action = platinum_panel_action_at(&content, &panel, where);
+        if (panel_action == PLATINUM_PANEL_ACTION_SIGN_IN)
+            return PLATINUM_CONVERSATIONS_SIGN_IN;
+        if (panel_action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+            return PLATINUM_CONVERSATIONS_PAIR;
+        rect = close_rect(conversations);
+        if (PtInRect(where, &rect))
+            return PLATINUM_CONVERSATIONS_CLOSE;
+        return PLATINUM_CONVERSATIONS_NONE;
+    }
 
     rect = close_rect(conversations);
     if (PtInRect(where, &rect))
@@ -387,10 +469,63 @@ static int conversations_click(platinum_conversations *conversations,
 static int conversations_key(platinum_conversations *conversations,
                              EventRecord *event)
 {
+    platinum_panel panel;
     short visible;
     char code;
 
     code = (char)(event->message & charCodeMask);
+
+    conversations_panel(conversations, &panel);
+
+    if (platinum_panel_key_is_cancel(event)) {
+        if (conversations->composer != NULL)
+            TEDeactivate(conversations->composer);
+        return PLATINUM_CONVERSATIONS_CLOSE;
+    }
+
+    if ((unsigned char)code == '\t') {
+        if (platinum_panel_is_active(&panel)) {
+            if ((event->modifiers & shiftKey) != 0)
+                conversations->focus =
+                    conversations->focus == 4 ? 1 : 4;
+            else
+                conversations->focus =
+                    conversations->focus == 1 ? 4 : 1;
+        } else {
+            short last;
+
+            last = platinum_conversations_has_older_messages(conversations)
+                       ? 3
+                       : 2;
+            if ((event->modifiers & shiftKey) != 0)
+                conversations->focus = conversations->focus <= 0
+                                           ? last
+                                           : (short)(conversations->focus - 1);
+            else
+                conversations->focus = conversations->focus >= last
+                                           ? 0
+                                           : (short)(conversations->focus + 1);
+        }
+        if (conversations->focus != 0) {
+            conversations->composer_focused = 0;
+            if (conversations->composer != NULL)
+                TEDeactivate(conversations->composer);
+        }
+        return PLATINUM_CONVERSATIONS_NONE;
+    }
+
+    if (platinum_panel_key_is_return(event)) {
+        if (panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+            return PLATINUM_CONVERSATIONS_SIGN_IN;
+        if (panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+            return PLATINUM_CONVERSATIONS_PAIR;
+        if (conversations->focus == 1)
+            return PLATINUM_CONVERSATIONS_CLOSE;
+        if (!platinum_panel_is_active(&panel) && conversations->focus == 2)
+            return PLATINUM_CONVERSATIONS_SEND;
+        if (!platinum_panel_is_active(&panel) && conversations->focus == 3)
+            return PLATINUM_CONVERSATIONS_OLDER_MESSAGES;
+    }
 
     if ((event->modifiers & cmdKey) != 0) {
         if (code == 'w' || code == 'W')
