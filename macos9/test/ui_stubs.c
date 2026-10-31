@@ -118,6 +118,19 @@ short StringWidth(StringPtr s)
     return (short)(s == NULL ? 0 : s[0] * 7);
 }
 
+void platinum_draw_text(const char *text, short x, short y)
+{
+    (void)text;
+    (void)x;
+    (void)y;
+}
+
+void platinum_draw_button(const Rect *bounds, StringPtr title)
+{
+    (void)bounds;
+    (void)title;
+}
+
 short CharWidth(short c)
 {
     (void)c;
