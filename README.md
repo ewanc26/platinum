@@ -17,10 +17,11 @@ A Bluesky client for Classic Mac OS 9, with a small Node bridge doing the parts 
 
 Platinum is the Mac OS 9 member of my stack of AT Protocol clients: [Wolfram](https://github.com/ewanc26/wolfram) underneath, then [Cobalt](https://github.com/ewanc26/cobalt) on the Wii U and [Indigo](https://github.com/ewanc26/indigo) on the 3DS. It is not a browser pointed at a web app. It is a C89 application that wants to look like it belongs in a System Folder, and it is named after the Platinum appearance, which I am not sorry about.
 
-Mac OS 9 can't do modern TLS, OAuth with DPoP, or DID resolution, so I stopped asking it to. The Platinum Bridge, a Node service, does all of that and gives the Mac a deliberately boring HTTP and JSON API plus a revocable token. The Mac side keeps the window, the input, the storage and the drawing.
+The bridge was built because Mac OS 9 has no modern TLS, OAuth or DID resolution. That is changing: the Mac is getting its own AT Protocol client over Wolfram's verified Open Transport and macTLS stack, and the bridge is on its way out. The first native modules (URLs, identity and session parsing) are in [`macos9/atproto_*.c`](macos9) and host-tested. Most screens still read from the bridge, so it remains the runtime for now. [`docs/architecture/native-client-migration.md`](docs/architecture/native-client-migration.md) maps every route to its native replacement and says what is not done.
 
 ```
-Classic Mac OS 9  --HTTP + JSON-->  Platinum Bridge  --AT Protocol-->  PDS / AppView
+Today:   Classic Mac OS 9  --HTTP + JSON-->  Platinum Bridge  --AT Protocol-->  PDS / AppView
+Target:  Classic Mac OS 9  --HTTPS + XRPC------------------------------->  PDS / AppView
 ```
 
 ## Status
@@ -119,7 +120,7 @@ CI's C89 job is the same check you can run locally against a Wolfram checkout; t
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) has the flow: branch, small conventional commits, a pull request, green CI, merge by rebase. [AGENTS.md](AGENTS.md) has the engineering rules, including the Mac OS 9 constraints (strict C89, cooperative networking, bounded memory, no desktop libraries). [Language boundaries](docs/LANGUAGE_BOUNDARIES.md) explains why C++ must not enter the native Mac target. If a capability can live in the bridge, it shouldn't be reimplemented on the Mac.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the flow: branch, small conventional commits, a pull request, green CI, merge by rebase. [AGENTS.md](AGENTS.md) has the engineering rules, including the Mac OS 9 constraints (strict C89, cooperative networking, bounded memory, no desktop libraries). [Language boundaries](docs/LANGUAGE_BOUNDARIES.md) explains why C++ must not enter the native Mac target. Until a screen has a native implementation, its protocol work stays in the bridge rather than being duplicated on the Mac; the migration note records which is which.
 
 ## Licence
 
