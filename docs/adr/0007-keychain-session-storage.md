@@ -34,12 +34,20 @@ login keychain is normally unlocked at login.
 ## Implementation status
 
 The protocol/session layer exposes persistence as a callback so host tests use
-a fake store. The Carbon Keychain implementation is **not** in this change: the
-Retro68 header and CarbonLib/KeychainLib link details are unverified, and a
-plausible-looking but untestable Keychain call is worse than no persistence.
-Until it is implemented and compiled for PowerPC, the Mac client keeps the
-session in memory and asks for the app password again at launch. That is a
-known parity gap, not a silent downgrade.
+a fake store. The Carbon Keychain implementation is **not** in this change.
+
+On 2026-10-31 the pinned Retro68 image
+(`ghcr.io/autc04/retro68@sha256:2c2ec5ca...`, the digest CI uses) was inspected
+directly: it ships no `Keychain.h`, no `CarbonLib` and no `KeychainLib`. The
+build therefore cannot compile or link a Keychain call today, and a
+hand-written header would be untestable calls (see
+`docs/research/2026-10-31-keychain-surface.md` for the check and the smallest
+shim).
+
+Until that shim exists and has been run in a Mac OS 9 guest, the Mac client
+keeps the session in memory and asks for the app password again at launch.
+That is a known parity gap, not a silent downgrade, and there is no plaintext
+fallback.
 
 ## Consequences
 

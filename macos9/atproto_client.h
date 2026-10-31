@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 
+#include "atproto_bootstrap.h"
 #include "atproto_session.h"
 #include "wolfram/xrpc.h"
 
@@ -73,11 +74,13 @@ wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
  *
  * On success `*out` owns the client; the caller frees it. On failure `*out` is
  * NULL and no client is returned, so a failed sign-in leaves nothing to use.
+ * `entryway` (optional) reports which handle method resolved the account; it
+ * is NONE when the sign-in did not get that far.
  */
 wf_status platinum_atproto_client_connect(
     const char *handle, const char *password, const char *fallback_service,
     platinum_atproto_save_fn save, void *userdata,
-    platinum_atproto_client **out);
+    platinum_atproto_client **out, platinum_atproto_entryway *entryway);
 
 /* POST com.atproto.server.refreshSession with the refresh token, replace the
  * session, and save it. A failure clears the session. */

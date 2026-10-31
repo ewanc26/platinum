@@ -182,6 +182,55 @@ static void test_wellknown_path(void)
               "DID document body is capped");
 }
 
+static void test_entryway_reporting(void)
+{
+    static char document[8192];
+    static char resolve[1024];
+    char did[PLATINUM_ATPROTO_DID_MAX + 1];
+    char pds[PLATINUM_ATPROTO_URL_MAX];
+    platinum_atproto_entryway entryway;
+    wf_status status;
+
+    if (!load_fixture("did_plc_bsky_app.json", document, sizeof(document)))
+        return;
+    if (!load_fixture("resolve_handle.json", resolve, sizeof(resolve)))
+        return;
+
+    reset_fetch();
+    add_step(200, wellknown_did);
+    add_step(200, document);
+    entryway = PLATINUM_ATPROTO_ENTRY_NONE;
+    status = platinum_atproto_bootstrap_ex(
+        test_fetch, NULL, "bsky.app", NULL, did, sizeof(did), pds,
+        sizeof(pds), &entryway);
+    check_status(status, WF_OK, "entryway bootstrap succeeds");
+    check_int((long)entryway, (long)PLATINUM_ATPROTO_ENTRY_WELLKNOWN,
+              "the well-known document is reported");
+
+    reset_fetch();
+    add_step(404, "");
+    add_step(200, resolve);
+    add_step(200, document);
+    entryway = PLATINUM_ATPROTO_ENTRY_NONE;
+    status = platinum_atproto_bootstrap_ex(
+        test_fetch, NULL, "bsky.app", "https://bsky.social", did, sizeof(did),
+        pds, sizeof(pds), &entryway);
+    check_status(status, WF_OK, "fallback entryway bootstrap succeeds");
+    check_int((long)entryway, (long)PLATINUM_ATPROTO_ENTRY_RESOLVE_HANDLE,
+              "resolveHandle is reported");
+
+    reset_fetch();
+    add_step(404, "");
+    entryway = PLATINUM_ATPROTO_ENTRY_WELLKNOWN;
+    status = platinum_atproto_bootstrap_ex(
+        test_fetch, NULL, "bsky.app", NULL, did, sizeof(did), pds,
+        sizeof(pds), &entryway);
+    check_status(status, WF_ERR_HANDLE_DOCUMENT_NOT_FOUND,
+                 "entryway bootstrap can fail");
+    check_int((long)entryway, (long)PLATINUM_ATPROTO_ENTRY_NONE,
+              "a failed bootstrap reports no entryway");
+}
+
 static void test_resolve_handle_fallback(void)
 {
     static char document[8192];
@@ -380,6 +429,7 @@ static void test_invalid_input(void)
 int main(void)
 {
     test_wellknown_path();
+    test_entryway_reporting();
     test_resolve_handle_fallback();
     test_malformed_wellknown_falls_back();
     test_no_fallback();
