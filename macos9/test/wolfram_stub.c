@@ -21,6 +21,15 @@ int fake_status;      /* wf_status to return */
 long fake_http_status;/* HTTP status to put in the response */
 const char *fake_body;/* response body to hand back */
 size_t fake_body_len; /* see wolfram_stub.h */
+int fake_call_count;
+fake_script_fn fake_script;
+
+static void run_script(int method, const char *url, const char *body)
+{
+    fake_call_count++;
+    if (fake_script != NULL)
+        fake_script(fake_call_count, method, url, body);
+}
 
 /* ------------------------------------------------------------------ */
 /* Wolfram transport stubs                                             */
@@ -133,6 +142,7 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
 {
     (void)client;
     last_method = 1;
+    run_script(1, url, NULL);
     last_url[0] = '\0';
     if (url != NULL) {
         strncpy(last_url, url, sizeof(last_url) - 1);
@@ -153,6 +163,7 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
     (void)headers;
     (void)header_count;
     last_method = 2;
+    run_script(2, url, body);
     last_url[0] = '\0';
     last_body[0] = '\0';
     if (url != NULL) {

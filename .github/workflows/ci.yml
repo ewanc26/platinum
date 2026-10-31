@@ -147,6 +147,7 @@ jobs:
             macos9/image_encode.c \
             macos9/image_pix.c \
             macos9/json_min.c \
+            macos9/atproto_client.c \
             macos9/atproto_identity.c \
             macos9/atproto_session.c \
             macos9/atproto_url.c \
@@ -176,6 +177,7 @@ jobs:
             macos9/ui.c \
             macos9/test/test_apppw.c \
             macos9/test/test_avatar_cache.c \
+            macos9/test/test_atproto_client.c \
             macos9/test/test_atproto_identity.c \
             macos9/test/test_atproto_session.c \
             macos9/test/test_atproto_url.c \
@@ -239,6 +241,11 @@ jobs:
             macos9/atproto_session.c macos9/atproto_url.c macos9/json_min.c \
             macos9/test/test_atproto_session.c
           /tmp/test_atproto_session
+          clang "${CFLAGS[@]}" -I macos9/test -o /tmp/test_atproto_client \
+            macos9/atproto_client.c macos9/atproto_session.c \
+            macos9/atproto_url.c macos9/json_min.c macos9/test/wolfram_stub.c \
+            macos9/test/test_atproto_client.c
+          /tmp/test_atproto_client
           clang "${CFLAGS[@]}" -I macos9/test -o /tmp/test_avatar_cache \
             macos9/avatar_cache.c macos9/image_blob.c macos9/json_min.c \
             macos9/test/test_avatar_cache.c
