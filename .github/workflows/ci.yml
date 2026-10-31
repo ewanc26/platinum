@@ -170,6 +170,7 @@ jobs:
             macos9/scrollbar.c \
             macos9/secret.c \
             macos9/screen_state.c \
+            macos9/state_panel.c \
             macos9/search.c \
             macos9/search_query.c \
             macos9/session.c \
@@ -202,6 +203,7 @@ jobs:
             macos9/test/test_profile.c \
             macos9/test/test_search.c \
             macos9/test/test_screen_state.c \
+            macos9/test/test_state_panel.c \
             macos9/test/test_secret.c \
             macos9/test/test_textfield.c \
             macos9/test/test_thread.c \
@@ -322,6 +324,11 @@ jobs:
             -o /tmp/test_screen_state \
             macos9/screen_state.c macos9/test/test_screen_state.c
           /tmp/test_screen_state
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_state_panel \
+            macos9/state_panel.c macos9/screen_state.c \
+            macos9/test/ui_stubs.c macos9/test/test_state_panel.c
+          /tmp/test_state_panel
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_secret \
             macos9/secret.c macos9/text_codec.c macos9/bridge_client.c \

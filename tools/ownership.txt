@@ -118,6 +118,8 @@ macos9/secret.c                   platform  # masked password buffer, wiped on u
 macos9/secret.h                   platform
 macos9/screen_state.c              platform  # which screens each session can serve, and the honest text when it cannot; no Toolbox so it links on a host
 macos9/screen_state.h              platform
+macos9/state_panel.c               platform  # one framed empty/loading/error/sign-in panel; no protocol logic, host-tested layout
+macos9/state_panel.h               platform
 macos9/search_query.c              platform  # trims and converts a typed query, no Toolbox so it links on a host
 macos9/session.c                   platform  # stored token and revocation
 macos9/session.h                   platform

@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- A shared empty-and-state panel replaces bare error sentences: one framed panel with a title, wrapped message and an action button, laid out with the existing text and button helpers. Profile uses it first for the sign-in and bridge notices, with Sign In opening the app-password window and Pair a Bridge opening the pairing window; the other windows keep their existing status lines until they adopt it. Layout and wrapping are host-tested at 640x480 and 800x600 and at narrow and short sizes. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 - The native client has a C89 muted-word matcher: the same rules as Wolfram and the bridge (whole words versus substrings, content and tag targets, exclude-following, expiry judged at a caller-supplied clock), with 39 host checks. It is not wired to the Muted Words screen yet, which still reads through the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - Notifications are fetched by the Mac itself: the window, Command-R and page-back go through `app.bsky.notification.listNotifications`, and opening or refreshing it marks the newest loaded item seen through `app.bsky.notification.updateSeen`. Paging, the 40-row cap and the seen mark keep the bridge's rules. ([#156](https://github.com/ewanc26/platinum/pull/156))
