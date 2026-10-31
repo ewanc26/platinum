@@ -5,6 +5,8 @@
 #include <TextEdit.h>
 #include <Windows.h>
 
+#include "state_panel.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,12 +25,16 @@ typedef struct platinum_search {
     TEHandle field;
     int mode; /* PLATINUM_SEARCH_ACCOUNTS or _POSTS */
     char status[96];
+    /* 0 the field, 1 Cancel, 2 Go/Add, 3 the panel action. */
+    short focus;
 } platinum_search;
 
 enum {
     PLATINUM_SEARCH_NONE = 0,
     PLATINUM_SEARCH_RUN = 1,
-    PLATINUM_SEARCH_CANCEL = 2
+    PLATINUM_SEARCH_CANCEL = 2,
+    PLATINUM_SEARCH_SIGN_IN = 3,
+    PLATINUM_SEARCH_PAIR = 4
 };
 
 void platinum_search_init(platinum_search *search);
