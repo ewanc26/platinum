@@ -51,6 +51,8 @@ macos9/atproto_session.c           atproto   # createSession/refreshSession pars
 macos9/atproto_session.h           atproto
 macos9/atproto_url.c               atproto   # https-only service base, XRPC URLs, DID/handle/NSID/AT URI validation; no Toolbox
 macos9/atproto_url.h               atproto
+macos9/muted_words.c               atproto   # C89 port of Wolfram's muted-word rules; Wolfram's header needs C99, so it cannot be included here (docs/research/2026-10-31-siblings.md)
+macos9/muted_words.h               atproto
 macos9/application.c               platform  # event loop, dispatch and drawing
 macos9/application.h               platform
 macos9/application_auth.c          platform  # signing in with a pairing code or an app password, signing out

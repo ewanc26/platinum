@@ -154,6 +154,7 @@ jobs:
             macos9/atproto_session.c \
             macos9/atproto_url.c \
             macos9/main.c \
+            macos9/muted_words.c \
             macos9/conversations.c \
             macos9/conversations_feed.c \
             macos9/notifications.c \
@@ -192,6 +193,7 @@ jobs:
             macos9/test/test_image_encode.c \
             macos9/test/test_compose.c \
             macos9/test/test_json_min.c \
+            macos9/test/test_muted_words.c \
             macos9/test/test_conversations.c \
             macos9/test/test_notifications.c \
             macos9/test/test_people.c \
@@ -313,6 +315,9 @@ jobs:
             -o /tmp/test_apppw \
             macos9/apppw_input.c macos9/text_codec.c macos9/test/test_apppw.c
           /tmp/test_apppw
+          clang "${CFLAGS[@]}" -o /tmp/test_muted_words \
+            macos9/muted_words.c macos9/test/test_muted_words.c
+          /tmp/test_muted_words
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_screen_state \
             macos9/screen_state.c macos9/test/test_screen_state.c

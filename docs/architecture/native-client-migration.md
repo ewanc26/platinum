@@ -68,8 +68,8 @@ goes through the bridge.
 | `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` | `test_people` | pending |
 | `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `application_post.c` + a post mapper | `test_compose` (to extend) | pending |
 | `POST /v1/post/delete` | `com.atproto.repo.deleteRecord` | `application_post.c` | `test_compose` | pending |
-| `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | a native muted-word matcher | `test_muted` (to add) | pending; see open questions |
-| `POST /v1/muted-words` | `app.bsky.actor.putPreferences` | same | `test_muted` | pending |
+| `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | `muted_words.c` (matcher) + the screen | `test_muted_words` | matcher done and host-tested; fetching and the screen wiring are pending |
+| `POST /v1/muted-words` | `app.bsky.actor.putPreferences` | same | `test_muted_words` (to extend) | pending |
 | `GET /v1/conversations` | `chat.bsky.convo.listConvos` via `atproto-proxy: did:web:api.bsky.chat#bsky_chat` | `conversations_feed.c` | `test_conversations` (to rewrite) | pending |
 | `GET /v1/conversation` | `chat.bsky.convo.getMessages` | `conversations_feed.c` | `test_conversations` | pending |
 | `POST /v1/conversation/message` | `chat.bsky.convo.sendMessage` | `conversations_feed.c` | `test_conversations` | pending |
@@ -200,10 +200,11 @@ lookup is deliberately not used (ADR 0003).
    that `-Werror` rejects. ADR 0011 keeps the bridge image route and asks
    upstream for a standalone C89 image module rather than relaxing the Mac
    target's dialect.
-2. **Muted words.** The AppView does not filter for the client. The native
-   client must apply the same matching rules locally, including expiry,
-   targets and the "exclude following" case. This is behaviour, not a request
-   mapping, and needs its own ADR before implementation.
+2. **Muted words.** The AppView does not filter for the client. `muted_words.c`
+   now implements the matching rules in C89 (whole words versus substrings,
+   content and tag targets, "exclude following", expiry at a caller-supplied
+   clock), with 39 host checks. Fetching `mutedWordsPref`, storing the list and
+   filtering the screens are still on the bridge; the matcher is not wired yet.
 3. **Thread flattening.** `getPostThread` returns a tree; the bounded flat list
    the Thread window expects has to be produced in C with the same 40-post,
    6-level and 10-ancestor limits.
