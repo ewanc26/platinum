@@ -167,6 +167,7 @@ if(PLATINUM_BUILD_FIXTURE)
         json_min.c
         drawutil.c
         state_panel.c
+        screen_state.c
         test/wolfram_stub.c
         resources/icon.r
     )
