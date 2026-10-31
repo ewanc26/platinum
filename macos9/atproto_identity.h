@@ -82,6 +82,17 @@ wf_status platinum_atproto_did_pds(const char *document_json,
                                    const char *expected_did, char *out,
                                    size_t cap);
 
+/*
+ * 1 when the DID document lists `at://<handle>` in `alsoKnownAs`, else 0.
+ *
+ * This is the bidirectional check ADR 0008 requires: a document for the right
+ * DID that does not claim the handle that was resolved is not proof that the
+ * account owns it. The comparison is case-insensitive because handles are.
+ * A malformed document, a missing array or a missing entry all return 0.
+ */
+int platinum_atproto_did_claims_handle(const char *document_json,
+                                       const char *handle);
+
 #ifdef __cplusplus
 }
 #endif

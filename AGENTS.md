@@ -124,6 +124,8 @@ platinum/
 │   ├── application_menus.c
 │   ├── application_post.c
 │   ├── application_views.c
+│   ├── atproto_bootstrap.c
+│   ├── atproto_bootstrap.h
 │   ├── atproto_client.c
 │   ├── atproto_client.h
 │   ├── atproto_identity.c
@@ -213,6 +215,10 @@ Use repository compatibility helpers where one is needed.
 ### Networking
 
 Use Wolfram's Mac OS 9 transport.
+
+Native AT Protocol networking is PowerPC-only (ADR 0010). The 68k application
+still compiles and links, but it is not a supported network client and must not
+be described as one.
 
 The intended stack is:
 

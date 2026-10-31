@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "atproto_bootstrap.h"
 #include "atproto_url.h"
 #include "json_min.h"
 
@@ -302,5 +303,70 @@ wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
     wf_xrpc_client_set_auth(client->xrpc, client->session.access_jwt);
     if (client->save != NULL)
         (void)client->save(&client->session, client->save_userdata);
+    return WF_OK;
+}
+
+/*
+ * Bootstrap fetches public documents from several hosts. The caller's XRPC
+ * client is only a transport here: wf_http_get_limited takes an absolute URL,
+ * never carries the bearer token it may hold, and caps the body at the size
+ * the caller asked for.
+ */
+static wf_status client_bootstrap_fetch(void *userdata, const char *url,
+                                        size_t max_bytes, wf_response *out)
+{
+    return wf_http_get_limited((wf_xrpc_client *)userdata, url, max_bytes, out);
+}
+
+wf_status platinum_atproto_client_connect(
+    const char *handle, const char *password, const char *fallback_service,
+    platinum_atproto_save_fn save, void *userdata,
+    platinum_atproto_client **out)
+{
+    char origin[PLATINUM_ATPROTO_URL_MAX];
+    char did[PLATINUM_ATPROTO_DID_MAX + 1];
+    char pds[PLATINUM_ATPROTO_SESSION_PDS_MAX + 1];
+    wf_xrpc_client *fetch;
+    platinum_atproto_client *client;
+    wf_status status;
+
+    if (out == NULL)
+        return WF_ERR_INVALID_ARG;
+    *out = NULL;
+
+    if (handle == NULL || password == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_handle(handle))
+        return WF_ERR_INVALID_ARG;
+
+    /* The fetch client needs a base URL before the PDS is known; the handle's
+     * own https origin is the host the first request goes to anyway. Every
+     * bootstrap request carries its own absolute URL. */
+    strcpy(origin, "https://");
+    strcat(origin, handle);
+    fetch = wf_xrpc_client_new(origin);
+    if (fetch == NULL)
+        return WF_ERR_ALLOC;
+
+    status = platinum_atproto_bootstrap(client_bootstrap_fetch, fetch, handle,
+                                        fallback_service, did, sizeof(did),
+                                        pds, sizeof(pds));
+    wf_xrpc_client_free(fetch);
+    if (status != WF_OK)
+        return status;
+
+    client = platinum_atproto_client_new(pds);
+    if (client == NULL)
+        return WF_ERR_ALLOC;
+    client->save = save;
+    client->save_userdata = userdata;
+
+    status = platinum_atproto_client_sign_in(client, handle, password);
+    if (status != WF_OK) {
+        platinum_atproto_client_free(client);
+        return status;
+    }
+
+    *out = client;
     return WF_OK;
 }
