@@ -41,6 +41,7 @@ add_compile_options(
 
 set(PLATINUM_SOURCES
     application.c
+    atproto_bootstrap.c
     atproto_client.c
     atproto_identity.c
     atproto_session.c

@@ -62,6 +62,23 @@ wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
                                           const char *identifier,
                                           const char *password);
 
+/*
+ * Resolve `handle` to its PDS, create a client for it and sign in there.
+ *
+ * The sequence is the one in ADR 0008: the handle's HTTPS well-known document
+ * first, resolveHandle on `fallback_service` (may be NULL) when that is
+ * unavailable, then the DID document and its #atproto_pds service. The
+ * resulting client is bound to the discovered PDS, holds the session and has
+ * the save hook installed.
+ *
+ * On success `*out` owns the client; the caller frees it. On failure `*out` is
+ * NULL and no client is returned, so a failed sign-in leaves nothing to use.
+ */
+wf_status platinum_atproto_client_connect(
+    const char *handle, const char *password, const char *fallback_service,
+    platinum_atproto_save_fn save, void *userdata,
+    platinum_atproto_client **out);
+
 /* POST com.atproto.server.refreshSession with the refresh token, replace the
  * session, and save it. A failure clears the session. */
 wf_status platinum_atproto_client_refresh(platinum_atproto_client *client);

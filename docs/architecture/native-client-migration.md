@@ -42,7 +42,7 @@ goes through the bridge.
 | Bridge route or function | Native replacement | Owner (planned if pending) | Test | State |
 |---|---|---|---|---|
 | `POST /v1/pair` (browser OAuth) | none: OAuth is phase 2, blocked on entropy | — | — | removed with the bridge; see ADR 0005 |
-| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response and refresh-retry done; sign-in UI and PDS bootstrap pending |
+| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry and bootstrap-then-sign-in done (`atproto_bootstrap.c`); the sign-in window still uses the bridge |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `session.c` | `test_session` (to add) | pending |
 | `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
 | `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_feed.c` | `test_profile` (to rewrite) | pending |
@@ -91,16 +91,23 @@ Bridge functions with no endpoint:
 ## Identity resolution
 
 ```
-handle --resolveHandle on a known service--> did
+handle --https://<handle>/.well-known/atproto-did--> did
+       --resolveHandle on a known service, if the well-known is unavailable--> did
 did:plc --https://plc.directory/did:plc:...--> DID document
 did:web --https://<host>[/path]/did.json--> DID document
 DID document --service#atproto_pds--> PDS endpoint
 ```
 
+`atproto_bootstrap.c` follows that sequence with a caller-supplied fetch
+callback, so the host tests drive the exact request order against recorded
+fixtures and the Mac build passes Wolfram's `wf_http_get_limited`. The DID
+document must carry the resolved `id` and must name `at://<handle>` in
+`alsoKnownAs`; a document that merely names a PDS for another account is
+refused (ADR 0008).
+
 `did:plc` is the normal case. `did:web` is implemented with the method's port
-and path rules. Other DID methods are refused rather than guessed. A handle is
-resolved by asking a PDS or AppView the client already trusts; DNS TXT lookup
-is deliberately not used (ADR 0003).
+and path rules. Other DID methods are refused rather than guessed. DNS TXT
+lookup is deliberately not used (ADR 0003).
 
 ## Build toolchain
 
@@ -110,9 +117,11 @@ is deliberately not used (ADR 0003).
 - **Headers:** Wolfram's public headers, pinned by CI at `v0.36.2` (the current
   Wolfram release is v0.44.2; the pin is unchanged in this migration).
 - **Transport:** Wolfram's `wolfram-macos9-transport` static library
-  (`xrpc_mac9.c`, `macos9_tls.c`) over Open Transport and macTLS. CI cannot
-  build Open Transport, so it links the test transport stub instead. That
-  binary compiles and links; it cannot network and is never shipped.
+  (`xrpc_mac9.c`, `macos9_tls.c`) over Open Transport and macTLS. Native
+  networking is PowerPC-only (ADR 0010): the 68k build still compiles and
+  links, but it is not a supported network client. CI cannot build Open
+  Transport, so it links the test transport stub instead. That binary compiles
+  and links; it cannot network and is never shipped.
 - **Host checks:** every `macos9/*.c` and `macos9/test/*.c` is compiled by clang
   and gcc with `-pedantic-errors -Wall -Wextra -Werror`, then the host test
   binaries run. This is a dialect and logic check, not Mac OS 9 validation.
@@ -126,10 +135,10 @@ is deliberately not used (ADR 0003).
    resolution, createSession/refreshSession parsing, expiry hint, error
    mapping, token wiping. Host-tested. Bridge untouched.
 2. **Client (in progress).** The transport-facing XRPC call layer is done:
-   authenticated GET/POST, createSession, one refresh-and-retry, and a save
-   hook. It is host-tested but no screen calls it. Next is PDS bootstrap and
-   sign-in, then the timeline as the first vertical slice that removes a screen
-   from the bridge.
+   authenticated GET/POST, createSession, one refresh-and-retry, a save hook,
+   and the handle-to-PDS bootstrap with native sign-in. It is host-tested but
+   no screen calls it. Next is the timeline as the first vertical slice that
+   removes a screen from the bridge.
 3. **Screens.** Notifications, profile, thread, search, feeds, lists, compose
    and conversations, each with its existing test rewritten against recorded
    AppView fixtures.
@@ -168,13 +177,16 @@ is deliberately not used (ADR 0003).
    the Thread window expects has to be produced in C with the same 40-post,
    6-level and 10-ancestor limits.
 4. **Bootstrap service.** The HTTPS well-known document gives a DID without a
-   preconfigured PDS, and the DID document gives the PDS; the URL builders and
-   parsers exist (ADR 0008), but the fetch-and-follow sequence and the UI that
-   chooses an entryway are not wired.
+   preconfigured PDS, and the DID document gives the PDS. The fetch-and-follow
+   sequence is implemented and host-tested (`atproto_bootstrap.c`,
+   `platinum_atproto_client_connect`); the sign-in window still asks for a
+   bridge URL and has to be switched to a handle-only flow.
 5. **Transport.** macTLS now documents TLS 1.3 and a hardware-validated
    entropy pool, but its current implementation is PowerPC-only; the 68k build
-   links the test stub and cannot network. Verify the cipher and certificate
-   path against a current PDS in the guest (ADR 0001).
+   links the test stub and cannot network. ADR 0010 decides that native
+   networking is PowerPC-only and the 68k build stays a compile target. Verify
+   the cipher and certificate path against a current PDS in the guest (ADR
+   0001).
 6. **Entropy.** TLS handshakes on Classic Mac OS have a weak base entropy
    source; long-lived DPoP keys are not safe to generate. ADR 0005 is a release
    blocker for OAuth, not for phase 1.
