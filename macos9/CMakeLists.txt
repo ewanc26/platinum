@@ -69,6 +69,7 @@ set(PLATINUM_SOURCES
     image_pix.c
     json_min.c
     main.c
+    muted_words.c
     notifications.c
     notifications_feed.c
     pairing.c

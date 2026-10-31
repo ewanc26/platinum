@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- The native client has a C89 muted-word matcher: the same rules as Wolfram and the bridge (whole words versus substrings, content and tag targets, exclude-following, expiry judged at a caller-supplied clock), with 39 host checks. It is not wired to the Muted Words screen yet, which still reads through the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 - Notifications are fetched by the Mac itself: the window, Command-R and page-back go through `app.bsky.notification.listNotifications`, and opening or refreshing it marks the newest loaded item seen through `app.bsky.notification.updateSeen`. Paging, the 40-row cap and the seen mark keep the bridge's rules. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - A screen that still needs the bridge now says so instead of failing silently: "This screen still uses the bridge. Pair one under File > Pair Account." With no session it says "Sign in first: choose File > Sign In with App Password." `macos9/screen_state.c` decides and is host-tested; Profile, Thread, Search, Feeds and Lists, Conversations and Compose use it. ([#156](https://github.com/ewanc26/platinum/pull/156))
