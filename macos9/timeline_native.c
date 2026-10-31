@@ -99,6 +99,7 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
     if (!append) {
         timeline->count = 0;
         timeline->cursor[0] = '\0';
+        timeline->capped = 0;
     }
 
     parsed = (available > PLATINUM_TIMELINE_PAGE) ? PLATINUM_TIMELINE_PAGE
@@ -112,6 +113,7 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
                 (size_t)((long)timeline->count - drop) *
                     sizeof(timeline->posts[0]));
         timeline->count = (unsigned short)((long)timeline->count - drop);
+        timeline->capped = 1;
         if (dropped != NULL)
             *dropped = (unsigned short)drop;
     }

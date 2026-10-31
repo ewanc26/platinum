@@ -51,6 +51,8 @@ typedef struct platinum_timeline {
     char cursor[PLATINUM_TIMELINE_CURSOR_MAX + 1];
     char status[PLATINUM_TIMELINE_STATUS_MAX + 1];
     int loading;
+    /* The 40-row cap dropped rows from the front on the last page. */
+    int capped;
 } platinum_timeline;
 
 /* Read one bridge post object (the timeline and thread item shape) into a
