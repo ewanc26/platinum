@@ -3,6 +3,7 @@
 
 #include "bridge_client.h"
 #include "scrollbar.h"
+#include "state_panel.h"
 
 #include <Events.h>
 #include <Windows.h>
@@ -43,6 +44,8 @@ typedef struct platinum_people {
     char heading[PLATINUM_PEOPLE_HEADING_MAX];
     char status[PLATINUM_PEOPLE_STATUS_MAX + 1];
     int loading;
+    /* 0 the list, 1 Close, 2 the panel action. */
+    short focus;
 } platinum_people;
 
 enum {
@@ -56,7 +59,9 @@ enum {
     PLATINUM_PEOPLE_NONE = 0,
     PLATINUM_PEOPLE_CLOSE = 1,
     PLATINUM_PEOPLE_LOAD_MORE = 2,
-    PLATINUM_PEOPLE_OPEN = 3 /* a row was clicked: see platinum_people_selection */
+    PLATINUM_PEOPLE_OPEN = 3, /* a row was clicked: see platinum_people_selection */
+    PLATINUM_PEOPLE_SIGN_IN = 4,
+    PLATINUM_PEOPLE_PAIR = 5
 };
 
 void platinum_people_init(platinum_people *people);
