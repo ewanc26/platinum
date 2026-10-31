@@ -344,6 +344,7 @@ static wf_status timeline_fetch(platinum_timeline *timeline,
     } else {
         timeline->count = 0;
         timeline->cursor[0] = '\0';
+        timeline->capped = 0;
     }
 
     timeline->loading = 1;
@@ -391,6 +392,7 @@ static wf_status timeline_fetch(platinum_timeline *timeline,
                 (size_t)((long)timeline->count - drop) *
                     sizeof(timeline->posts[0]));
         timeline->count = (unsigned short)((long)timeline->count - drop);
+        timeline->capped = 1;
         if (dropped != NULL)
             *dropped = (unsigned short)drop;
     }
