@@ -1,4 +1,7 @@
 #include "ui.h"
+#include "drawutil.h"
+#include "screen_state.h"
+#include "state_panel.h"
 #include "timeline.h"
 #include "scrollbar.h"
 
@@ -53,6 +56,45 @@ static void platinum_ui_button(const Rect *bounds, StringPtr title)
     DrawString(title);
 }
 
+static void platinum_ui_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
+}
+
+static Rect platinum_ui_panel_content(const platinum_ui_layout *layout)
+{
+    Rect content;
+
+    content = layout->timeline;
+    InsetRect(&content, 8, 8);
+    return content;
+}
+
+/*
+ * The timeline is native-first but the bridge is still its fallback, so an
+ * unpaired session is the one blocking state the window knows before it asks
+ * the shared panel. Content always wins: a later failure keeps the rows.
+ */
+static void platinum_ui_build_panel(const platinum_session *session,
+                                    const platinum_timeline *timeline,
+                                    platinum_panel *panel)
+{
+    const char *message;
+    int paired;
+
+    paired = session != NULL && platinum_session_is_paired(session);
+    message = platinum_timeline_status(timeline);
+    if (!paired)
+        message = platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN);
+
+    (void)platinum_panel_for_screen(panel, message, timeline->loading,
+                                    timeline->count != 0);
+}
+
 void platinum_ui_state_init(platinum_ui_state *state)
 {
     if (state == NULL)
@@ -62,6 +104,7 @@ void platinum_ui_state_init(platinum_ui_state *state)
     state->selected_post = 0;
     state->scroll_row = 0;
     state->show_detail = 1;
+    state->focus = 0;
 }
 
 void platinum_ui_layout_compute(const Rect *content,
@@ -257,6 +300,7 @@ void platinum_ui_draw(WindowPtr window,
     short visible;
     short index;
     const char *status;
+    platinum_panel panel;
 
     if (window == NULL || layout == NULL || state == NULL ||
         session == NULL || timeline == NULL)
@@ -301,10 +345,14 @@ void platinum_ui_draw(WindowPtr window,
     button.left = button.right + 8;
     button.right = button.left + 78;
     platinum_ui_button(&button, kRefresh);
+    if (state->focus == 1)
+        platinum_ui_draw_focus(&button);
 
     button.left = button.right + 8;
     button.right = button.left + 62;
     platinum_ui_button(&button, kPost);
+    if (state->focus == 2)
+        platinum_ui_draw_focus(&button);
 
     {
         Rect selection;
@@ -323,25 +371,49 @@ void platinum_ui_draw(WindowPtr window,
     MoveTo(layout->navigation.left + 10, layout->navigation.top + 80);
     DrawString(kProfile);
 
-    MoveTo(layout->timeline.left + 12, layout->timeline.top + 18);
-    DrawString(kTimeline);
+    platinum_ui_build_panel(session, timeline, &panel);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
 
-    status = platinum_timeline_status(timeline);
-    if (count == 0 || (status != NULL && status[0] != '\0')) {
-        MoveTo(layout->timeline.left + 12, layout->timeline.top + 40);
-        if (status != NULL)
-            platinum_ui_text(status);
-    }
+        content = platinum_ui_panel_content(layout);
+        platinum_panel_draw(&content, &panel);
+        if (state->focus == 3) {
+            platinum_panel_rects rects;
+            char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+            short count_lines;
 
-    first = state->scroll_row;
-    visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
-    if (visible < 1)
-        visible = 1;
+            count_lines = platinum_panel_wrap(
+                panel.message, platinum_panel_columns(&content), lines,
+                PLATINUM_PANEL_LINES);
+            platinum_panel_rects_compute(
+                &content, count_lines,
+                panel.action != PLATINUM_PANEL_ACTION_NONE, &rects);
+            if (rects.button_visible)
+                platinum_ui_draw_focus(&rects.button);
+        }
+    } else {
+        MoveTo(layout->timeline.left + 12, layout->timeline.top + 18);
+        DrawString(kTimeline);
 
-    for (index = first;
-         index < (short)count && index < first + visible;
-         ++index) {
-        platinum_ui_draw_post(layout, state, &posts[index], index);
+        first = state->scroll_row;
+        visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
+        if (visible < 1)
+            visible = 1;
+
+        for (index = first;
+             index < (short)count && index < first + visible;
+             ++index) {
+            platinum_ui_draw_post(layout, state, &posts[index], index);
+        }
+
+        status = platinum_timeline_status(timeline);
+        if (count != 0 && status != NULL && status[0] != '\0')
+            platinum_draw_text(status, layout->timeline.left + 12,
+                               layout->timeline.bottom - 6);
+        if (timeline->capped)
+            platinum_draw_text(
+                "Showing 40 posts; older pages replace the newest.",
+                layout->timeline.left + 12, layout->timeline.bottom - 22);
     }
 
     if (layout->detail.top < layout->detail.bottom) {
@@ -359,15 +431,22 @@ void platinum_ui_draw(WindowPtr window,
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_session *session,
                              const platinum_timeline *timeline,
                              Point where)
 {
     short row;
     short content_top;
     unsigned short count;
+    platinum_panel panel;
+    Rect panel_content;
+    int panel_action;
 
     if (layout == NULL || state == NULL || timeline == NULL)
         return PLATINUM_UI_ACTION_NONE;
+
+    platinum_ui_build_panel(session, timeline, &panel);
+    panel_content = platinum_ui_panel_content(layout);
 
     if (PtInRect(where, &layout->toolbar)) {
         if (where.h >= layout->toolbar.left + 96 &&
@@ -393,6 +472,16 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
     }
 
     if (PtInRect(where, &layout->timeline)) {
+        if (platinum_panel_is_active(&panel)) {
+            panel_action = platinum_panel_action_at(&panel_content, &panel,
+                                                    where);
+            if (panel_action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                return PLATINUM_UI_ACTION_SIGN_IN;
+            if (panel_action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                return PLATINUM_UI_ACTION_PAIR;
+            return PLATINUM_UI_ACTION_NONE;
+        }
+
         content_top = layout->timeline.top + 6;
         /* The six points above the first row hold the "Timeline" heading.
          * Integer division would fold a click there into row zero, silently
@@ -412,12 +501,14 @@ int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_session *session,
                            const platinum_timeline *timeline,
                            EventRecord *event)
 {
     unsigned char key;
     unsigned short count;
     short visible;
+    platinum_panel panel;
 
     if (layout == NULL || state == NULL || timeline == NULL ||
         event == NULL)
@@ -431,6 +522,8 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
     visible = (layout->timeline.bottom - layout->timeline.top - 24) / 64;
     if (visible < 1)
         visible = 1;
+
+    platinum_ui_build_panel(session, timeline, &panel);
 
     if ((event->modifiers & cmdKey) != 0) {
         if (key == 'r' || key == 'R')
@@ -451,6 +544,31 @@ int platinum_ui_handle_key(const platinum_ui_layout *layout,
             return PLATINUM_UI_ACTION_AUTHOR;
         if (key == 'y' || key == 'Y')
             return PLATINUM_UI_ACTION_FOLLOW;
+    }
+
+    if (key == '\t') {
+        short last;
+
+        last = platinum_panel_is_active(&panel) ? 3 : 2;
+        if ((event->modifiers & shiftKey) != 0)
+            state->focus = state->focus <= 0
+                               ? last
+                               : (short)(state->focus - 1);
+        else
+            state->focus = state->focus >= last
+                               ? 0
+                               : (short)(state->focus + 1);
+        return PLATINUM_UI_ACTION_NONE;
+    }
+
+    if (platinum_panel_key_is_return(event)) {
+        if (panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+            return PLATINUM_UI_ACTION_SIGN_IN;
+        if (panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+            return PLATINUM_UI_ACTION_PAIR;
+        if (state->focus == 2)
+            return PLATINUM_UI_ACTION_COMPOSE;
+        return PLATINUM_UI_ACTION_REFRESH;
     }
 
     switch (key) {

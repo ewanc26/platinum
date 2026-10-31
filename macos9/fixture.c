@@ -213,7 +213,7 @@ static void fixture_event(EventRecord *event)
                 where = event->where;
                 SetPort((GrafPtr)window);
                 GlobalToLocal(&where);
-                action = platinum_ui_handle_mouse(&layout, &state, &timeline,
+                action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline,
                                                   where);
                 if (action == PLATINUM_UI_ACTION_QUIT)
                     running = 0;
@@ -233,7 +233,7 @@ static void fixture_event(EventRecord *event)
                 fixture_scenario(key - '0');
                 break;
             }
-            action = platinum_ui_handle_key(&layout, &state, &timeline, event);
+            action = platinum_ui_handle_key(&layout, &state, &session, &timeline, event);
             if (action == PLATINUM_UI_ACTION_QUIT)
                 running = 0;
             if (action == PLATINUM_UI_ACTION_LOAD_OLDER) {

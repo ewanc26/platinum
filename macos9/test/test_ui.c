@@ -21,6 +21,7 @@
 
 static int failures;
 static int checks;
+static platinum_session session;
 
 static void check(int condition, const char *what)
 {
@@ -83,7 +84,7 @@ static int key_action(const platinum_ui_layout *layout,
     event.what = keyDown;
     event.message = (long)key;
     event.modifiers = modifiers;
-    return platinum_ui_handle_key(layout, state, timeline, &event);
+    return platinum_ui_handle_key(layout, state, &session, timeline, &event);
 }
 
 static int rect_ok(const Rect *rect)
@@ -162,59 +163,59 @@ static void test_mouse(void)
     fill(&timeline, 10, 1);
     platinum_ui_state_init(&state);
 
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(96, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(96, 10));
     check(action == PLATINUM_UI_ACTION_REFRESH, "Refresh starts at its left edge");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(95, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(95, 10));
     check(action == PLATINUM_UI_ACTION_NONE, "one point left of Refresh is not Refresh");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(181, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(181, 10));
     check(action == PLATINUM_UI_ACTION_REFRESH, "Refresh includes its last point");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(182, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(182, 10));
     check(action == PLATINUM_UI_ACTION_NONE, "the gap after Refresh does nothing");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(190, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(190, 10));
     check(action == PLATINUM_UI_ACTION_COMPOSE, "Post... starts at its left edge");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(189, 10));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(189, 10));
     check(action == PLATINUM_UI_ACTION_NONE, "one point left of Post... is not Post...");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(10, 31));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(10, 31));
     check(action == PLATINUM_UI_ACTION_NONE && state.navigation == 0,
           "the first navigation row is Home");
 
     state.selected_post = 7;
     state.scroll_row = 3;
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(10, 65));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(10, 65));
     check(action == PLATINUM_UI_ACTION_NOTIFICATIONS && state.navigation == 1,
           "the second navigation row opens Notifications");
     check(state.selected_post == 0 && state.scroll_row == 0,
           "changing navigation resets the post selection and scroll");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(10, 93));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(10, 93));
     check(action == PLATINUM_UI_ACTION_PROFILE && state.navigation == 2,
           "the third navigation row opens Profile");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(10, 121));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(10, 121));
     check(action == PLATINUM_UI_ACTION_NONE && state.navigation == 2,
           "a click past the last navigation row changes nothing");
 
     platinum_ui_state_init(&state);
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 37));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 37));
     check(state.selected_post == 0 && state.show_detail == 1,
           "the first timeline row selects post zero");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 100));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 100));
     check(state.selected_post == 0, "63 points into a row is still that row");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 101));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 101));
     check(state.selected_post == 1, "the next row starts 64 points later");
 
     state.selected_post = 0;
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 36));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 36));
     check(state.selected_post == 0,
           "clicking the Timeline heading does not select row zero");
 
     state.scroll_row = 2;
-    platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 37));
+    platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 37));
     check(state.selected_post == 2, "a scrolled list selects from the first visible row");
 
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 229));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 229));
     check(state.selected_post == 5 && action == PLATINUM_UI_ACTION_NONE,
           "a click three rows down selects the sixth visible post");
 
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(1, 470));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(1, 470));
     check(action == PLATINUM_UI_ACTION_NONE && state.selected_post == 5,
           "clicking the inspector does not change the timeline selection");
 }
@@ -337,7 +338,7 @@ static void test_edge_cases(void)
     action = key_action(&layout, &state, &timeline, upArrow, 0);
     check(action == PLATINUM_UI_ACTION_NONE && state.selected_post == 0,
           "an empty timeline ignores Up");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 37));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 37));
     check(action == PLATINUM_UI_ACTION_NONE && state.selected_post == 0,
           "an empty timeline cannot be clicked into a selection");
     key_action(&layout, &state, &timeline, pageDown, 0);
@@ -348,7 +349,7 @@ static void test_edge_cases(void)
     action = key_action(&layout, &state, &timeline, downArrow, 0);
     check(action == PLATINUM_UI_ACTION_LOAD_OLDER && state.selected_post == 0,
           "a one-post timeline asks for more at its end");
-    action = platinum_ui_handle_mouse(&layout, &state, &timeline, point(200, 37));
+    action = platinum_ui_handle_mouse(&layout, &state, &session, &timeline, point(200, 37));
     check(state.selected_post == 0 && state.show_detail == 1,
           "the single row can be selected");
 
