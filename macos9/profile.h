@@ -2,6 +2,7 @@
 #define PLATINUM_PROFILE_H
 
 #include "bridge_client.h"
+#include "state_panel.h"
 #include "timeline.h"
 
 #include <Events.h>
@@ -39,12 +40,16 @@ typedef struct platinum_profile {
     int has_pinned;
     platinum_post_preview pinned;
     char status[PLATINUM_PROFILE_STATUS_MAX + 1];
+    /* Sign-in or bridge notice, drawn as the shared state panel. */
+    platinum_panel panel;
     int loading;
 } platinum_profile;
 
 enum {
     PLATINUM_PROFILE_NONE = 0,
-    PLATINUM_PROFILE_CLOSE = 1
+    PLATINUM_PROFILE_CLOSE = 1,
+    PLATINUM_PROFILE_SIGN_IN = 2,
+    PLATINUM_PROFILE_PAIR = 3
 };
 
 void platinum_profile_init(platinum_profile *profile);

@@ -243,6 +243,10 @@ handle_secondary_mouse(platinum_application *app, WindowPtr window,
         if (action == PLATINUM_PROFILE_CLOSE) {
             platinum_profile_close(&app->profile);
             focus_main(app);
+        } else if (action == PLATINUM_PROFILE_SIGN_IN) {
+            platinum_application_open_apppw(app);
+        } else if (action == PLATINUM_PROFILE_PAIR) {
+            platinum_application_open_pairing(app);
         }
     } else if (window_open_is(window, app->diagwin.window)) {
         action = platinum_diagwin_handle_event(&app->diagwin, event);
@@ -494,6 +498,10 @@ handle_secondary_key(platinum_application *app, EventRecord *event)
         if (action == PLATINUM_PROFILE_CLOSE) {
             platinum_profile_close(&app->profile);
             focus_main(app);
+        } else if (action == PLATINUM_PROFILE_SIGN_IN) {
+            platinum_application_open_apppw(app);
+        } else if (action == PLATINUM_PROFILE_PAIR) {
+            platinum_application_open_pairing(app);
         }
     } else if (app->compose.window != NULL && FrontWindow() == app->compose.window) {
         action = platinum_compose_handle_event(&app->compose, event);

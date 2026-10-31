@@ -171,6 +171,7 @@ platinum/
 │   ├── muted_words.c
 │   ├── search.c
 │   ├── screen_state.c
+│   ├── state_panel.c
 │   ├── search_query.c
 │   ├── secret.c
 │   ├── secret.h
