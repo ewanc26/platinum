@@ -53,6 +53,20 @@ wf_status platinum_atproto_resolve_handle_url(const char *service_base,
                                               size_t cap);
 
 /*
+ * The handle's own HTTPS identity document:
+ * `https://<handle>/.well-known/atproto-did`. The body is a DID as plain text,
+ * not JSON. This is the protocol's first-class handle method; resolveHandle is
+ * the fallback (ADR 0008).
+ */
+wf_status platinum_atproto_handle_wellknown_url(const char *handle, char *out,
+                                                size_t cap);
+
+/* Read the DID from a `/.well-known/atproto-did` body. Surrounding ASCII
+ * whitespace is allowed; anything else that is not one valid DID is refused. */
+wf_status platinum_atproto_handle_wellknown_did(const char *body, char *out,
+                                                size_t cap);
+
+/*
  * Read a DID document and write its `#atproto_pds` service endpoint into `out`.
  *
  * The document's `id` must exist; when `expected_did` is non-NULL it must also

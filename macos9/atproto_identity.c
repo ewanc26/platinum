@@ -246,6 +246,68 @@ wf_status platinum_atproto_resolve_handle_url(const char *service_base,
                                      names, values, 1, out, cap);
 }
 
+wf_status platinum_atproto_handle_wellknown_url(const char *handle, char *out,
+                                                size_t cap)
+{
+    char base[PLATINUM_ATPROTO_URL_MAX];
+    char origin[PLATINUM_ATPROTO_HANDLE_MAX + 9];
+    size_t used;
+    wf_status status;
+
+    if (out == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+    out[0] = '\0';
+    if (!platinum_atproto_valid_handle(handle))
+        return WF_ERR_INVALID_ARG;
+
+    strcpy(origin, "https://");
+    strcat(origin, handle);
+    status = platinum_atproto_service_base(origin, base, sizeof(base));
+    if (status != WF_OK)
+        return status;
+
+    used = 0;
+    status = identity_append(out, cap, &used, base);
+    if (status != WF_OK)
+        return status;
+    return identity_append(out, cap, &used, "/.well-known/atproto-did");
+}
+
+wf_status platinum_atproto_handle_wellknown_did(const char *body, char *out,
+                                                size_t cap)
+{
+    const char *start;
+    const char *end;
+    size_t length;
+
+    if (body == NULL || out == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+    out[0] = '\0';
+
+    start = body;
+    while (*start == ' ' || *start == '\t' || *start == '\r' ||
+           *start == '\n')
+        start++;
+    end = body + strlen(body);
+    while (end > start && (end[-1] == ' ' || end[-1] == '\t' ||
+                           end[-1] == '\r' || end[-1] == '\n'))
+        end--;
+
+    length = (size_t)(end - start);
+    if (length == 0)
+        return WF_ERR_PARSE;
+    if (length >= cap)
+        return WF_ERR_ALLOC;
+
+    memcpy(out, start, length);
+    out[length] = '\0';
+    if (!platinum_atproto_valid_did(out)) {
+        out[0] = '\0';
+        return WF_ERR_PARSE;
+    }
+    return WF_OK;
+}
+
 static int identity_service_id_is_pds(const char *id)
 {
     const char *hash;
