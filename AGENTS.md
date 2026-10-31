@@ -168,6 +168,7 @@ platinum/
 │   ├── image_encode.c
 │   ├── image_pix.c
 │   ├── main.c
+│   ├── muted_words.c
 │   ├── search.c
 │   ├── screen_state.c
 │   ├── search_query.c
