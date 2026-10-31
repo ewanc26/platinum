@@ -16,7 +16,7 @@ the endpoint table says exactly which ones are not wired yet.
 Platinum windows and view models
         |
 AT Protocol client (C89, host-tested)          atproto_url, atproto_identity,
-        |                                      atproto_session, then XRPC calls
+        |                                      atproto_session, atproto_client
 Wolfram XRPC/HTTP API                          wf_xrpc_client_* in
         |                                      wolfram-macos9-transport
 Open Transport + macTLS (verified TLS)         external, never bypassed
@@ -42,7 +42,7 @@ goes through the bridge.
 | Bridge route or function | Native replacement | Owner (planned if pending) | Test | State |
 |---|---|---|---|---|
 | `POST /v1/pair` (browser OAuth) | none: OAuth is phase 2, blocked on entropy | — | — | removed with the bridge; see ADR 0005 |
-| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_session.c`, then `atproto_client.c` | `test_atproto_session` | response parsing done; request and UI pending |
+| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response and refresh-retry done; sign-in UI and PDS bootstrap pending |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `session.c` | `test_session` (to add) | pending |
 | `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
 | `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_feed.c` | `test_profile` (to rewrite) | pending |
@@ -52,7 +52,7 @@ goes through the bridge.
 | `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
-| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `timeline.c` | `test_timeline` (to rewrite) | pending |
+| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `timeline.c` | `test_timeline` (to rewrite) | pending: the parser takes the post object, but the `feed[].post` wrapper and viewer state are not wired |
 | `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `timeline.c` | `test_timeline` | pending |
 | `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `timeline.c` | `test_timeline` | pending |
 | `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` (to rewrite) | pending |
@@ -122,12 +122,14 @@ is deliberately not used (ADR 0003).
 
 ## Phases
 
-1. **Core (this change).** https-only service bases, XRPC URLs, DID/handle
+1. **Core (done).** https-only service bases, XRPC URLs, DID/handle
    resolution, createSession/refreshSession parsing, expiry hint, error
    mapping, token wiping. Host-tested. Bridge untouched.
-2. **Client.** A transport-facing XRPC call layer, automatic refresh, and the
-   timeline on native data. First vertical slice that removes a screen from the
-   bridge.
+2. **Client (in progress).** The transport-facing XRPC call layer is done:
+   authenticated GET/POST, createSession, one refresh-and-retry, and a save
+   hook. It is host-tested but no screen calls it. Next is PDS bootstrap and
+   sign-in, then the timeline as the first vertical slice that removes a screen
+   from the bridge.
 3. **Screens.** Notifications, profile, thread, search, feeds, lists, compose
    and conversations, each with its existing test rewritten against recorded
    AppView fixtures.
@@ -165,18 +167,21 @@ is deliberately not used (ADR 0003).
 3. **Thread flattening.** `getPostThread` returns a tree; the bounded flat list
    the Thread window expects has to be produced in C with the same 40-post,
    6-level and 10-ancestor limits.
-4. **Bootstrap service.** Signing in needs a PDS before the DID document can be
-   read. The client must choose a resolver (public AppView or the user's
-   entryway) and say so in the UI. Not decided here.
-5. **TLS version.** macTLS is BearSSL, so TLS 1.2 is the ceiling. Verify every
-   supported PDS still accepts it; ClassicNet's TLS 1.3 is not compatible with
-   the 68k build (ADR 0001).
+4. **Bootstrap service.** The HTTPS well-known document gives a DID without a
+   preconfigured PDS, and the DID document gives the PDS; the URL builders and
+   parsers exist (ADR 0008), but the fetch-and-follow sequence and the UI that
+   chooses an entryway are not wired.
+5. **Transport.** macTLS now documents TLS 1.3 and a hardware-validated
+   entropy pool, but its current implementation is PowerPC-only; the 68k build
+   links the test stub and cannot network. Verify the cipher and certificate
+   path against a current PDS in the guest (ADR 0001).
 6. **Entropy.** TLS handshakes on Classic Mac OS have a weak base entropy
    source; long-lived DPoP keys are not safe to generate. ADR 0005 is a release
    blocker for OAuth, not for phase 1.
-7. **Preferences at rest.** Mac OS 9 has no Keychain. The refresh token sits in
-   a Preferences file with the file system's protection only. A passphrase
-   scheme needs an entropy decision and a UI; not planned yet.
+7. **Keychain at rest.** Mac OS 9 does have the Carbon Keychain Manager (ADR
+   0007), but the implementation is not written or compiled for PowerPC yet.
+   Until it is, the session is memory-only and the user signs in again at
+   launch; there is no plaintext fallback.
 8. **Live integration tests.** No test account or PDS credentials are available
    here. The suite is opt-in by design and has not run against a live PDS.
 9. **Wolfram pin.** CI compiles against v0.36.2 while the newest release is
