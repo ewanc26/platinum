@@ -11,6 +11,10 @@
 extern char last_url[512];
 extern char last_body[512];
 extern char last_auth[256];
+extern char last_nsid[128];
+extern size_t last_param_count;
+extern char last_param_names[8][64];
+extern char last_param_values[8][512];
 extern int auth_set;
 extern size_t last_max_response_bytes;
 extern int last_method;
