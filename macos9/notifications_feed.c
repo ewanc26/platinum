@@ -6,6 +6,7 @@
 #include "notifications.h"
 #include "text_codec.h"
 
+#include "atproto_feed.h"
 #include "json_min.h"
 #include <string.h>
 
@@ -336,5 +337,166 @@ wf_status platinum_notifications_mark_seen(
             notifications->any_unread = 0;
         return status;
     }
+}
+
+/*
+ * The native page, with the same rules as the bridge page: the response is
+ * validated before any row is dropped, and a failure keeps the rows already
+ * loaded. A page is the AppView notification view, whose author object carries
+ * the same display fields the bridge flattened.
+ */
+static wf_status notifications_fetch_native(
+    platinum_notifications *notifications, platinum_atproto_client *client,
+    int append, unsigned short *dropped)
+{
+    wf_response response;
+    platinum_json root;
+    platinum_json items;
+    platinum_json value;
+    long index;
+    long available;
+    long drop;
+    char cursor[sizeof(notifications->cursor)];
+    wf_status status;
+
+    if (dropped != NULL)
+        *dropped = 0;
+
+    memset(&response, 0, sizeof(response));
+    notifications->loading = 1;
+    notifications_status(notifications,
+                         append ? "Loading older notifications..." : kLoading);
+
+    status = platinum_atproto_notifications_page(
+        client, append ? notifications->cursor : NULL,
+        PLATINUM_NOTIFICATIONS_PAGE, &response);
+    if (status != WF_OK) {
+        notifications->loading = 0;
+        if (status == WF_ERR_AUTH)
+            notifications_status(notifications, "Session expired. Sign in again.");
+        else
+            notifications_status(notifications,
+                                 append ? "Could not load older notifications."
+                                        : "Notification refresh failed.");
+        wf_response_free(&response);
+        return status;
+    }
+
+    /* notifications has to be an array. An absent member is a broken response,
+     * not an empty list, and those are different facts. */
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(root, "notifications", &items) != WF_OK ||
+        platinum_json_count(items, &available) != WF_OK) {
+        notifications->loading = 0;
+        notifications_status(notifications,
+                             "The server returned an invalid notification list.");
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+
+    if (available > PLATINUM_NOTIFICATIONS_PAGE)
+        available = PLATINUM_NOTIFICATIONS_PAGE;
+
+    /* The response is known good, so only now is it safe to replace rows. */
+    if (!append) {
+        notifications->count = 0;
+        notifications->scroll_row = 0;
+        notifications->cursor[0] = '\0';
+        notifications->newest_at[0] = '\0';
+        notifications->any_unread = 0;
+    }
+
+    drop = (long)notifications->count + available - PLATINUM_NOTIFICATIONS_MAX;
+    if (drop > (long)notifications->count)
+        drop = (long)notifications->count;
+    if (drop > 0) {
+        memmove(&notifications->items[0], &notifications->items[drop],
+                (size_t)((long)notifications->count - drop) *
+                    sizeof(notifications->items[0]));
+        notifications->count =
+            (unsigned short)((long)notifications->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
+    }
+
+    if (!append && available > 0 &&
+        platinum_json_element(items, 0, &value) == WF_OK &&
+        platinum_json_string_truncating(value, "indexedAt",
+                                        notifications->newest_at,
+                                        sizeof(notifications->newest_at))
+            != WF_OK)
+        notifications->newest_at[0] = '\0';
+
+    for (index = 0; index < available &&
+                    notifications->count < PLATINUM_NOTIFICATIONS_MAX; ++index) {
+        if (platinum_json_element(items, index, &value) != WF_OK)
+            continue;
+        if (notifications_parse_item(
+                &notifications->items[notifications->count], value)) {
+            /* Older pages never move the seen mark: it is set from the newest
+             * item of a refresh only. */
+            if (!append && !notifications->items[notifications->count].is_read)
+                notifications->any_unread = 1;
+            ++notifications->count;
+        }
+    }
+
+    /* A cursor is copied exactly or not at all. */
+    if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) == WF_OK)
+        strcpy(notifications->cursor, cursor);
+    else
+        notifications->cursor[0] = '\0';
+
+    wf_response_free(&response);
+
+    notifications->loading = 0;
+    if (notifications->count == 0)
+        notifications_status(notifications, kEmpty);
+    else
+        notifications_status(notifications, kRefreshHint);
+
+    return WF_OK;
+}
+
+wf_status platinum_notifications_refresh_native(
+    platinum_notifications *notifications, platinum_atproto_client *client)
+{
+    if (notifications == NULL || client == NULL)
+        return WF_ERR_INVALID_ARG;
+    return notifications_fetch_native(notifications, client, 0, NULL);
+}
+
+wf_status platinum_notifications_load_older_native(
+    platinum_notifications *notifications, platinum_atproto_client *client,
+    unsigned short *dropped)
+{
+    if (dropped != NULL)
+        *dropped = 0;
+    if (notifications == NULL || client == NULL ||
+        !platinum_notifications_has_older(notifications))
+        return WF_ERR_INVALID_ARG;
+    return notifications_fetch_native(notifications, client, 1, dropped);
+}
+
+wf_status platinum_notifications_mark_seen_native(
+    platinum_notifications *notifications, platinum_atproto_client *client)
+{
+    wf_response response;
+    wf_status status;
+
+    if (notifications == NULL || client == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (!notifications->any_unread || notifications->newest_at[0] == '\0')
+        return WF_OK;
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_atproto_notification_seen(client,
+                                                notifications->newest_at,
+                                                &response);
+    wf_response_free(&response);
+    if (status == WF_OK)
+        notifications->any_unread = 0;
+    return status;
 }
 

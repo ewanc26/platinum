@@ -55,8 +55,8 @@ goes through the bridge.
 | `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline.c` | `test_timeline` | native end to end: the window fetches and pages through `timeline_native.c`, with the same 40-row cap, commit rules and statuses; like and repost are still bridge calls |
 | `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `timeline.c` | `test_timeline` | pending |
 | `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `timeline.c` | `test_timeline` | pending |
-| `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` (to rewrite) | pending |
-| `POST /v1/notifications/seen` | `app.bsky.notification.updateSeen` | `notifications_feed.c` | `test_notifications` | pending |
+| `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` | native: the window fetches and pages through the native session, with the same 20-row pages, 40-row cap and seen mark |
+| `POST /v1/notifications/seen` | `app.bsky.notification.updateSeen` | `notifications_feed.c` | `test_notifications` | native: the newest loaded item's `indexedAt`, never the Mac clock |
 | `GET /v1/thread` | `app.bsky.feed.getPostThread`, flattened in C with depth and size caps | `thread_feed.c` | `test_thread` (to rewrite) | pending |
 | `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `application_views.c` / SQL | `test_search` | pending |
 | `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `application_views.c` | `test_search` | pending |
@@ -87,6 +87,32 @@ Bridge functions with no endpoint:
 | Post display shaping (record, embeds, facets) | parse the AppView post view directly into the existing preview structs | pending |
 | Muted-word filter | native matcher over `getPreferences`; same rules as the SDK | pending |
 | Image convert / PLIM | no replacement: native decode and draw | pending |
+
+## Screens
+
+The endpoint table says what each route maps to. This says what the windows do
+today, and what a reader sees when a session is missing. `screen_state.c`
+(host-tested) is the single decision; no window guesses.
+
+| Screen | Data source | State |
+|---|---|---|
+| Sign-in | `atproto_bootstrap.c` + `createSession` | native |
+| Home timeline | `atproto_feed.c` + `timeline_native.c` | native; like and repost still bridge |
+| Notifications | `atproto_feed.c` + `notifications_feed.c` | native |
+| Profile | bridge | pending |
+| Thread | bridge | pending |
+| Search (accounts and posts) | bridge | pending |
+| Saved feeds and lists | bridge | pending |
+| Compose, reply, quote | bridge | pending |
+| Conversations | bridge | pending |
+| Connection Status | bridge | pending |
+| Muted words | bridge | pending |
+
+A screen that still needs the bridge says so in its own status line: "This
+screen still uses the bridge. Pair one under File > Pair Account." With no
+session at all it says "Sign in first: choose File > Sign In with App
+Password." Both sentences come from `screen_state_text`, so they are tested
+rather than repeated in every window, and the bridge is never silently assumed.
 
 ## Identity resolution
 

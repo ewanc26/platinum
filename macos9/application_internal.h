@@ -35,6 +35,7 @@
 #include "draft.h"
 #include "scrollbar.h"
 #include "json_min.h"
+#include "screen_state.h"
 #include "wolfram/macos9_tls.h"
 
 #define kFileMenuID 128
@@ -58,6 +59,12 @@ void platinum_application_dispose_menus(platinum_application *app);
 void platinum_application_handle_menu(platinum_application *app, long choice);
 
 /* application_views.c */
+/*
+ * NULL when the screen the application is about to open can work, otherwise the
+ * sentence it should show: either "sign in first" or "this screen still uses
+ * the bridge". Never opens a window itself.
+ */
+const char *platinum_application_bridge_notice(platinum_application *app);
 void platinum_application_refresh_timeline(platinum_application *app);
 void platinum_application_show_author(platinum_application *app);
 void platinum_application_show_people(platinum_application *app, int menu_item);

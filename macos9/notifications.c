@@ -250,3 +250,23 @@ int platinum_notifications_handle_event(
 
     return PLATINUM_NOTIFICATIONS_NONE;
 }
+
+void platinum_notifications_set_status(
+    platinum_notifications *notifications, const char *status)
+{
+    long length;
+
+    if (notifications == NULL)
+        return;
+
+    notifications->status[0] = '\0';
+    if (status != NULL) {
+        length = (long)strlen(status);
+        if (length > PLATINUM_NOTIFICATIONS_STATUS_MAX)
+            length = PLATINUM_NOTIFICATIONS_STATUS_MAX;
+        memcpy(notifications->status, status, (size_t)length);
+        notifications->status[length] = '\0';
+    }
+    if (notifications->window != NULL)
+        InvalRect(&notifications->window->portRect);
+}

@@ -2,6 +2,20 @@
 
 #include "application_internal.h"
 
+const char *platinum_application_bridge_notice(platinum_application *app)
+{
+    platinum_screen_state state;
+
+    if (app == NULL)
+        return NULL;
+    state = platinum_screen_bridge_state(
+        platinum_session_client(&app->session) != NULL,
+        platinum_session_bridge(&app->session) != NULL);
+    if (state == PLATINUM_SCREEN_READY)
+        return NULL;
+    return platinum_screen_state_text(state);
+}
+
 void platinum_application_refresh_timeline(platinum_application *app)
 {
     platinum_atproto_client *client;
@@ -50,6 +64,7 @@ void platinum_application_refresh_timeline(platinum_application *app)
 void platinum_application_show_author(platinum_application *app)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
     wf_status status;
     short index;
 
@@ -59,8 +74,17 @@ void platinum_application_show_author(platinum_application *app)
     if (index < 0 || index >= (short)app->timeline.count)
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_profile_open(&app->profile) == noErr) {
+            platinum_profile_set_status(&app->profile,
+                                        notice != NULL
+                                            ? notice
+                                            : "The bridge is unavailable.");
+            SelectWindow(app->profile.window);
+        }
         return;
+    }
     if (platinum_profile_open(&app->profile) != noErr)
         return;
 
@@ -81,14 +105,24 @@ void platinum_application_show_people(platinum_application *app,
     const char *key;
     const char *value;
     const char *heading;
+    const char *notice;
     wf_status status;
     short index;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_people_open(&app->people) == noErr) {
+            platinum_people_set_status(&app->people,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->people.window);
+        }
         return;
+    }
 
     if (menu_item == 6 || menu_item == 7) {
         index = app->ui.selected_post;
@@ -144,6 +178,7 @@ void platinum_application_more_people(platinum_application *app)
 void platinum_application_run_search(platinum_application *app)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
     char query[PLATINUM_SEARCH_MAX * 4 + 1];
     int posts;
     wf_status status;
@@ -152,8 +187,14 @@ void platinum_application_run_search(platinum_application *app)
         !platinum_session_is_paired(&app->session))
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        platinum_search_set_status(&app->search,
+                                   notice != NULL
+                                       ? notice
+                                       : "The bridge is unavailable.");
         return;
+    }
     if (platinum_search_query(&app->search, query, sizeof(query)) < 0) {
         platinum_search_set_status(&app->search,
                                    "Type something to search for (100 characters at most).");
@@ -201,13 +242,23 @@ void platinum_application_run_search(platinum_application *app)
 void platinum_application_show_words(platinum_application *app)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL || platinum_people_open(&app->people) != noErr)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_people_open(&app->people) == noErr) {
+            platinum_people_set_status(&app->people,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->people.window);
+        }
         return;
+    }
     status = platinum_people_load_kind(
         &app->people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words", NULL,
         NULL, "Muted words (click one, then View > Remove Muted Word)");
@@ -257,6 +308,7 @@ void platinum_application_show_posts(platinum_application *app)
 {
     platinum_bridge_client *bridge;
     const char *handle;
+    const char *notice;
     wf_status status;
     short index;
 
@@ -266,8 +318,17 @@ void platinum_application_show_posts(platinum_application *app)
     if (index < 0 || index >= (short)app->timeline.count)
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_thread_open(&app->thread) == noErr) {
+            platinum_thread_set_status(&app->thread,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->thread.window);
+        }
         return;
+    }
     handle = app->timeline.posts[index].handle;
     if (handle[0] == '@')
         ++handle;
@@ -309,13 +370,23 @@ void platinum_application_show_named(platinum_application *app,
                                             int kind)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL || platinum_people_open(&app->people) != noErr)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_people_open(&app->people) == noErr) {
+            platinum_people_set_status(&app->people,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->people.window);
+        }
         return;
+    }
     status = platinum_people_load_kind(
         &app->people, bridge, kind,
         kind == PLATINUM_PEOPLE_FEEDS ? "/v1/feeds" : "/v1/lists", NULL, NULL,
@@ -441,6 +512,7 @@ void platinum_application_relate(platinum_application *app, int kind)
 void platinum_application_show_thread(platinum_application *app)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
     wf_status status;
     short index;
 
@@ -450,8 +522,17 @@ void platinum_application_show_thread(platinum_application *app)
     if (index < 0 || index >= (short)app->timeline.count)
         return;
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_thread_open(&app->thread) == noErr) {
+            platinum_thread_set_status(&app->thread,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->thread.window);
+        }
         return;
+    }
     if (platinum_thread_open(&app->thread) != noErr)
         return;
 
@@ -540,6 +621,7 @@ void platinum_application_load_older(platinum_application *app)
 void platinum_application_open_profile(platinum_application *app)
 {
     platinum_bridge_client *bridge;
+    const char *notice;
 
     if (app == NULL)
         return;
@@ -553,9 +635,15 @@ void platinum_application_open_profile(platinum_application *app)
     if (platinum_profile_open(&app->profile) != noErr)
         return;
 
+    notice = platinum_application_bridge_notice(app);
+    if (notice != NULL) {
+        platinum_profile_set_status(&app->profile, notice);
+        SelectWindow(app->profile.window);
+        return;
+    }
+
     bridge = platinum_session_bridge(&app->session);
-    if (bridge != NULL)
-        {
+    if (bridge != NULL) {
         wf_status status;
         status = platinum_profile_refresh(&app->profile, bridge);
         platinum_application_recover_auth(app, status);
@@ -576,24 +664,36 @@ void platinum_application_open_notifications(platinum_application *app)
     if (platinum_notifications_open(&app->notifications) != noErr)
         return;
 
+    if (platinum_session_client(&app->session) == NULL &&
+        platinum_session_bridge(&app->session) == NULL) {
+        platinum_notifications_set_status(
+            &app->notifications,
+            platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN));
+        SelectWindow(app->notifications.window);
+        return;
+    }
+
     platinum_application_refresh_notifications(app);
 }
 
 void platinum_application_older_notifications(
     platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     unsigned short dropped;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
-        return;
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
 
-    status = platinum_notifications_load_older(&app->notifications, bridge,
-                                               &dropped);
+    status = client != NULL
+                 ? platinum_notifications_load_older_native(
+                       &app->notifications, client, &dropped)
+                 : platinum_notifications_load_older(&app->notifications,
+                                                     bridge, &dropped);
     platinum_application_recover_auth(app, status);
     if (status == WF_OK) {
         /* Keep the same rows on screen, then step onto the first new one. */
@@ -609,6 +709,7 @@ void platinum_application_older_notifications(
 void platinum_application_refresh_notifications(
     platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
 
     if (app == NULL)
@@ -619,19 +720,30 @@ void platinum_application_refresh_notifications(
         return;
     }
 
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
-        return;
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
 
     {
         wf_status status;
-        status = platinum_notifications_refresh(&app->notifications, bridge);
-        platinum_application_recover_auth(app, status);
-        /* Opening or refreshing the window is reading it. A failure to mark
-         * seen is not worth an error: the next refresh tries again. */
-        if (status == WF_OK)
-            (void)platinum_notifications_mark_seen(&app->notifications,
-                                                   bridge);
+
+        status = WF_ERR_INVALID_ARG;
+        if (client != NULL) {
+            status = platinum_notifications_refresh_native(&app->notifications,
+                                                           client);
+            platinum_application_recover_auth(app, status);
+            /* Opening or refreshing the window is reading it. A failure to
+             * mark seen is not worth an error: the next refresh tries again. */
+            if (status == WF_OK)
+                (void)platinum_notifications_mark_seen_native(
+                    &app->notifications, client);
+        } else if (bridge != NULL) {
+            status = platinum_notifications_refresh(&app->notifications,
+                                                    bridge);
+            platinum_application_recover_auth(app, status);
+            if (status == WF_OK)
+                (void)platinum_notifications_mark_seen(&app->notifications,
+                                                       bridge);
+        }
     }
     if (app->notifications.window != NULL)
         InvalRect(&app->notifications.window->portRect);
@@ -641,11 +753,20 @@ void platinum_application_refresh_notifications(
 
 void platinum_application_open_conversations(platinum_application *app)
 {
+    const char *notice;
+
     if (app == NULL)
         return;
 
     if (platinum_conversations_open_window(&app->conversations) != noErr)
         return;
+
+    notice = platinum_application_bridge_notice(app);
+    if (notice != NULL) {
+        platinum_conversations_set_status(&app->conversations, notice);
+        SelectWindow(app->conversations.window);
+        return;
+    }
 
     if (platinum_session_is_paired(&app->session))
         platinum_application_refresh_conversations(app);

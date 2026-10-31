@@ -148,6 +148,9 @@ long platinum_conversations_composer_text(const platinum_conversations *conversa
                                           char *buffer,
                                           long capacity);
 void platinum_conversations_clear_composer(platinum_conversations *conversations);
+/* Set the status line and redraw it. */
+void platinum_conversations_set_status(platinum_conversations *conversations,
+                                       const char *status);
 
 #ifdef __cplusplus
 }

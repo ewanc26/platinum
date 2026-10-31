@@ -80,6 +80,7 @@ set(PLATINUM_SOURCES
     profile.c
     profile_feed.c
     scrollbar.c
+    screen_state.c
     search.c
     search_query.c
     secret.c

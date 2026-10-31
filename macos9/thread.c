@@ -221,3 +221,22 @@ int platinum_thread_handle_event(platinum_thread *thread, EventRecord *event)
     }
     return PLATINUM_THREAD_NONE;
 }
+
+void platinum_thread_set_status(platinum_thread *thread, const char *status)
+{
+    long length;
+
+    if (thread == NULL)
+        return;
+
+    thread->status[0] = '\0';
+    if (status != NULL) {
+        length = (long)strlen(status);
+        if (length > PLATINUM_THREAD_STATUS_MAX)
+            length = PLATINUM_THREAD_STATUS_MAX;
+        memcpy(thread->status, status, (size_t)length);
+        thread->status[length] = '\0';
+    }
+    if (thread->window != NULL)
+        InvalRect(&thread->window->portRect);
+}

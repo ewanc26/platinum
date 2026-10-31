@@ -524,3 +524,23 @@ int platinum_conversations_handle_event(
 
     return PLATINUM_CONVERSATIONS_NONE;
 }
+
+void platinum_conversations_set_status(platinum_conversations *conversations,
+                                       const char *status)
+{
+    long length;
+
+    if (conversations == NULL)
+        return;
+
+    conversations->status[0] = '\0';
+    if (status != NULL) {
+        length = (long)strlen(status);
+        if (length > PLATINUM_CONVERSATIONS_STATUS_MAX)
+            length = PLATINUM_CONVERSATIONS_STATUS_MAX;
+        memcpy(conversations->status, status, (size_t)length);
+        conversations->status[length] = '\0';
+    }
+    if (conversations->window != NULL)
+        InvalRect(&conversations->window->portRect);
+}

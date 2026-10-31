@@ -35,6 +35,22 @@ wf_status platinum_atproto_timeline_page(platinum_atproto_client *client,
                                         const char *cursor, size_t limit,
                                         wf_response *out);
 
+/*
+ * Fetch one page of app.bsky.notification.listNotifications.
+ *
+ * `cursor` is NULL or empty for the first page; `limit` is 1 to 100. The
+ * response shape is `{"cursor":"...","notifications":[{"uri","cid",
+ * "author","reason","isRead","indexedAt",...}]}`.
+ */
+wf_status platinum_atproto_notifications_page(
+    platinum_atproto_client *client, const char *cursor, size_t limit,
+    wf_response *out);
+
+/* Mark notifications seen through app.bsky.notification.updateSeen. `seen_at`
+ * is an RFC 3339 timestamp as the service sent it, never the Mac clock. */
+wf_status platinum_atproto_notification_seen(
+    platinum_atproto_client *client, const char *seen_at, wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif

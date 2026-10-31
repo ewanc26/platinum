@@ -10,6 +10,10 @@ pull request.
 
 ### Added
 
+- Notifications are fetched by the Mac itself: the window, Command-R and page-back go through `app.bsky.notification.listNotifications`, and opening or refreshing it marks the newest loaded item seen through `app.bsky.notification.updateSeen`. Paging, the 40-row cap and the seen mark keep the bridge's rules. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- A screen that still needs the bridge now says so instead of failing silently: "This screen still uses the bridge. Pair one under File > Pair Account." With no session it says "Sign in first: choose File > Sign In with App Password." `macos9/screen_state.c` decides and is host-tested; Profile, Thread, Search, Feeds and Lists, Conversations and Compose use it. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 - The home timeline is fetched by the Mac itself: the window, Refresh and Load Older Posts go through the native session to `app.bsky.feed.getTimeline`, with the same 40-post cap, paging and failure rules as before. Likes and reposts still use the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - Signing in no longer needs a bridge address: File > Sign In with App Password asks for the handle and the app password, finds the account's own PDS from the handle, and signs in there. Preferences says which handle method found it (the handle's well-known document, or `resolveHandle` on the public AppView). The session is memory-only until Keychain persistence can be built, so a restart asks again. ([#156](https://github.com/ewanc26/platinum/pull/156))
