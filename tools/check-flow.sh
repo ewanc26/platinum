@@ -81,8 +81,10 @@ cmd_drift() {
 }
 
 # Shared logic belongs in Wolfram. Three rules:
-#  1. The Mac client speaks only the bridge protocol, so no AT Protocol method
-#     string (NSID) may appear under macos9/ at all.
+#  1. The Mac client's native AT Protocol modules (owner `atproto` in
+#     ownership.txt) are the only place under macos9/ that may hold an NSID; the
+#     bridge still serves every screen that has not migrated, so a UI module
+#     cannot quietly grow protocol code of its own.
 #  2. The bridge calls @atproto/api; a raw NSID literal under bridge/src/ means
 #     hand-rolled protocol, which is allowed only as a "port" file.
 #  3. Every source is in tools/ownership.txt with an owner and a reason, so a new
@@ -90,9 +92,11 @@ cmd_drift() {
 cmd_duplication() {
   local own=tools/ownership.txt nsid='"(com\.atproto|app\.bsky|chat\.bsky|tools\.ozone|uk\.ewancroft)\.[A-Za-z.]+"'
   local f owner rest hit
-  while IFS= read -r hit; do
-    bad "$hit: the Mac client holds an AT Protocol method string; it must go through the bridge"
-  done < <(grep -rnoE --include='*.c' --include='*.h' "$nsid" macos9 --exclude-dir=test 2>/dev/null)
+  while IFS=: read -r f rest; do
+    owner=$(awk -v p="$f" '$1==p {print $2}' "$own")
+    [ "$owner" = atproto ] ||
+      bad "$f holds an AT Protocol method string but is not an atproto-owned native client module"
+  done < <(grep -rlE --include='*.c' --include='*.h' "$nsid" macos9 --exclude-dir=test 2>/dev/null)
   while IFS=: read -r f rest; do
     owner=$(awk -v p="$f" '$1==p {print $2}' "$own")
     [ "$owner" = port ] || bad "$f holds a raw NSID ($rest); protocol belongs in Wolfram or @atproto/api, or mark the file 'port' with its Wolfram issue in $own"
@@ -104,7 +108,7 @@ cmd_duplication() {
     [[ -z "$f" || "$f" == \#* ]] && continue
     [ -f "$f" ] || bad "$own lists $f, which does not exist"
     case "$owner" in
-      platform|bridge|protocol) ;;
+      platform|bridge|protocol|atproto) ;;
       port) [[ "$rest" =~ (wolfram#[0-9]+|\.h) ]] || bad "$f is a port but names no Wolfram issue or header" ;;
       *) bad "$f has unknown owner '$owner'" ;;
     esac
