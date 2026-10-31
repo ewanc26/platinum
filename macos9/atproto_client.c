@@ -14,6 +14,7 @@ struct platinum_atproto_client {
     char base[PLATINUM_ATPROTO_URL_MAX];
     platinum_atproto_save_fn save;
     void *save_userdata;
+    int refreshing;
 };
 
 static char sign_in_scratch[PLATINUM_ATPROTO_CLIENT_SCRATCH];
@@ -41,6 +42,53 @@ int platinum_atproto_client_scratch_clear(void)
     return 1;
 }
 
+static wf_status client_refresh_once(platinum_atproto_client *client)
+{
+    static platinum_atproto_session previous;
+    wf_response response;
+    wf_status status;
+    wf_status refresh_status;
+
+    if (client->refreshing || client->session.refresh_jwt[0] == '\0')
+        return WF_ERR_AUTH;
+    client->refreshing = 1;
+
+    previous = client->session;
+
+    memset(&response, 0, sizeof(response));
+    wf_xrpc_client_set_auth(client->xrpc, client->session.refresh_jwt);
+    status = wf_xrpc_procedure(client->xrpc,
+                               "com.atproto.server.refreshSession", NULL,
+                               &response);
+
+    refresh_status = platinum_atproto_session_parse_refresh(
+        response.body, &previous, &client->session);
+    wf_response_free(&response);
+
+    if (status != WF_OK || refresh_status != WF_OK) {
+        platinum_atproto_session_clear(&client->session);
+        platinum_atproto_session_clear(&previous);
+        wf_xrpc_client_set_auth(client->xrpc, NULL);
+        client->refreshing = 0;
+        return WF_ERR_AUTH;
+    }
+
+    platinum_atproto_session_clear(&previous);
+    client->refreshing = 0;
+    wf_xrpc_client_set_auth(client->xrpc, client->session.access_jwt);
+    if (client->save != NULL)
+        (void)client->save(&client->session, client->save_userdata);
+    return WF_OK;
+}
+
+/* Wolfram calls this after an authenticated request is rejected as expired and
+ * retries the original request itself. The transport guards re-entrancy, so the
+ * refresh request below cannot trigger a second refresh. */
+static wf_status client_refresh_handler(void *userdata)
+{
+    return client_refresh_once((platinum_atproto_client *)userdata);
+}
+
 platinum_atproto_client *platinum_atproto_client_new(const char *pds_url)
 {
     platinum_atproto_client *client;
@@ -66,6 +114,8 @@ platinum_atproto_client *platinum_atproto_client_new(const char *pds_url)
     /* A page is bounded well below this; the cap is a second line of defence
      * against a hostile response filling a 1990s heap. */
     wf_xrpc_client_set_max_response_bytes(client->xrpc, 262144);
+    wf_xrpc_client_set_refresh_handler(client->xrpc, client_refresh_handler,
+                                       client);
     return client;
 }
 
@@ -91,6 +141,8 @@ wf_status platinum_atproto_client_set_session(
     if (!platinum_atproto_valid_did(session->did) ||
         !platinum_atproto_valid_handle(session->handle))
         return WF_ERR_INVALID_ARG;
+    if (wf_xrpc_client_set_base_url(client->xrpc, client->base) != WF_OK)
+        return WF_ERR_ALLOC;
 
     platinum_atproto_session_clear(&client->session);
     client->session = *session;
@@ -116,57 +168,19 @@ void platinum_atproto_client_set_save(platinum_atproto_client *client,
     client->save_userdata = userdata;
 }
 
-static int client_auth_failure(wf_status status, const wf_response *response)
+/*
+ * Map the transport's status to what the caller needs. Wolfram has already
+ * refreshed and retried once by the time a 401 reaches here; a body naming an
+ * expired or invalid token means the session is gone, not merely that this
+ * request failed. The upstream message is never copied.
+ */
+static wf_status client_map(wf_status status, const wf_response *response)
 {
-    if (status == WF_ERR_AUTH)
-        return 1;
     if (status != WF_ERR_HTTP || response == NULL)
-        return 0;
-    if (response->status == 401 || response->status == 403)
-        return 1;
-    return platinum_atproto_error_status(response->body) == WF_ERR_AUTH;
-}
-
-static wf_status client_refresh_once(platinum_atproto_client *client)
-{
-    char url[PLATINUM_ATPROTO_URL_MAX];
-    static platinum_atproto_session previous;
-    wf_response response;
-    wf_status status;
-    wf_status refresh_status;
-
-    if (client->session.refresh_jwt[0] == '\0')
-        return WF_ERR_AUTH;
-
-    status = platinum_atproto_xrpc_url(client->base,
-                                       "com.atproto.server.refreshSession",
-                                       NULL, NULL, 0, url, sizeof(url));
-    if (status != WF_OK)
         return status;
-
-    previous = client->session;
-
-    memset(&response, 0, sizeof(response));
-    wf_xrpc_client_set_auth(client->xrpc, client->session.refresh_jwt);
-    status = wf_http_post(client->xrpc, url, "application/json", NULL, NULL, 0,
-                          &response);
-
-    refresh_status = platinum_atproto_session_parse_refresh(
-        response.body, &previous, &client->session);
-    wf_response_free(&response);
-
-    if (status != WF_OK || refresh_status != WF_OK) {
-        platinum_atproto_session_clear(&client->session);
-        platinum_atproto_session_clear(&previous);
-        wf_xrpc_client_set_auth(client->xrpc, NULL);
+    if (response->status == 401 || response->status == 403)
         return WF_ERR_AUTH;
-    }
-
-    platinum_atproto_session_clear(&previous);
-    wf_xrpc_client_set_auth(client->xrpc, client->session.access_jwt);
-    if (client->save != NULL)
-        (void)client->save(&client->session, client->save_userdata);
-    return WF_OK;
+    return platinum_atproto_error_status(response->body);
 }
 
 wf_status platinum_atproto_client_refresh(platinum_atproto_client *client)
@@ -181,63 +195,48 @@ wf_status platinum_atproto_client_refresh(platinum_atproto_client *client)
     return status;
 }
 
-static wf_status client_request(platinum_atproto_client *client, int post,
-                                const char *nsid, const char *const *names,
-                                const char *const *values, size_t count,
-                                const char *body, wf_response *out)
-{
-    char url[PLATINUM_ATPROTO_URL_MAX];
-    wf_status status;
-    int attempt;
-
-    if (client == NULL || nsid == NULL || out == NULL)
-        return WF_ERR_INVALID_ARG;
-    if (client->session.access_jwt[0] == '\0')
-        return WF_ERR_AUTH;
-
-    status = platinum_atproto_xrpc_url(client->base, nsid, names, values, count,
-                                       url, sizeof(url));
-    if (status != WF_OK)
-        return status;
-
-    for (attempt = 0; attempt < 2; attempt++) {
-        wf_xrpc_client_set_auth(client->xrpc, client->session.access_jwt);
-        if (post)
-            status = wf_http_post(client->xrpc, url, "application/json", body,
-                                  NULL, 0, out);
-        else
-            status = wf_http_get(client->xrpc, url, out);
-
-        if (status == WF_OK)
-            return WF_OK;
-        if (attempt == 1 || !client_auth_failure(status, out))
-            return status;
-
-        wf_response_free(out);
-        status = client_refresh_once(client);
-        if (status != WF_OK)
-            return WF_ERR_AUTH;
-    }
-
-    return WF_ERR_AUTH;
-}
-
 wf_status platinum_atproto_client_get(platinum_atproto_client *client,
                                       const char *nsid,
                                       const char *const *names,
                                       const char *const *values, size_t count,
                                       wf_response *out)
 {
-    return client_request(client, 0, nsid, names, values, count, NULL, out);
+    wf_xrpc_param params[PLATINUM_ATPROTO_PARAMS_MAX];
+    size_t index;
+
+    if (client == NULL || nsid == NULL || out == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (client->session.access_jwt[0] == '\0')
+        return WF_ERR_AUTH;
+    if (count > PLATINUM_ATPROTO_PARAMS_MAX ||
+        (count > 0 && (names == NULL || values == NULL)))
+        return WF_ERR_INVALID_ARG;
+
+    for (index = 0; index < count; index++) {
+        if (names[index] == NULL || values[index] == NULL)
+            return WF_ERR_INVALID_ARG;
+        params[index].name = names[index];
+        params[index].value = values[index];
+    }
+
+    return client_map(wf_xrpc_query_params(client->xrpc, nsid, params, count,
+                                           out),
+                      out);
 }
 
 wf_status platinum_atproto_client_post(platinum_atproto_client *client,
                                        const char *nsid, const char *json_body,
                                        wf_response *out)
 {
+    if (client == NULL || nsid == NULL || out == NULL)
+        return WF_ERR_INVALID_ARG;
+    if (client->session.access_jwt[0] == '\0')
+        return WF_ERR_AUTH;
     if (json_body == NULL || platinum_json_valid(json_body) != WF_OK)
         return WF_ERR_PARSE;
-    return client_request(client, 1, nsid, NULL, NULL, 0, json_body, out);
+
+    return client_map(wf_xrpc_procedure(client->xrpc, nsid, json_body, out),
+                      out);
 }
 
 wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
@@ -246,7 +245,6 @@ wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
 {
     char escaped_identifier[512];
     char escaped_password[512];
-    char url[PLATINUM_ATPROTO_URL_MAX];
     wf_response response;
     wf_status status;
 
@@ -279,25 +277,15 @@ wf_status platinum_atproto_client_sign_in(platinum_atproto_client *client,
     client_wipe(escaped_identifier, sizeof(escaped_identifier));
     client_wipe(escaped_password, sizeof(escaped_password));
 
-    status = platinum_atproto_xrpc_url(client->base,
-                                       "com.atproto.server.createSession", NULL,
-                                       NULL, 0, url, sizeof(url));
-    if (status != WF_OK) {
-        client_wipe(sign_in_scratch, sizeof(sign_in_scratch));
-        return status;
-    }
-
     memset(&response, 0, sizeof(response));
     wf_xrpc_client_set_auth(client->xrpc, NULL);
-    status = wf_http_post(client->xrpc, url, "application/json",
-                          sign_in_scratch, NULL, 0, &response);
+    status = wf_xrpc_procedure(client->xrpc,
+                               "com.atproto.server.createSession",
+                               sign_in_scratch, &response);
     client_wipe(sign_in_scratch, sizeof(sign_in_scratch));
 
     if (status != WF_OK) {
-        if (client_auth_failure(status, &response))
-            status = WF_ERR_AUTH;
-        else if (status == WF_ERR_HTTP)
-            status = platinum_atproto_error_status(response.body);
+        status = client_map(status, &response);
         wf_response_free(&response);
         platinum_atproto_session_clear(&client->session);
         return status;

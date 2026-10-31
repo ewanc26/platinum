@@ -80,6 +80,8 @@ static void reset_stub(void)
     last_url[0] = '\0';
     last_body[0] = '\0';
     saves = 0;
+    last_nsid[0] = '\0';
+    last_param_count = 0;
     memset(auth_at_call, 0, sizeof(auth_at_call));
 }
 
@@ -133,8 +135,9 @@ static void test_sign_in_success(void)
           "sign-in succeeds");
     check_str(platinum_atproto_client_session(client)->did,
               "did:plc:testaccount", "session DID");
-    check(strstr(last_url, "/xrpc/com.atproto.server.createSession") != NULL,
-          "createSession URL");
+    check_str(last_nsid, "com.atproto.server.createSession",
+              "createSession NSID");
+    check(last_method == 2, "createSession uses POST");
     check(strstr(last_body, "\"identifier\":\"example.test\"") != NULL,
           "identifier in sign-in body");
     check(strstr(last_body, "app-password") != NULL,
@@ -207,10 +210,12 @@ static void test_authenticated_get(void)
                                       names, values, 2, &response) == WF_OK,
           "authenticated GET succeeds");
     check_str(response.body, "{\"posts\":[]}", "response body kept");
-    check(strcmp(last_url,
-                 "https://pds.example/xrpc/app.bsky.feed.getTimeline"
-                 "?limit=20&cursor=c1") == 0,
-          "XRPC URL with parameters");
+    check_str(last_nsid, "app.bsky.feed.getTimeline", "query NSID");
+    check(last_param_count == 2, "two query parameters");
+    check_str(last_param_names[0], "limit", "first parameter name");
+    check_str(last_param_values[0], "20", "first parameter value");
+    check_str(last_param_names[1], "cursor", "second parameter name");
+    check_str(last_param_values[1], "c1", "second parameter value");
     check(strcmp(last_auth, session.access_jwt) == 0, "access token attached");
     check(last_method == 1, "GET used");
     wf_response_free(&response);
@@ -391,6 +396,7 @@ static void test_post_body(void)
               WF_OK,
           "POST succeeds");
     check(last_method == 2, "POST used");
+    check_str(last_nsid, "app.bsky.feed.like", "procedure NSID");
     check(strcmp(last_body, "{\"uri\":\"at://x\"}") == 0,
           "POST body forwarded");
     check(platinum_atproto_client_post(client, "app.bsky.feed.like", "{",

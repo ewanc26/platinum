@@ -18,7 +18,7 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 
 ### Added
 
-- The Mac client has the authenticated XRPC session layer: `createSession` with a wiped password scratch, authenticated GET and POST, one `refreshSession` and retry when the access token expires, and a save hook for the refresh material. 41 host checks drive success, refusal, refresh, failed refresh, a non-auth error and a malformed POST body through a scripted transport. No screen calls it yet, so the bridge remains the runtime. ([#156](https://github.com/ewanc26/platinum/pull/156))
+- The Mac client has the authenticated XRPC session layer: `createSession` with a wiped password scratch, authenticated GET and POST, one `refreshSession` and retry when the access token expires, and a save hook for the refresh material. 48 host checks drive success, refusal, refresh, failed refresh, a non-auth error and a malformed POST body through a scripted transport. No screen calls it yet, so the bridge remains the runtime. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The Mac client has the first native AT Protocol core: https-only service bases, encoded XRPC URLs, `did:plc` and `did:web` resolution, and `createSession`/`refreshSession` parsing with expiry checks and token wiping. 148 host checks cover it. No screen uses it yet, so the bridge remains the runtime; the migration map and ADRs are in [docs/architecture/native-client-migration.md](docs/architecture/native-client-migration.md). ([#156](https://github.com/ewanc26/platinum/pull/156))
 
