@@ -12,6 +12,48 @@ static unsigned char kClose[] = {
     5, 'C', 'l', 'o', 's', 'e'
 };
 
+static Rect notifications_close_rect(const platinum_notifications *notifications)
+{
+    Rect rect;
+
+    rect = notifications->window->portRect;
+    rect.left = rect.right - 78;
+    rect.right -= 10;
+    rect.top = rect.bottom - 34;
+    rect.bottom -= 10;
+    return rect;
+}
+
+static Rect notifications_content_rect(
+    const platinum_notifications *notifications)
+{
+    Rect rect;
+
+    rect = notifications->window->portRect;
+    rect.left += 8;
+    rect.right -= 8;
+    rect.top += 8;
+    rect.bottom -= 44;
+    return rect;
+}
+
+static void notifications_panel(const platinum_notifications *notifications,
+                                platinum_panel *panel)
+{
+    (void)platinum_panel_for_screen(panel, notifications->status,
+                                    notifications->loading,
+                                    notifications->count != 0);
+}
+
+static void notifications_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
+}
+
 OSErr platinum_notifications_open(platinum_notifications *notifications)
 {
     Rect bounds;
@@ -95,6 +137,7 @@ void platinum_notifications_draw(platinum_notifications *notifications)
 {
     GrafPtr old_port;
     Rect close_rect;
+    platinum_panel panel;
     short index;
     short row;
     short visible;
@@ -106,13 +149,38 @@ void platinum_notifications_draw(platinum_notifications *notifications)
     SetPort((GrafPtr)notifications->window);
     EraseRect(&notifications->window->portRect);
 
+    notifications_panel(notifications, &panel);
+    close_rect = notifications_close_rect(notifications);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
+
+        content = notifications_content_rect(notifications);
+        platinum_panel_draw(&content, &panel);
+        if (notifications->focus == 2) {
+            platinum_panel_rects rects;
+            char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+            short count;
+
+            count = platinum_panel_wrap(panel.message,
+                                        platinum_panel_columns(&content),
+                                        lines, PLATINUM_PANEL_LINES);
+            platinum_panel_rects_compute(
+                &content, count,
+                panel.action != PLATINUM_PANEL_ACTION_NONE, &rects);
+            if (rects.button_visible)
+                notifications_draw_focus(&rects.button);
+        }
+        platinum_draw_button(&close_rect, kClose);
+        if (notifications->focus == 1)
+            notifications_draw_focus(&close_rect);
+        SetPort(old_port);
+        return;
+    }
+
     platinum_draw_text("Author", 12, 24);
     platinum_draw_text("Handle", 120, 24);
     platinum_draw_text("Reason", 230, 24);
     platinum_draw_text("Time", 450, 24);
-
-    if (notifications->status[0] != '\0')
-        platinum_draw_text(notifications->status, 12, 54);
 
     visible = (notifications->window->portRect.bottom - 78) / 46;
     if (visible < 1)
@@ -125,12 +193,16 @@ void platinum_notifications_draw(platinum_notifications *notifications)
         notifications_draw_row(notifications, index, row + 1);
     }
 
-    close_rect = notifications->window->portRect;
-    close_rect.left = close_rect.right - 78;
-    close_rect.right -= 10;
-    close_rect.top = close_rect.bottom - 34;
-    close_rect.bottom -= 10;
+    if (notifications->status[0] != '\0')
+        platinum_draw_text(notifications->status, 12,
+                           notifications->window->portRect.bottom - 48);
+    if (notifications->capped)
+        platinum_draw_text("Showing the newest 40 notifications.", 12,
+                           notifications->window->portRect.bottom - 64);
+
     platinum_draw_button(&close_rect, kClose);
+    if (notifications->focus == 1)
+        notifications_draw_focus(&close_rect);
 
     platinum_scrollbar_set_range(
         &notifications->scrollbar,
@@ -170,6 +242,29 @@ int platinum_notifications_handle_event(
             return PLATINUM_NOTIFICATIONS_NONE;
 
         case mouseDown:
+            where = event->where;
+            GlobalToLocal(&where);
+
+            {
+                platinum_panel panel;
+                Rect content;
+                int panel_action;
+
+                notifications_panel(notifications, &panel);
+                content = notifications_content_rect(notifications);
+                panel_action = platinum_panel_action_at(&content, &panel, where);
+                if (panel_action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                    return PLATINUM_NOTIFICATIONS_SIGN_IN;
+                if (panel_action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                    return PLATINUM_NOTIFICATIONS_PAIR;
+                if (platinum_panel_is_active(&panel)) {
+                    close_rect = notifications_close_rect(notifications);
+                    if (PtInRect(where, &close_rect))
+                        return PLATINUM_NOTIFICATIONS_CLOSE;
+                    return PLATINUM_NOTIFICATIONS_NONE;
+                }
+            }
+
             if (platinum_scrollbar_handle_mouse(
                     &notifications->scrollbar,
                     event,
@@ -178,15 +273,7 @@ int platinum_notifications_handle_event(
                 return PLATINUM_NOTIFICATIONS_NONE;
             }
 
-            where = event->where;
-            GlobalToLocal(&where);
-
-            close_rect = notifications->window->portRect;
-            close_rect.left = close_rect.right - 78;
-            close_rect.right -= 10;
-            close_rect.top = close_rect.bottom - 34;
-            close_rect.bottom -= 10;
-
+            close_rect = notifications_close_rect(notifications);
             if (PtInRect(where, &close_rect))
                 return PLATINUM_NOTIFICATIONS_CLOSE;
             return PLATINUM_NOTIFICATIONS_NONE;
@@ -196,6 +283,41 @@ int platinum_notifications_handle_event(
             visible = (notifications->window->portRect.bottom - 78) / 46;
             if (visible < 1)
                 visible = 1;
+
+            if (platinum_panel_key_is_cancel(event))
+                return PLATINUM_NOTIFICATIONS_CLOSE;
+
+            {
+                platinum_panel panel;
+                unsigned char key;
+
+                notifications_panel(notifications, &panel);
+                key = (unsigned char)(event->message & charCodeMask);
+                if (key == '\t') {
+                    short last = platinum_panel_is_active(&panel) ? 2 : 1;
+                    if ((event->modifiers & shiftKey) != 0)
+                        notifications->focus =
+                            notifications->focus <= 0
+                                ? last
+                                : (short)(notifications->focus - 1);
+                    else
+                        notifications->focus =
+                            notifications->focus >= last
+                                ? 0
+                                : (short)(notifications->focus + 1);
+                    InvalRect(&notifications->window->portRect);
+                    return PLATINUM_NOTIFICATIONS_NONE;
+                }
+                if (platinum_panel_key_is_return(event)) {
+                    if (panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                        return PLATINUM_NOTIFICATIONS_SIGN_IN;
+                    if (panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                        return PLATINUM_NOTIFICATIONS_PAIR;
+                    if (notifications->focus == 1)
+                        return PLATINUM_NOTIFICATIONS_CLOSE;
+                    return PLATINUM_NOTIFICATIONS_REFRESH;
+                }
+            }
 
             if ((event->modifiers & cmdKey) != 0 &&
                 ((event->message & charCodeMask) == 'w' ||
