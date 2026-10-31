@@ -8,6 +8,18 @@ pull request.
 
 ## [Unreleased]
 
+### Added
+
+- The home timeline is fetched by the Mac itself: the window, Refresh and Load Older Posts go through the native session to `app.bsky.feed.getTimeline`, with the same 40-post cap, paging and failure rules as before. Likes and reposts still use the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- Signing in no longer needs a bridge address: File > Sign In with App Password asks for the handle and the app password, finds the account's own PDS from the handle, and signs in there. Preferences says which handle method found it (the handle's well-known document, or `resolveHandle` on the public AppView). The session is memory-only until Keychain persistence can be built, so a restart asks again. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+### Changed
+
+- Verified the Keychain question against the pinned Retro68 image: it ships no `Keychain.h`, `CarbonLib` or `KeychainLib`, so the refresh token cannot be persisted without an untested shim. ADR 0007 and `docs/research/2026-10-31-keychain-surface.md` record the check and the smallest shim that would unblock it. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The app-password window has no bridge URL field any more; it is a handle field, a password field and Sign In. The plain-http warning went with the field, because every native request is https. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 ### Changed
 
 - Release tag checks call Wolfram's reusable release-check workflow, pinned to v0.44.1. The bridge version is still read from `bridge/package.json`, but the tag/version/changelog, on-main and `CI gate` checks are shared rather than local. ([wolfram#232](https://github.com/ewanc26/wolfram/pull/232))

@@ -1,7 +1,7 @@
 /*
- * test_apppw.c -- host-side tests for the pure parts of the app-password window:
- * the plain-http check and the handle preparation. The window is apppw.c. Not
- * Classic Mac OS 9 validation.
+ * test_apppw.c -- host-side tests for the pure part of the app-password window:
+ * the handle preparation. The window is apppw.c. Not Classic Mac OS 9
+ * validation.
  */
 
 #include <stdio.h>
@@ -25,13 +25,6 @@ int main(void)
 {
     char out[64];
     static char big[400];
-
-    check(platinum_apppw_is_plain_http("http://192.168.1.2:8787") &&
-              platinum_apppw_is_plain_http("HTTP://x") &&
-              !platinum_apppw_is_plain_http("https://bridge.example") &&
-              !platinum_apppw_is_plain_http("") && !platinum_apppw_is_plain_http(NULL) &&
-              !platinum_apppw_is_plain_http("htt") && !platinum_apppw_is_plain_http(" http://x"),
-          "only an address that starts http:// is plain http");
 
     check(platinum_apppw_prepare_handle("  @me.bsky.social  ", out, sizeof(out)) == 14 &&
               strcmp(out, "me.bsky.social") == 0,

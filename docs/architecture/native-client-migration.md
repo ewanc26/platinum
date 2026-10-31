@@ -42,7 +42,7 @@ goes through the bridge.
 | Bridge route or function | Native replacement | Owner (planned if pending) | Test | State |
 |---|---|---|---|---|
 | `POST /v1/pair` (browser OAuth) | none: OAuth is phase 2, blocked on entropy | — | — | removed with the bridge; see ADR 0005 |
-| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry and bootstrap-then-sign-in done (`atproto_bootstrap.c`); the sign-in window still uses the bridge |
+| `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry, bootstrap-then-sign-in and the handle-only sign-in window are done; the bridge route is no longer called by the UI |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `session.c` | `test_session` (to add) | pending |
 | `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
 | `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_feed.c` | `test_profile` (to rewrite) | pending |
@@ -52,7 +52,7 @@ goes through the bridge.
 | `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
-| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline.c` | `test_timeline` | native request and postView parsing done, with paging, viewer state and the same commit rules; the window still calls the bridge |
+| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline.c` | `test_timeline` | native end to end: the window fetches and pages through `timeline_native.c`, with the same 40-row cap, commit rules and statuses; like and repost are still bridge calls |
 | `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `timeline.c` | `test_timeline` | pending |
 | `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `timeline.c` | `test_timeline` | pending |
 | `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` (to rewrite) | pending |
@@ -134,15 +134,16 @@ lookup is deliberately not used (ADR 0003).
 1. **Core (done).** https-only service bases, XRPC URLs, DID/handle
    resolution, createSession/refreshSession parsing, expiry hint, error
    mapping, token wiping. Host-tested. Bridge untouched.
-2. **Client (in progress).** The transport-facing XRPC call layer is done:
-   authenticated GET/POST, createSession, one refresh-and-retry, a save hook,
-   and the handle-to-PDS bootstrap with native sign-in. The timeline's native
-   data source (getTimeline, postView parsing, paging) is also done and
-   host-tested. No screen calls either yet; next is switching the window and
-   sign-in flow over, which removes the first screen from the bridge.
+2. **Client (done).** The transport-facing XRPC call layer, authenticated
+   GET/POST, createSession, one refresh-and-retry, the handle-to-PDS bootstrap
+   and native sign-in are host-tested. The sign-in window now asks for a handle
+   and an app password and runs that sequence; Preferences says which handle
+   method found the account. The home timeline fetches and pages through
+   `timeline_native.c`. The bridge is no longer needed for either, but it is
+   still configured and used by the screens below.
 3. **Screens.** Notifications, profile, thread, search, feeds, lists, compose
-   and conversations, each with its existing test rewritten against recorded
-   AppView fixtures.
+   and conversations still call the bridge, each with its existing test
+   rewritten against recorded AppView fixtures.
 4. **Images and moderation.** Native image decode/draw and a native muted-word
    matcher. These are the two largest non-XRPC gaps.
 5. **OAuth.** Only after ADR 0005 is revised with an entropy decision. No DPoP
@@ -178,10 +179,11 @@ lookup is deliberately not used (ADR 0003).
    the Thread window expects has to be produced in C with the same 40-post,
    6-level and 10-ancestor limits.
 4. **Bootstrap service.** The HTTPS well-known document gives a DID without a
-   preconfigured PDS, and the DID document gives the PDS. The fetch-and-follow
-   sequence is implemented and host-tested (`atproto_bootstrap.c`,
-   `platinum_atproto_client_connect`); the sign-in window still asks for a
-   bridge URL and has to be switched to a handle-only flow.
+   preconfigured PDS, and the DID document gives the PDS. The sequence is
+   implemented and host-tested (`atproto_bootstrap.c`,
+   `platinum_atproto_client_connect`), and the sign-in window runs it from a
+   handle; the handle method used is reported through
+   `platinum_atproto_entryway` and shown in Preferences.
 5. **Transport.** macTLS now documents TLS 1.3 and a hardware-validated
    entropy pool, but its current implementation is PowerPC-only; the 68k build
    links the test stub and cannot network. ADR 0010 decides that native
@@ -192,9 +194,11 @@ lookup is deliberately not used (ADR 0003).
    source; long-lived DPoP keys are not safe to generate. ADR 0005 is a release
    blocker for OAuth, not for phase 1.
 7. **Keychain at rest.** Mac OS 9 does have the Carbon Keychain Manager (ADR
-   0007), but the implementation is not written or compiled for PowerPC yet.
-   Until it is, the session is memory-only and the user signs in again at
-   launch; there is no plaintext fallback.
+   0007), but the pinned Retro68 image ships no `Keychain.h` and no
+   KeychainLib, so the implementation cannot compile here (verified 2026-10-31;
+   see `docs/research/2026-10-31-keychain-surface.md`). Until a tested shim
+   exists, the session is memory-only and the user signs in again at launch;
+   there is no plaintext fallback.
 8. **Live integration tests.** No test account or PDS credentials are available
    here. The suite is opt-in by design and has not run against a live PDS.
 9. **Wolfram pin.** CI compiles against v0.36.2 while the newest release is

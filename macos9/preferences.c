@@ -96,6 +96,7 @@ void platinum_preferences_draw(platinum_preferences *preferences)
     Rect sign_out_rect;
     Rect pair_rect;
     const platinum_config *config;
+    const platinum_atproto_session *account;
 
     if (preferences == NULL || preferences->window == NULL ||
         preferences->session == NULL)
@@ -106,10 +107,28 @@ void platinum_preferences_draw(platinum_preferences *preferences)
     EraseRect(&preferences->window->portRect);
 
     config = platinum_session_config(preferences->session);
+    account = platinum_session_native_account(preferences->session);
 
     platinum_draw_text("Account", 16, 28);
-    if (config != NULL && platinum_config_is_paired(config)) {
-        platinum_draw_text("Paired", 120, 28);
+    if (account != NULL) {
+        char handle_text[PLATINUM_ATPROTO_SESSION_HANDLE_MAX + 2];
+
+        handle_text[0] = '@';
+        strncpy(handle_text + 1, account->handle, sizeof(handle_text) - 2);
+        handle_text[sizeof(handle_text) - 1] = '\0';
+
+        platinum_draw_text("Signed in", 120, 28);
+        platinum_draw_text("Handle:", 16, 56);
+        platinum_draw_text(handle_text, 120, 56);
+        platinum_draw_text("Server:", 16, 84);
+        platinum_draw_text(account->pds_url, 120, 84);
+        platinum_draw_text("Found via:", 16, 112);
+        platinum_draw_text(
+            platinum_session_entryway_name(
+                platinum_session_entryway(preferences->session)),
+            120, 112);
+    } else if (config != NULL && platinum_config_is_paired(config)) {
+        platinum_draw_text("Paired through the bridge", 120, 28);
         platinum_draw_text("Bridge URL:", 16, 56);
         platinum_draw_text(config->bridge_url, 120, 56);
         platinum_draw_text("DID:", 16, 84);
@@ -117,8 +136,8 @@ void platinum_preferences_draw(platinum_preferences *preferences)
         platinum_draw_text("Installation:", 16, 112);
         platinum_draw_text(config->installation_id, 120, 112);
     } else {
-        platinum_draw_text("Not paired", 120, 28);
-        platinum_draw_text("No account is currently paired.",
+        platinum_draw_text("Not signed in", 120, 28);
+        platinum_draw_text("No account is currently signed in.",
                          16, 60);
     }
 

@@ -3,6 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * The service resolveHandle is asked when a handle serves no well-known
+ * document. The public AppView is the documented host for that call and does
+ * not need an account, so it does not tie bootstrap to one PDS.
+ */
+#define PLATINUM_NATIVE_FALLBACK_SERVICE "https://public.api.bsky.app"
+
 void platinum_session_init(platinum_session *session)
 {
     if (session == NULL)
@@ -19,6 +26,9 @@ void platinum_session_close(platinum_session *session)
 
     platinum_bridge_client_free(session->bridge);
     session->bridge = NULL;
+    platinum_atproto_client_free(session->client);
+    session->client = NULL;
+    session->entryway = PLATINUM_ATPROTO_ENTRY_NONE;
     platinum_config_init(&session->config);
 }
 
@@ -157,6 +167,33 @@ wf_status platinum_session_sign_in_app_password(platinum_session *session,
     return session_adopt(session, &pairing);
 }
 
+wf_status platinum_session_sign_in_native(platinum_session *session,
+                                          const char *handle,
+                                          const char *password)
+{
+    platinum_atproto_client *client;
+    platinum_atproto_entryway entryway;
+    wf_status status;
+
+    if (session == NULL || handle == NULL || password == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    client = NULL;
+    entryway = PLATINUM_ATPROTO_ENTRY_NONE;
+    status = platinum_atproto_client_connect(
+        handle, password, PLATINUM_NATIVE_FALLBACK_SERVICE, NULL, NULL,
+        &client, &entryway);
+    if (status != WF_OK) {
+        platinum_atproto_client_free(client);
+        return status;
+    }
+
+    platinum_atproto_client_free(session->client);
+    session->client = client;
+    session->entryway = entryway;
+    return WF_OK;
+}
+
 wf_status platinum_session_sign_out(platinum_session *session)
 {
     wf_status revoke_status;
@@ -177,6 +214,9 @@ wf_status platinum_session_sign_out(platinum_session *session)
 
     platinum_bridge_client_free(session->bridge);
     session->bridge = NULL;
+    platinum_atproto_client_free(session->client);
+    session->client = NULL;
+    session->entryway = PLATINUM_ATPROTO_ENTRY_NONE;
     platinum_config_init(&session->config);
 
     if (clear_status != noErr)
@@ -189,6 +229,9 @@ int platinum_session_is_paired(const platinum_session *session)
 {
     if (session == NULL)
         return 0;
+
+    if (session->client != NULL)
+        return 1;
 
     return platinum_config_is_paired(&session->config);
 }
@@ -207,4 +250,39 @@ platinum_bridge_client *platinum_session_bridge(platinum_session *session)
         return NULL;
 
     return session->bridge;
+}
+
+platinum_atproto_client *platinum_session_client(platinum_session *session)
+{
+    if (session == NULL)
+        return NULL;
+
+    return session->client;
+}
+
+const platinum_atproto_session *platinum_session_native_account(
+    const platinum_session *session)
+{
+    if (session == NULL || session->client == NULL)
+        return NULL;
+
+    return platinum_atproto_client_session(session->client);
+}
+
+platinum_atproto_entryway platinum_session_entryway(
+    const platinum_session *session)
+{
+    if (session == NULL)
+        return PLATINUM_ATPROTO_ENTRY_NONE;
+
+    return session->entryway;
+}
+
+const char *platinum_session_entryway_name(platinum_atproto_entryway entryway)
+{
+    if (entryway == PLATINUM_ATPROTO_ENTRY_WELLKNOWN)
+        return "the handle's own well-known document";
+    if (entryway == PLATINUM_ATPROTO_ENTRY_RESOLVE_HANDLE)
+        return "resolveHandle on the public AppView";
+    return "not known";
 }

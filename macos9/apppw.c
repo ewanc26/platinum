@@ -29,9 +29,9 @@ static void apppw_buttons(const platinum_apppw *apppw, Rect *cancel,
 /* The masked password box. */
 static void apppw_password_rect(const platinum_apppw *apppw, Rect *rect)
 {
-    SetRect(rect, 18, 170,
+    SetRect(rect, 18, 96,
             apppw->window->portRect.right - apppw->window->portRect.left - 18,
-            192);
+            118);
 }
 
 void platinum_apppw_init(platinum_apppw *apppw)
@@ -55,10 +55,9 @@ void platinum_apppw_set_status(platinum_apppw *apppw, const char *status)
         InvalRect(&apppw->window->portRect);
 }
 
-OSErr platinum_apppw_open(platinum_apppw *apppw, const char *bridge_url)
+OSErr platinum_apppw_open(platinum_apppw *apppw, const char *handle)
 {
     Rect bounds;
-    Rect url_rect;
     Rect handle_rect;
 
     if (apppw == NULL)
@@ -69,26 +68,24 @@ OSErr platinum_apppw_open(platinum_apppw *apppw, const char *bridge_url)
     }
 
     platinum_apppw_init(apppw);
-    SetRect(&bounds, 96, 66, 640, 340);
+    SetRect(&bounds, 96, 66, 640, 300);
     if (platinum_window_open(&apppw->window, &bounds, kTitle) != noErr)
         return memFullErr;
 
-    SetRect(&url_rect, 18, 38, bounds.right - bounds.left - 18, 60);
-    apppw->bridge_url = platinum_textfield_new(apppw->window, &url_rect);
-    SetRect(&handle_rect, 18, 104, bounds.right - bounds.left - 18, 126);
+    SetRect(&handle_rect, 18, 32, bounds.right - bounds.left - 18, 54);
     apppw->handle = platinum_textfield_new(apppw->window, &handle_rect);
-    if (apppw->bridge_url == NULL || apppw->handle == NULL) {
+    if (apppw->handle == NULL) {
         platinum_apppw_close(apppw);
         return memFullErr;
     }
-    if (bridge_url != NULL)
-        platinum_textfield_set(apppw->bridge_url, bridge_url);
+    if (handle != NULL && handle[0] != '\0')
+        platinum_textfield_set(apppw->handle, handle);
 
-    apppw->active_field = bridge_url != NULL && bridge_url[0] != '\0' ? 1 : 0;
+    apppw->active_field = 0;
     platinum_apppw_set_status(apppw, "Enter your handle and an app password.");
     SetPort((GrafPtr)apppw->window);
     platinum_apppw_draw(apppw);
-    TEActivate(apppw->active_field == 0 ? apppw->bridge_url : apppw->handle);
+    TEActivate(apppw->handle);
     return noErr;
 }
 
@@ -98,11 +95,6 @@ void platinum_apppw_close(platinum_apppw *apppw)
         return;
     /* First, before anything can fail: the password goes. */
     platinum_secret_wipe(&apppw->password);
-    if (apppw->bridge_url != NULL) {
-        TEDeactivate(apppw->bridge_url);
-        TEDispose(apppw->bridge_url);
-        apppw->bridge_url = NULL;
-    }
     if (apppw->handle != NULL) {
         TEDeactivate(apppw->handle);
         TEDispose(apppw->handle);
@@ -113,7 +105,6 @@ void platinum_apppw_close(platinum_apppw *apppw)
         apppw->window = NULL;
     }
     apppw->active_field = 0;
-    apppw->http_armed = 0;
     apppw->status[0] = '\0';
 }
 
@@ -124,42 +115,31 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     Rect cancel;
     Rect go;
     char mask[PLATINUM_SECRET_MAX + 1];
-    char url[PLATINUM_APPPW_URL_MAX + 1];
 
-    if (apppw == NULL || apppw->window == NULL || apppw->bridge_url == NULL ||
-        apppw->handle == NULL)
+    if (apppw == NULL || apppw->window == NULL || apppw->handle == NULL)
         return;
 
     GetPort(&old_port);
     SetPort((GrafPtr)apppw->window);
     EraseRect(&apppw->window->portRect);
 
-    platinum_draw_text("Bridge URL:", 18, 28);
-    platinum_draw_text("Handle (for example you.bsky.social):", 18, 94);
-    platinum_draw_text("App password (not your account password):", 18, 160);
-
-    frame = (*apppw->bridge_url)->viewRect;
-    FrameRect(&frame);
-    TEUpdate(&frame, apppw->bridge_url);
+    platinum_draw_text("Handle (for example you.bsky.social):", 18, 24);
     frame = (*apppw->handle)->viewRect;
     FrameRect(&frame);
     TEUpdate(&frame, apppw->handle);
 
+    platinum_draw_text("App password (not your account password):", 18, 86);
     apppw_password_rect(apppw, &frame);
     FrameRect(&frame);
     if (platinum_secret_mask(&apppw->password, mask, sizeof(mask)) >= 0)
         platinum_draw_text(mask, frame.left + 4, frame.top + 15);
-    if (apppw->active_field == 2) {
+    if (apppw->active_field == 1) {
         /* No insertion point to blink: a thick bottom edge says it is active. */
         MoveTo(frame.left, frame.bottom + 1);
         LineTo(frame.right, frame.bottom + 1);
     }
 
-    if (platinum_textfield_copy(apppw->bridge_url, url, sizeof(url)) >= 0 &&
-        platinum_apppw_is_plain_http(url))
-        platinum_draw_text("Warning: http:// sends the password across the network unencrypted.",
-                   18, 214);
-    platinum_draw_text(apppw->status, 18, 232);
+    platinum_draw_text(apppw->status, 18, 148);
 
     apppw_buttons(apppw, &cancel, &go);
     platinum_draw_button(&cancel, kCancel);
@@ -170,8 +150,6 @@ void platinum_apppw_draw(platinum_apppw *apppw)
 static TEHandle apppw_field(const platinum_apppw *apppw)
 {
     if (apppw->active_field == 0)
-        return apppw->bridge_url;
-    if (apppw->active_field == 1)
         return apppw->handle;
     return NULL;
 }
@@ -229,18 +207,15 @@ int platinum_apppw_handle_event(platinum_apppw *apppw, EventRecord *event)
                 return PLATINUM_APPPW_CANCEL;
             if (PtInRect(where, &go))
                 return PLATINUM_APPPW_SIGN_IN;
-            if (PtInRect(where, &(*apppw->bridge_url)->viewRect)) {
+            if (apppw->handle != NULL &&
+                PtInRect(where, &(*apppw->handle)->viewRect)) {
                 apppw_focus(apppw, 0);
-                TEClick(where, (event->modifiers & shiftKey) != 0,
-                        apppw->bridge_url);
-            } else if (PtInRect(where, &(*apppw->handle)->viewRect)) {
-                apppw_focus(apppw, 1);
                 TEClick(where, (event->modifiers & shiftKey) != 0,
                         apppw->handle);
             } else {
                 apppw_password_rect(apppw, &box);
                 if (PtInRect(where, &box))
-                    apppw_focus(apppw, 2);
+                    apppw_focus(apppw, 1);
             }
             return PLATINUM_APPPW_NONE;
 
@@ -256,38 +231,24 @@ int platinum_apppw_handle_event(platinum_apppw *apppw, EventRecord *event)
             if (key == '\r' || key == 3)
                 return PLATINUM_APPPW_SIGN_IN;
             if (key == '\t') {
-                apppw_focus(apppw, (short)((apppw->active_field + 1) % 3));
+                apppw_focus(apppw, (short)((apppw->active_field + 1) % 2));
                 return PLATINUM_APPPW_NONE;
             }
-            if (apppw->active_field == 2) {
+            if (apppw->active_field == 1) {
                 if (platinum_secret_key(&apppw->password, key))
                     InvalRect(&apppw->window->portRect);
                 return PLATINUM_APPPW_NONE;
             }
             field = apppw_field(apppw);
             if (field != NULL)
-                (void)platinum_textfield_key(
-                    field, event,
-                    apppw->active_field == 0 ? PLATINUM_APPPW_URL_MAX
-                                             : PLATINUM_APPPW_HANDLE_MAX,
-                    1);
+                (void)platinum_textfield_key(field, event,
+                                             PLATINUM_APPPW_HANDLE_MAX, 1);
             return PLATINUM_APPPW_NONE;
 
         default:
             break;
     }
     return PLATINUM_APPPW_NONE;
-}
-
-OSErr platinum_apppw_get_bridge_url(const platinum_apppw *apppw, char *buffer,
-                                    long capacity)
-{
-    if (apppw == NULL || apppw->bridge_url == NULL || buffer == NULL ||
-        capacity <= 0)
-        return paramErr;
-    if (platinum_textfield_copy(apppw->bridge_url, buffer, capacity) < 0)
-        return memFullErr;
-    return buffer[0] == '\0' ? paramErr : noErr;
 }
 
 OSErr platinum_apppw_get_handle(const platinum_apppw *apppw, char *utf8,
