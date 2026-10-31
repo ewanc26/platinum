@@ -47,8 +47,12 @@ void platinum_application_delete_post(platinum_application *app)
         return;
     bridge = platinum_session_bridge(&app->session);
     config = platinum_session_config(&app->session);
-    if (bridge == NULL || config == NULL)
+    if (bridge == NULL || config == NULL) {
+        strcpy(app->timeline.status,
+               "Deleting a post still uses the bridge. Pair one under File > Pair Account.");
+        platinum_application_invalidate(app);
         return;
+    }
 
     post = &app->timeline.posts[index];
     if (!platinum_post_uri_is_in_repo(post->uri, config->did)) {
@@ -169,7 +173,7 @@ void platinum_application_engage(platinum_application *app, int repost)
     bridge = platinum_session_bridge(&app->session);
     if (bridge == NULL) {
         strcpy(app->timeline.status,
-               "Likes and reposts are not on the native session yet.");
+               "Likes and reposts still use the bridge. Pair one under File > Pair Account.");
         platinum_application_invalidate(app);
         return;
     }
@@ -255,8 +259,9 @@ void platinum_application_submit_post(platinum_application *app)
     bridge = platinum_session_bridge(&app->session);
     if (bridge == NULL) {
         free(body);
-        platinum_compose_set_status(&app->compose,
-                                    "The bridge session is unavailable.");
+        platinum_compose_set_status(
+            &app->compose,
+            platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_BRIDGE));
         return;
     }
 

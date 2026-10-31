@@ -169,6 +169,7 @@ platinum/
 │   ├── image_pix.c
 │   ├── main.c
 │   ├── search.c
+│   ├── screen_state.c
 │   ├── search_query.c
 │   ├── secret.c
 │   ├── secret.h

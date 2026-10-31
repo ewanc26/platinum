@@ -31,6 +31,22 @@ login keychain is normally unlocked at login.
 - Clear the Keychain item on sign-out or refresh failure, after clearing local
   state even if the network revocation fails.
 
+## The shim question, decided
+
+A local `Keychain.h` plus a `KeychainLib` link entry would let the code
+compile, but not verifiably work. The pinned Retro68 image ships no
+`Keychain.h`, no CarbonLib and no KeychainLib (verified 2026-10-31; see
+`docs/research/2026-10-31-keychain-surface.md`), so the shim would have to
+invent the link surface as well as the declarations, and this repository's
+rule is that a plausible-looking but untestable SDK surface is worse than a
+documented gap.
+
+**Decision:** keep persistence memory-only until a toolchain with a real
+Keychain surface (or a guest/hardware run that can verify a shim) exists. Do
+not add a local header or a link stub now. Revisit when the build can compile
+and link `KCAddGenericPassword`/`KCFindGenericPassword`/`KCDeleteItem` without
+invention.
+
 ## Implementation status
 
 The protocol/session layer exposes persistence as a callback so host tests use
