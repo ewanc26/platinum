@@ -25,6 +25,8 @@ typedef struct platinum_ui_state {
     short selected_post;
     short scroll_row;
     int show_detail;
+    /* 0 no control, 1 Refresh, 2 Post..., 3 the timeline panel action. */
+    short focus;
 } platinum_ui_state;
 
 enum {
@@ -40,7 +42,9 @@ enum {
     PLATINUM_UI_ACTION_REPLY = 9,
     PLATINUM_UI_ACTION_THREAD = 10,
     PLATINUM_UI_ACTION_AUTHOR = 11,
-    PLATINUM_UI_ACTION_FOLLOW = 12
+    PLATINUM_UI_ACTION_FOLLOW = 12,
+    PLATINUM_UI_ACTION_SIGN_IN = 13,
+    PLATINUM_UI_ACTION_PAIR = 14
 };
 
 void platinum_ui_state_init(platinum_ui_state *state);
@@ -54,11 +58,13 @@ void platinum_ui_draw(WindowPtr window,
 
 int platinum_ui_handle_mouse(const platinum_ui_layout *layout,
                              platinum_ui_state *state,
+                             const platinum_session *session,
                              const platinum_timeline *timeline,
                              Point where);
 
 int platinum_ui_handle_key(const platinum_ui_layout *layout,
                            platinum_ui_state *state,
+                           const platinum_session *session,
                            const platinum_timeline *timeline,
                            EventRecord *event);
 
