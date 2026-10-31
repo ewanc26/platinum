@@ -3,6 +3,7 @@
 
 #include "bridge_client.h"
 #include "scrollbar.h"
+#include "state_panel.h"
 #include "timeline.h"
 
 #include <Events.h>
@@ -40,12 +41,16 @@ typedef struct platinum_thread {
     char heading[96];
     char status[PLATINUM_THREAD_STATUS_MAX + 1];
     int loading;
+    /* 0 the list, 1 Close, 2 the panel action. */
+    short key_focus;
 } platinum_thread;
 
 enum {
     PLATINUM_THREAD_NONE = 0,
     PLATINUM_THREAD_CLOSE = 1,
-    PLATINUM_THREAD_LOAD_MORE = 2
+    PLATINUM_THREAD_LOAD_MORE = 2,
+    PLATINUM_THREAD_SIGN_IN = 3,
+    PLATINUM_THREAD_PAIR = 4
 };
 
 void platinum_thread_init(platinum_thread *thread);

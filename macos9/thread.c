@@ -23,6 +23,45 @@ static short thread_visible_rows(const platinum_thread *thread)
     return visible < 1 ? 1 : visible;
 }
 
+static Rect thread_close_rect(const platinum_thread *thread)
+{
+    Rect rect;
+
+    rect = thread->window->portRect;
+    rect.left = rect.right - 78;
+    rect.right -= 10;
+    rect.top = rect.bottom - 34;
+    rect.bottom -= 10;
+    return rect;
+}
+
+static Rect thread_content_rect(const platinum_thread *thread)
+{
+    Rect rect;
+
+    rect = thread->window->portRect;
+    rect.left += 8;
+    rect.right -= 8;
+    rect.top += 8;
+    rect.bottom -= 44;
+    return rect;
+}
+
+static void thread_panel(const platinum_thread *thread, platinum_panel *panel)
+{
+    (void)platinum_panel_for_screen(panel, thread->status, thread->loading,
+                                    thread->count != 0);
+}
+
+static void thread_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
+}
+
 OSErr platinum_thread_open(platinum_thread *thread)
 {
     Rect bounds;
@@ -100,6 +139,7 @@ void platinum_thread_draw(platinum_thread *thread)
 {
     GrafPtr old_port;
     Rect close_rect;
+    platinum_panel panel;
     short index;
     short row;
     short visible;
@@ -111,9 +151,35 @@ void platinum_thread_draw(platinum_thread *thread)
     SetPort((GrafPtr)thread->window);
     EraseRect(&thread->window->portRect);
 
+    thread_panel(thread, &panel);
+    close_rect = thread_close_rect(thread);
+    if (platinum_panel_is_active(&panel)) {
+        Rect content;
+
+        content = thread_content_rect(thread);
+        platinum_panel_draw(&content, &panel);
+        if (thread->key_focus == 2) {
+            platinum_panel_rects rects;
+            char lines[PLATINUM_PANEL_LINES][PLATINUM_PANEL_LINE_MAX];
+            short count;
+
+            count = platinum_panel_wrap(panel.message,
+                                        platinum_panel_columns(&content),
+                                        lines, PLATINUM_PANEL_LINES);
+            platinum_panel_rects_compute(
+                &content, count,
+                panel.action != PLATINUM_PANEL_ACTION_NONE, &rects);
+            if (rects.button_visible)
+                thread_draw_focus(&rects.button);
+        }
+        platinum_draw_button(&close_rect, kClose);
+        if (thread->key_focus == 1)
+            thread_draw_focus(&close_rect);
+        SetPort(old_port);
+        return;
+    }
+
     platinum_draw_text(thread->heading[0] != '\0' ? thread->heading : "Thread", 12, 20);
-    if (thread->status[0] != '\0')
-        platinum_draw_text(thread->status, 220, 20);
 
     visible = thread_visible_rows(thread);
     for (row = 0; row < visible; ++row) {
@@ -123,12 +189,13 @@ void platinum_thread_draw(platinum_thread *thread)
         thread_draw_row(thread, index, row);
     }
 
-    close_rect = thread->window->portRect;
-    close_rect.left = close_rect.right - 78;
-    close_rect.right -= 10;
-    close_rect.top = close_rect.bottom - 34;
-    close_rect.bottom -= 10;
+    if (thread->status[0] != '\0')
+        platinum_draw_text(thread->status, 12,
+                           thread->window->portRect.bottom - 48);
+
     platinum_draw_button(&close_rect, kClose);
+    if (thread->key_focus == 1)
+        thread_draw_focus(&close_rect);
 
     platinum_scrollbar_set_range(&thread->scrollbar, (short)thread->count,
                                  visible, thread->scroll_row);
@@ -161,18 +228,35 @@ int platinum_thread_handle_event(platinum_thread *thread, EventRecord *event)
             return PLATINUM_THREAD_NONE;
 
         case mouseDown:
+            where = event->where;
+            GlobalToLocal(&where);
+
+            {
+                platinum_panel panel;
+                Rect content;
+                int panel_action;
+
+                thread_panel(thread, &panel);
+                content = thread_content_rect(thread);
+                panel_action = platinum_panel_action_at(&content, &panel, where);
+                if (panel_action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                    return PLATINUM_THREAD_SIGN_IN;
+                if (panel_action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                    return PLATINUM_THREAD_PAIR;
+                if (platinum_panel_is_active(&panel)) {
+                    close_rect = thread_close_rect(thread);
+                    if (PtInRect(where, &close_rect))
+                        return PLATINUM_THREAD_CLOSE;
+                    return PLATINUM_THREAD_NONE;
+                }
+            }
+
             if (platinum_scrollbar_handle_mouse(&thread->scrollbar, event,
                                                 &thread->scroll_row)) {
                 InvalRect(&thread->window->portRect);
                 return PLATINUM_THREAD_NONE;
             }
-            where = event->where;
-            GlobalToLocal(&where);
-            close_rect = thread->window->portRect;
-            close_rect.left = close_rect.right - 78;
-            close_rect.right -= 10;
-            close_rect.top = close_rect.bottom - 34;
-            close_rect.bottom -= 10;
+            close_rect = thread_close_rect(thread);
             if (PtInRect(where, &close_rect))
                 return PLATINUM_THREAD_CLOSE;
             return PLATINUM_THREAD_NONE;
@@ -180,6 +264,38 @@ int platinum_thread_handle_event(platinum_thread *thread, EventRecord *event)
         case keyDown:
         case autoKey:
             visible = thread_visible_rows(thread);
+            if (platinum_panel_key_is_cancel(event))
+                return PLATINUM_THREAD_CLOSE;
+
+            {
+                platinum_panel panel;
+                unsigned char key;
+
+                thread_panel(thread, &panel);
+                key = (unsigned char)(event->message & charCodeMask);
+                if (key == '\t') {
+                    short last = platinum_panel_is_active(&panel) ? 2 : 1;
+                    if ((event->modifiers & shiftKey) != 0)
+                        thread->key_focus = thread->key_focus <= 0
+                                            ? last
+                                            : (short)(thread->key_focus - 1);
+                    else
+                        thread->key_focus = thread->key_focus >= last
+                                            ? 0
+                                            : (short)(thread->key_focus + 1);
+                    InvalRect(&thread->window->portRect);
+                    return PLATINUM_THREAD_NONE;
+                }
+                if (platinum_panel_key_is_return(event)) {
+                    if (panel.action == PLATINUM_PANEL_ACTION_SIGN_IN)
+                        return PLATINUM_THREAD_SIGN_IN;
+                    if (panel.action == PLATINUM_PANEL_ACTION_PAIR_BRIDGE)
+                        return PLATINUM_THREAD_PAIR;
+                    if (thread->key_focus == 1)
+                        return PLATINUM_THREAD_CLOSE;
+                }
+            }
+
             if ((event->modifiers & cmdKey) != 0 &&
                 ((event->message & charCodeMask) == 'w' ||
                  (event->message & charCodeMask) == 'W'))
