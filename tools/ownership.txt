@@ -126,6 +126,7 @@ macos9/thread.h                    platform
 macos9/thread_feed.c               platform  # view model of a bridge thread, no QuickDraw so it links on a host
 macos9/timeline.c                  platform
 macos9/timeline.h                  platform
+macos9/timeline_native.c            atproto   # the native getTimeline page fetch into the timeline model; separated so bridge-only tests and the fixture do not link the session stack
 macos9/ui.c                        platform
 macos9/ui.h                        platform
 
