@@ -73,7 +73,7 @@ goes through the bridge.
 | `GET /v1/conversations` | `chat.bsky.convo.listConvos` via `atproto-proxy: did:web:api.bsky.chat#bsky_chat` | `conversations_feed.c` | `test_conversations` (to rewrite) | pending |
 | `GET /v1/conversation` | `chat.bsky.convo.getMessages` | `conversations_feed.c` | `test_conversations` | pending |
 | `POST /v1/conversation/message` | `chat.bsky.convo.sendMessage` | `conversations_feed.c` | `test_conversations` | pending |
-| `GET /v1/image` (PLIM rendering) | none: fetch the CDN image and decode it on the Mac | `image_blob.c` / a decoder | `test_image_blob` | pending; see open questions |
+| `GET /v1/image` (PLIM rendering) | none: fetch the CDN image and decode it on the Mac | `image_blob.c` / a decoder | `test_image_blob` | pending; Wolfram's decoder exists but is not C89-clean, so the bridge route stays (ADR 0011) |
 | `GET /health`, `/client-metadata.json`, `/login` | none: diagnostics use the session, OAuth metadata goes with phase 2 | `diag.c` | `test_diag` | pending |
 
 Bridge functions with no endpoint:
@@ -194,9 +194,12 @@ lookup is deliberately not used (ADR 0003).
 ## Open questions
 
 1. **Images.** The bridge rendered PLIM on the desktop. With no bridge, the Mac
-   must fetch image bytes over TLS and decode JPEG/PNG itself. There is no
-   decoder in the Mac target today. This blocks #32 and #33 and needs a licence
-   and memory review before code.
+   must fetch image bytes over TLS and decode JPEG/PNG itself. Wolfram has the
+   decoder (`wf_image_decode_rgba`, used by Indigo), but it pulls the agent and
+   CBOR headers, which are not C89-clean, and `stb_image.h` uses `//` comments
+   that `-Werror` rejects. ADR 0011 keeps the bridge image route and asks
+   upstream for a standalone C89 image module rather than relaxing the Mac
+   target's dialect.
 2. **Muted words.** The AppView does not filter for the client. The native
    client must apply the same matching rules locally, including expiry,
    targets and the "exclude following" case. This is behaviour, not a request
