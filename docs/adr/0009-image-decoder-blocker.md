@@ -1,6 +1,8 @@
 # 0009: Images remain blocked on a native decoder
 
-- Status: accepted; blocks the image parts of the bridge removal
+- Status: accepted; blocks the image parts of the bridge removal. See ADR
+  0011 for the decoder finding that revises this: the decoder exists but is not
+  C89-usable.
 - Date: 2026-10-31
 
 ## Context
