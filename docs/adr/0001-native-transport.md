@@ -1,6 +1,6 @@
 # 0001: Native transport for the Mac client
 
-- Status: accepted
+- Status: revised 2026-10-31; transport choice stands, TLS/68k claims corrected
 - Date: 2026-10-31
 - Supersedes: the bridge-only networking rule in `docs/BRIDGE_PROTOCOL.md` (the
   bridge remains for unmigrated screens until parity)
@@ -41,9 +41,29 @@ the supported stack.
 - **Licence is not the obstacle.** Apache-2.0 is compatible with Platinum's
   AGPL-3.0, with attribution. The obstacle is platform and duplication.
 
+## Research update (2026-10-31)
+
+macTLS's current README documents TLS 1.3 as well as TLS 1.2: a hand-written
+1.3 handshake over BearSSL primitives, with fallback to BearSSL's 1.2 engine,
+X25519, ChaCha20-Poly1305 and a 121-anchor Mozilla root bundle. It also
+documents `macEntropy` (see ADR 0005). It is explicitly PowerPC/Carbon/
+CodeWarrior C89, not a 68k library.
+
+That corrects two claims below: TLS 1.2 is not necessarily the ceiling, and
+the 68k build cannot use this transport for networking. The choice of
+Wolfram's transport over ClassicNet is unchanged: ClassicNet is also
+PowerPC-only, would add a second TLS/HTTP stack, and cannot restore 68k
+networking. Whether the Wolfram revision Platinum builds against actually
+contains and initialises the TLS 1.3/macEntropy code is unverified.
+
 ## Consequences
 
-- TLS 1.2 is the ceiling (BearSSL). Every PDS the client uses must accept it.
+- TLS 1.2 is available; TLS 1.3 is available only if the linked macTLS revision
+  implements it and Wolfram's shim negotiates it. Every PDS must still accept
+  at least TLS 1.2.
+- The 68k build remains a compile target. It cannot do TLS-backed networking
+  with macTLS; a 68k client would need a different transport, which this ADR
+  does not choose.
 - HTTP/1.1 only; no multiplexing. For one request at a time from a cooperative
   event loop, that is enough.
 - The UI must install `wf_macos9_set_yield_callback` so a request pumps the
