@@ -10,6 +10,12 @@ pull request.
 
 ### Added
 
+- Thread, People, Conversations, Search, Notifications, the main timeline and Connection Status adopt the shared state panel (ADR 0012): a window with nothing to show draws the framed panel with its action button, and a window that already has rows keeps them and reports a failure on one line at the bottom. The panel's Sign In and Pair a Bridge open their own window and leave the current one open behind it. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- Every adopted window follows one keyboard rule (ADR 0012): Return activates the default action (the panel's button when a panel is showing), Escape and Command-period cancel or close, and Tab and Shift-Tab move focus in drawing order. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
+- The timeline and the notifications list say when the 40-row cap has dropped older rows, instead of losing them silently. ([#156](https://github.com/ewanc26/platinum/pull/156))
+
 - A shared empty-and-state panel replaces bare error sentences: one framed panel with a title, wrapped message and an action button, laid out with the existing text and button helpers. Profile uses it first for the sign-in and bridge notices, with Sign In opening the app-password window and Pair a Bridge opening the pairing window; the other windows keep their existing status lines until they adopt it. Layout and wrapping are host-tested at 640x480 and 800x600 and at narrow and short sizes. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The native client has a C89 muted-word matcher: the same rules as Wolfram and the bridge (whole words versus substrings, content and tag targets, exclude-following, expiry judged at a caller-supplied clock), with 39 host checks. It is not wired to the Muted Words screen yet, which still reads through the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
