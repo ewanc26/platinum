@@ -25,19 +25,17 @@ Do not collapse these layers merely to make a feature appear faster.
 
 ## 2. Architecture
 
-The intended data flow is:
+The runtime data flow is still through the bridge for screens that have not
+migrated, and is becoming direct:
 
 ```
-Classic Mac OS 9
-       |
-       | HTTP + JSON
-       v
-Platinum Bridge
-       |
-       | AT Protocol
-       v
-PDS / AppView
+Today:   Classic Mac OS 9 --HTTP + JSON--> Platinum Bridge --AT Protocol--> PDS / AppView
+Target:  Classic Mac OS 9 --HTTPS + XRPC-------------------------------> PDS / AppView
 ```
+
+`docs/architecture/native-client-migration.md` is the endpoint-by-endpoint map.
+The bridge is transitional: do not add a feature to it alone, and do not move a
+screen the migration note still lists as pending without a native test.
 
 ### Mac OS 9 side
 
@@ -51,11 +49,13 @@ The native client owns:
 - the paired account DID and installation ID;
 - presentation of profiles, timelines and notifications;
 - composition of posts;
-- HTTP/JSON communication with the bridge.
+- HTTP/JSON communication with the bridge while a screen is unmigrated;
+- the native AT Protocol client for migrated screens: XRPC URLs, DID and handle
+  resolution, session refresh, and the calls their view models need.
 
 ### Bridge side
 
-The bridge owns:
+While a screen is unmigrated, the bridge owns its upstream work:
 
 - AT Protocol OAuth;
 - OAuth state and refresh credentials;
@@ -124,6 +124,9 @@ platinum/
 │   ├── application_menus.c
 │   ├── application_post.c
 │   ├── application_views.c
+│   ├── atproto_identity.c
+│   ├── atproto_session.c
+│   ├── atproto_url.c
 │   ├── bridge_client.c
 │   ├── bridge_client.h
 │   ├── apppw.c
@@ -213,16 +216,16 @@ The intended stack is:
 
 ```
 Platinum
-   |
-bridge_client
-   |
-Wolfram XRPC/HTTP API
-   |
-Open Transport
-   |
-macTLS
-   |
-network
+   |                 |
+atproto_* (native)  bridge_client (unmigrated screens)
+   |                 |
+   +---- Wolfram XRPC/HTTP API ----+
+                  |
+            Open Transport
+                  |
+                macTLS
+                  |
+               network
 ```
 
 Do not add:
