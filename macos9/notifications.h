@@ -4,6 +4,7 @@
 #include "atproto_client.h"
 #include "bridge_client.h"
 #include "scrollbar.h"
+#include "state_panel.h"
 
 #include <Events.h>
 #include <Windows.h>
@@ -43,13 +44,19 @@ typedef struct platinum_notifications {
     int any_unread;
     char status[PLATINUM_NOTIFICATIONS_STATUS_MAX + 1];
     int loading;
+    /* The 40-row cap dropped an older row on the last page. */
+    int capped;
+    /* 0 the list, 1 Close, 2 the panel action. */
+    short focus;
 } platinum_notifications;
 
 enum {
     PLATINUM_NOTIFICATIONS_NONE = 0,
     PLATINUM_NOTIFICATIONS_CLOSE = 1,
     PLATINUM_NOTIFICATIONS_REFRESH = 2,
-    PLATINUM_NOTIFICATIONS_LOAD_OLDER = 3
+    PLATINUM_NOTIFICATIONS_LOAD_OLDER = 3,
+    PLATINUM_NOTIFICATIONS_SIGN_IN = 4,
+    PLATINUM_NOTIFICATIONS_PAIR = 5
 };
 
 void platinum_notifications_init(platinum_notifications *notifications);

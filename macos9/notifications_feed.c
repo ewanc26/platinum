@@ -197,6 +197,7 @@ static wf_status notifications_fetch(platinum_notifications *notifications,
         notifications->count = 0;
         notifications->scroll_row = 0;
         notifications->cursor[0] = '\0';
+        notifications->capped = 0;
     }
 
     memset(&response, 0, sizeof(response));
@@ -245,6 +246,7 @@ static wf_status notifications_fetch(platinum_notifications *notifications,
                     sizeof(notifications->items[0]));
         notifications->count =
             (unsigned short)((long)notifications->count - drop);
+        notifications->capped = 1;
         if (dropped != NULL)
             *dropped = (unsigned short)drop;
     }
@@ -405,6 +407,7 @@ static wf_status notifications_fetch_native(
         notifications->cursor[0] = '\0';
         notifications->newest_at[0] = '\0';
         notifications->any_unread = 0;
+        notifications->capped = 0;
     }
 
     drop = (long)notifications->count + available - PLATINUM_NOTIFICATIONS_MAX;
@@ -416,6 +419,7 @@ static wf_status notifications_fetch_native(
                     sizeof(notifications->items[0]));
         notifications->count =
             (unsigned short)((long)notifications->count - drop);
+        notifications->capped = 1;
         if (dropped != NULL)
             *dropped = (unsigned short)drop;
     }
