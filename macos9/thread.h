@@ -75,6 +75,8 @@ wf_status platinum_thread_load_more(platinum_thread *thread,
                                     platinum_bridge_client *bridge,
                                     unsigned short *dropped);
 int platinum_thread_has_more(const platinum_thread *thread);
+/* Set the status line and redraw it. */
+void platinum_thread_set_status(platinum_thread *thread, const char *status);
 
 /* The window; none of this runs on a host. */
 OSErr platinum_thread_open(platinum_thread *thread);

@@ -1,6 +1,7 @@
 #ifndef PLATINUM_NOTIFICATIONS_H
 #define PLATINUM_NOTIFICATIONS_H
 
+#include "atproto_client.h"
 #include "bridge_client.h"
 #include "scrollbar.h"
 
@@ -74,6 +75,22 @@ int platinum_notifications_has_older(
 wf_status platinum_notifications_mark_seen(
     platinum_notifications *notifications,
     platinum_bridge_client *bridge);
+
+/* The native counterparts. Same rows, paging and seen mark, with the request
+ * issued through the authenticated session instead of the bridge. The page
+ * shape is app.bsky.notification.listNotifications. */
+wf_status platinum_notifications_refresh_native(
+    platinum_notifications *notifications,
+    platinum_atproto_client *client);
+wf_status platinum_notifications_load_older_native(
+    platinum_notifications *notifications, platinum_atproto_client *client,
+    unsigned short *dropped);
+wf_status platinum_notifications_mark_seen_native(
+    platinum_notifications *notifications, platinum_atproto_client *client);
+
+/* Set the status line and redraw it. */
+void platinum_notifications_set_status(
+    platinum_notifications *notifications, const char *status);
 OSErr platinum_notifications_open(platinum_notifications *notifications);
 void platinum_notifications_close(platinum_notifications *notifications);
 int platinum_notifications_handle_event(
