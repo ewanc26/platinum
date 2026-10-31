@@ -79,7 +79,7 @@ OSErr platinum_application_init(platinum_application *app)
     if (platinum_session_is_paired(&app->session))
         platinum_application_refresh_timeline(app);
     else
-        platinum_application_open_pairing(app);
+        platinum_application_open_apppw(app);
 
     return noErr;
 }
