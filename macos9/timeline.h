@@ -1,6 +1,7 @@
 #ifndef PLATINUM_TIMELINE_H
 #define PLATINUM_TIMELINE_H
 
+#include "atproto_client.h"
 #include "bridge_client.h"
 #include "json_min.h"
 #include "post_media.h"
@@ -54,6 +55,16 @@ typedef struct platinum_timeline {
 int platinum_timeline_parse_post(platinum_post_preview *post,
                                  platinum_json item);
 
+/*
+ * Read one AppView postView into a preview: the display fields come from
+ * `record`, the counts from the view, and `viewer.like` / `viewer.repost`
+ * decide the two flags. Needed because the AppView returns a postView, not the
+ * flat post object the bridge sent. Returns 0 when uri, cid or author.did is
+ * missing.
+ */
+int platinum_timeline_parse_view(platinum_post_preview *post,
+                                 platinum_json item);
+
 void platinum_timeline_init(platinum_timeline *timeline);
 wf_status platinum_timeline_refresh(platinum_timeline *timeline,
                                     platinum_bridge_client *bridge);
@@ -68,6 +79,15 @@ wf_status platinum_timeline_load_older(platinum_timeline *timeline,
                                        platinum_bridge_client *bridge,
                                        unsigned short *dropped);
 int platinum_timeline_has_older(const platinum_timeline *timeline);
+
+/* The native counterparts: same paging rules and status messages, with the
+ * request issued through the authenticated session client instead of the
+ * bridge. The page shape is app.bsky.feed.getTimeline's. */
+wf_status platinum_timeline_refresh_native(platinum_timeline *timeline,
+                                           platinum_atproto_client *client);
+wf_status platinum_timeline_load_older_native(
+    platinum_timeline *timeline, platinum_atproto_client *client,
+    unsigned short *dropped);
 
 /*
  * Set the signed-in account's like (repost = 0) or repost (repost = 1) of the

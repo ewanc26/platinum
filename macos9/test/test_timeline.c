@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "atproto_client.h"
 #include "timeline.h"
 #include "wolfram_stub.h"
 
@@ -156,6 +157,146 @@ static void test_escape(void)
           "reserved characters are encoded");
 }
 
+static const char *make_native_page(int first, int n, const char *cursor)
+{
+    int i;
+    char item[512];
+
+    strcpy(page, "{\"feed\":[");
+    for (i = 0; i < n; ++i) {
+        sprintf(item,
+                "%s{\"post\":{\"uri\":\"at://p/%d\",\"cid\":\"c%d\","
+                "\"author\":{\"did\":\"did:plc:a\",\"handle\":\"a.test\"},"
+                "\"record\":{\"text\":\"post %d\","
+                "\"createdAt\":\"2026-10-05T12:34:00.000Z\"},"
+                "\"likeCount\":4,\"repostCount\":2,"
+                "\"viewer\":{\"like\":\"at://like/1\"}}}",
+                i == 0 ? "" : ",", first + i, first + i, first + i);
+        strcat(page, item);
+    }
+    strcat(page, "]");
+    if (cursor != NULL) {
+        strcat(page, ",\"cursor\":\"");
+        strcat(page, cursor);
+        strcat(page, "\"");
+    }
+    strcat(page, "}");
+    return page;
+}
+
+static platinum_atproto_client *make_native_client(void)
+{
+    platinum_atproto_session session;
+    platinum_atproto_client *client;
+
+    client = platinum_atproto_client_new("https://pds.example");
+    check(client != NULL, "native client created");
+    if (client == NULL)
+        return NULL;
+
+    memset(&session, 0, sizeof(session));
+    strcpy(session.access_jwt, "access");
+    strcpy(session.refresh_jwt, "refresh");
+    strcpy(session.did, "did:plc:a");
+    strcpy(session.handle, "a.test");
+    strcpy(session.pds_url, "https://pds.example");
+    check(platinum_atproto_client_set_session(client, &session) == WF_OK,
+          "native session installed");
+    return client;
+}
+
+static void test_native_timeline(void)
+{
+    static platinum_timeline timeline;
+    platinum_atproto_client *client;
+    unsigned short dropped;
+
+    client = make_native_client();
+    if (client == NULL)
+        return;
+
+    platinum_timeline_init(&timeline);
+
+    respond(WF_OK, make_native_page(0, 20, "n1"));
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_OK,
+          "native first page loads");
+    check(timeline.count == 20, "native first page has 20 rows");
+    check(strcmp(last_nsid, "app.bsky.feed.getTimeline") == 0,
+          "native refresh calls getTimeline");
+    check(last_param_count == 1 &&
+              strcmp(last_param_names[0], "limit") == 0 &&
+              strcmp(last_param_values[0], "20") == 0,
+          "native refresh sends only the page limit");
+    check(strcmp(last_auth, "access") == 0,
+          "native refresh carries the access token");
+    check(strcmp(timeline.posts[0].time, "12:34") == 0,
+          "native view reads record.createdAt");
+    check(strcmp(timeline.posts[0].line1, "post 0") == 0,
+          "native view reads record.text");
+    check(timeline.posts[0].liked == 1,
+          "native viewer.like sets the like flag");
+    check(timeline.posts[0].reposted == 0,
+          "an absent viewer.repost is not a repost");
+    check(timeline.posts[0].like_count == 4, "native counts are read");
+    check(platinum_timeline_has_older(&timeline),
+          "native cursor allows an older page");
+
+    respond(WF_OK, make_native_page(20, 20, NULL));
+    check(platinum_timeline_load_older_native(&timeline, client, &dropped) ==
+              WF_OK,
+          "native second page loads");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[1], "cursor") == 0 &&
+              strcmp(last_param_values[1], "n1") == 0,
+          "native page sends the cursor");
+    check(timeline.count == 40 && dropped == 0,
+          "native second page appended, none dropped");
+    check(!platinum_timeline_has_older(&timeline),
+          "native page without a cursor ends paging");
+
+    respond(WF_ERR_HTTP, "{\"error\":\"upstream_error\"}");
+    check(platinum_timeline_refresh_native(&timeline, client) != WF_OK,
+          "native failure is reported");
+    check(timeline.count == 40, "native failure keeps the loaded rows");
+    check(strcmp(platinum_timeline_status(&timeline),
+                 "Timeline refresh failed.") == 0,
+          "native failure says so");
+
+    respond(WF_OK, "{\"feed\":{}}");
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_ERR_PARSE,
+          "a feed that is not an array is refused");
+
+    respond(WF_ERR_HTTP, "{\"error\":\"InvalidToken\"}");
+    fake_http_status = 403;
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_ERR_AUTH,
+          "native auth failure is reported");
+    check(strcmp(platinum_timeline_status(&timeline),
+                 "Session expired. Sign in again.") == 0,
+          "native auth failure asks for sign-in");
+
+    respond(WF_OK, "{\"feed\":[]}");
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_OK &&
+              timeline.count == 0,
+          "native empty feed is an empty timeline");
+    check(strcmp(platinum_timeline_status(&timeline),
+                 "The timeline is empty.") == 0,
+          "native empty feed says so");
+
+    respond(WF_OK,
+            "{\"feed\":[{\"post\":{\"uri\":\"at://p/9\","
+            "\"cid\":\"c9\",\"author\":{\"did\":\"did:plc:a\"},"
+            "\"viewer\":{}}}]}");
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_OK &&
+              timeline.count == 1,
+          "a view without a record still shows");
+    check(timeline.posts[0].liked == 0 && timeline.posts[0].reposted == 0,
+          "an empty viewer is neither liked nor reposted");
+    check(timeline.posts[0].line1[0] == '\0',
+          "a view without a record has no text");
+
+    platinum_atproto_client_free(client);
+}
+
 static void test_engagement(void)
 {
     static platinum_timeline timeline;
@@ -218,6 +359,7 @@ int main(void)
     test_long_cursor();
     test_escape();
     test_engagement();
+    test_native_timeline();
     if (failures != 0) {
         printf("test_timeline: %d of %d checks failed\n", failures, checks);
         return 1;

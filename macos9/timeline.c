@@ -1,6 +1,7 @@
 #include "timeline.h"
 #include "text_codec.h"
 
+#include "atproto_feed.h"
 #include "json_min.h"
 #include <string.h>
 
@@ -198,6 +199,104 @@ int platinum_timeline_parse_post(platinum_post_preview *post,
     return 1;
 }
 
+int platinum_timeline_parse_view(platinum_post_preview *post,
+                                 platinum_json item)
+{
+    platinum_json author;
+    platinum_json record;
+    platinum_json viewer;
+    char did[128];
+    char handle[128];
+    char created_at[64];
+    char text[PLATINUM_TEXT_UTF8_CAPACITY];
+    char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
+    char viewer_uri[513];
+
+    if (post == NULL)
+        return 0;
+
+    memset(post, 0, sizeof(*post));
+
+    if (!timeline_copy_field(post->uri, sizeof(post->uri), item, "uri", 0))
+        return 0;
+    if (!timeline_copy_field(post->cid, sizeof(post->cid), item, "cid", 0))
+        return 0;
+
+    if (platinum_json_member(item, "author", &author) != WF_OK)
+        return 0;
+    if (!timeline_copy_field(did, sizeof(did), author, "did", 0))
+        return 0;
+
+    post->author[0] = '\0';
+    (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                              "displayName", 1);
+    if (post->author[0] == '\0')
+        (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                                  "handle", 1);
+    if (post->author[0] == '\0')
+        (void)timeline_copy_field(post->author, sizeof(post->author), author,
+                                  "did", 1);
+
+    platinum_post_media_parse(&post->media, author, item);
+
+    if (platinum_json_string_truncating(author, "handle", handle,
+                                        sizeof(handle)) == WF_OK) {
+        post->handle[0] = '@';
+        (void)timeline_copy_field(post->handle + 1,
+                                  sizeof(post->handle) - 1, author, "handle",
+                                  1);
+    } else {
+        post->handle[0] = '\0';
+    }
+
+    /* The record carries the text and timestamp. A view without a record is
+     * still shown (the counts and author are useful), with no text. */
+    post->time[0] = '\0';
+    if (platinum_json_member(item, "record", &record) == WF_OK) {
+        if (platinum_json_string_truncating(record, "createdAt", created_at,
+                                            sizeof(created_at)) == WF_OK) {
+            if (strlen(created_at) >= 16) {
+                memcpy(post->time, created_at + 11, 5);
+                post->time[5] = '\0';
+            } else {
+                (void)timeline_copy_field(post->time, sizeof(post->time),
+                                          record, "createdAt", 1);
+            }
+        }
+
+        if (platinum_json_string_truncating(record, "text", text,
+                                            sizeof(text)) == WF_OK) {
+            if (platinum_text_utf8_to_macroman(text, text_macroman,
+                                               sizeof(text_macroman),
+                                               NULL) >= 0)
+                timeline_copy_wrapped_text(post, text_macroman);
+        }
+    }
+
+    post->like_count = timeline_json_number(item, "likeCount");
+    post->repost_count = timeline_json_number(item, "repostCount");
+    post->reply_count = timeline_json_number(item, "replyCount");
+    post->quote_count = timeline_json_number(item, "quoteCount");
+
+    /* viewer.like and viewer.repost are record URIs when the viewer has done
+     * it, and absent otherwise. That is the AppView's representation; the
+     * bridge flattened it to booleans, which is what the row stores. */
+    post->liked = 0;
+    post->reposted = 0;
+    if (platinum_json_member(item, "viewer", &viewer) == WF_OK) {
+        if (platinum_json_string(viewer, "like", viewer_uri,
+                                 sizeof(viewer_uri)) == WF_OK &&
+            viewer_uri[0] != '\0')
+            post->liked = 1;
+        if (platinum_json_string(viewer, "repost", viewer_uri,
+                                 sizeof(viewer_uri)) == WF_OK &&
+            viewer_uri[0] != '\0')
+            post->reposted = 1;
+    }
+
+    return 1;
+}
+
 void platinum_timeline_init(platinum_timeline *timeline)
 {
     if (timeline == NULL)
@@ -327,6 +426,132 @@ wf_status platinum_timeline_refresh(platinum_timeline *timeline,
     if (timeline == NULL || bridge == NULL)
         return WF_ERR_INVALID_ARG;
     return timeline_fetch(timeline, bridge, 0, NULL);
+}
+
+/*
+ * One native page, with the same commit rules as the bridge page: the response
+ * is validated before any row is dropped, and a failure leaves the loaded rows
+ * and cursor alone.
+ */
+static wf_status timeline_fetch_native(platinum_timeline *timeline,
+                                       platinum_atproto_client *client,
+                                       int append,
+                                       unsigned short *dropped)
+{
+    wf_response response;
+    platinum_json root;
+    platinum_json feed;
+    platinum_json item;
+    platinum_json post_view;
+    long index;
+    long available;
+    long parsed;
+    long drop;
+    char cursor[PLATINUM_TIMELINE_CURSOR_MAX + 1];
+    wf_status status;
+
+    if (dropped != NULL)
+        *dropped = 0;
+
+    timeline->loading = 1;
+    timeline_set_status(timeline, append ? "Loading older posts..."
+                                         : "Loading timeline...");
+    memset(&response, 0, sizeof(response));
+
+    status = platinum_atproto_timeline_page(
+        client, append ? timeline->cursor : NULL, PLATINUM_TIMELINE_PAGE,
+        &response);
+    if (status != WF_OK) {
+        timeline->loading = 0;
+        if (status == WF_ERR_AUTH)
+            timeline_set_status(timeline,
+                                "Session expired. Sign in again.");
+        else
+            timeline_set_status(timeline, append
+                                    ? "Could not load older posts."
+                                    : "Timeline refresh failed.");
+        wf_response_free(&response);
+        return status;
+    }
+
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(root, "feed", &feed) != WF_OK ||
+        platinum_json_count(feed, &available) != WF_OK) {
+        timeline->loading = 0;
+        timeline_set_status(timeline,
+                            "The server returned an invalid timeline.");
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+
+    /* Only now that the page is known good is it safe to replace the rows: a
+     * failed refresh must not blank a timeline the reader is looking at. */
+    if (!append) {
+        timeline->count = 0;
+        timeline->cursor[0] = '\0';
+    }
+
+    parsed = (available > PLATINUM_TIMELINE_PAGE) ? PLATINUM_TIMELINE_PAGE
+                                                  : available;
+
+    drop = (long)timeline->count + parsed - PLATINUM_TIMELINE_MAX_POSTS;
+    if (drop > (long)timeline->count)
+        drop = (long)timeline->count;
+    if (drop > 0) {
+        memmove(&timeline->posts[0], &timeline->posts[drop],
+                (size_t)((long)timeline->count - drop) *
+                    sizeof(timeline->posts[0]));
+        timeline->count = (unsigned short)((long)timeline->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
+    }
+
+    for (index = 0; index < parsed &&
+                    timeline->count < PLATINUM_TIMELINE_MAX_POSTS; ++index) {
+        if (platinum_json_element(feed, index, &item) != WF_OK)
+            continue;
+        if (platinum_json_member(item, "post", &post_view) != WF_OK)
+            continue;
+        if (platinum_timeline_parse_view(&timeline->posts[timeline->count],
+                                         post_view))
+            ++timeline->count;
+    }
+
+    if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) == WF_OK)
+        strcpy(timeline->cursor, cursor);
+    else
+        timeline->cursor[0] = '\0';
+
+    wf_response_free(&response);
+
+    timeline->loading = 0;
+    if (timeline->count == 0)
+        timeline_set_status(timeline, "The timeline is empty.");
+    else
+        timeline_set_status(timeline, NULL);
+
+    return WF_OK;
+}
+
+wf_status platinum_timeline_refresh_native(platinum_timeline *timeline,
+                                           platinum_atproto_client *client)
+{
+    if (timeline == NULL || client == NULL)
+        return WF_ERR_INVALID_ARG;
+    return timeline_fetch_native(timeline, client, 0, NULL);
+}
+
+wf_status platinum_timeline_load_older_native(
+    platinum_timeline *timeline, platinum_atproto_client *client,
+    unsigned short *dropped)
+{
+    if (dropped != NULL)
+        *dropped = 0;
+    if (timeline == NULL || client == NULL ||
+        !platinum_timeline_has_older(timeline))
+        return WF_ERR_INVALID_ARG;
+    return timeline_fetch_native(timeline, client, 1, dropped);
 }
 
 wf_status platinum_timeline_load_older(platinum_timeline *timeline,

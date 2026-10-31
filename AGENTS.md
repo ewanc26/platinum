@@ -128,6 +128,8 @@ platinum/
 │   ├── atproto_bootstrap.h
 │   ├── atproto_client.c
 │   ├── atproto_client.h
+│   ├── atproto_feed.c
+│   ├── atproto_feed.h
 │   ├── atproto_identity.c
 │   ├── atproto_session.c
 │   ├── atproto_url.c
