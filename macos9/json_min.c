@@ -821,6 +821,24 @@ wf_status platinum_json_string(platinum_json object,
     return json_decode_string(value.at, dst, cap, NULL);
 }
 
+wf_status platinum_json_value_string(platinum_json value,
+                                     char *dst,
+                                     size_t cap)
+{
+    if (dst == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+
+    dst[0] = '\0';
+
+    if (value.text == NULL || value.at == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    if (*value.at != '"')
+        return WF_ERR_PARSE;
+
+    return json_decode_string(value.at, dst, cap, NULL);
+}
+
 /*
  * The truncating form. json_decode_string refuses to write a partial string, so
  * this measures first and then decodes into a capacity that is known to fit.

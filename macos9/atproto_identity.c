@@ -377,3 +377,56 @@ wf_status platinum_atproto_did_pds(const char *document_json,
 
     return WF_ERR_NOT_FOUND;
 }
+
+int platinum_atproto_did_claims_handle(const char *document_json,
+                                       const char *handle)
+{
+    platinum_json root;
+    platinum_json aliases;
+    platinum_json item;
+    char expected[PLATINUM_ATPROTO_HANDLE_MAX + 8];
+    char claimed[PLATINUM_ATPROTO_HANDLE_MAX + 8];
+    size_t length;
+    size_t index;
+    long count;
+    long position;
+
+    if (document_json == NULL || handle == NULL)
+        return 0;
+    if (!platinum_atproto_valid_handle(handle))
+        return 0;
+
+    length = strlen(handle);
+    if (length + 6 > sizeof(expected))
+        return 0;
+    memcpy(expected, "at://", 5);
+    for (index = 0; index < length; index++) {
+        char value;
+
+        value = handle[index];
+        if (value >= 'A' && value <= 'Z')
+            value = (char)(value - 'A' + 'a');
+        expected[5 + index] = value;
+    }
+    expected[5 + length] = '\0';
+
+    if (platinum_json_open(&root, document_json) != WF_OK)
+        return 0;
+    if (platinum_json_member(root, "alsoKnownAs", &aliases) != WF_OK)
+        return 0;
+    if (platinum_json_count(aliases, &count) != WF_OK)
+        return 0;
+    if (count > 64)
+        count = 64;
+
+    for (position = 0; position < count; position++) {
+        if (platinum_json_element(aliases, position, &item) != WF_OK)
+            continue;
+        if (platinum_json_value_string(item, claimed, sizeof(claimed)) != WF_OK)
+            continue;
+        if (strcmp(claimed, expected) == 0)
+            return 1;
+    }
+
+    return 0;
+}

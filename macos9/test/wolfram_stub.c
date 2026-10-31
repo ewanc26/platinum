@@ -268,6 +268,13 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
     return (wf_status)fake_status;
 }
 
+wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
+                              size_t max_bytes, wf_response *out)
+{
+    last_max_response_bytes = max_bytes;
+    return wf_http_get(client, url, out);
+}
+
 wf_status wf_http_post(wf_xrpc_client *client, const char *url,
                        const char *content_type, const char *body,
                        const wf_http_header *headers, size_t header_count,
