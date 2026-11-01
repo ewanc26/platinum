@@ -210,6 +210,7 @@ static void test_native_timeline(void)
     static platinum_timeline timeline;
     platinum_atproto_client *client;
     unsigned short dropped;
+    int calls;
 
     client = make_native_client();
     if (client == NULL)
@@ -283,6 +284,34 @@ static void test_native_timeline(void)
               strcmp(timeline.posts[0].like_uri,
                      "at://did:plc:a/app.bsky.feed.like/like-new") == 0,
           "native like retains the createRecord URI and updates the row");
+
+    calls = fake_call_count;
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 0, 1)
+              == WF_OK &&
+              fake_call_count == calls,
+          "repeating the current like state does not create another record");
+
+    /* An interaction URI from another repo must never be used for deletion. */
+    strcpy(timeline.posts[0].like_uri,
+           "at://did:plc:other/app.bsky.feed.like/not-mine");
+    calls = fake_call_count;
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 0, 0)
+              == WF_ERR_NOT_FOUND &&
+              fake_call_count == calls &&
+              timeline.posts[0].liked == 1,
+          "native unlike refuses a record owned by another repo");
+    strcpy(timeline.posts[0].like_uri,
+           "at://did:plc:a/app.bsky.feed.like/like-new");
+
+    /* A server response must also return a record in this account's repo. */
+    respond(WF_OK,
+            "{\"uri\":\"at://did:plc:other/app.bsky.feed.repost/not-mine\","
+            "\"cid\":\"bafyforeign\"}");
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 1, 1)
+              == WF_ERR_PARSE &&
+              timeline.posts[0].reposted == 0 &&
+              timeline.posts[0].repost_count == 2,
+          "native repost rejects a createRecord URI from another repo");
 
     /* Reposts use their own collection and can be undone the same way. */
     respond(WF_OK,
