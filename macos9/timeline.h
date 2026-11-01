@@ -25,6 +25,9 @@ extern "C" {
 typedef struct platinum_post_preview {
     char uri[513];
     char cid[256];
+    /* AppView viewer URIs let native actions undo these exact records. */
+    char like_uri[513];
+    char repost_uri[513];
     char author[PLATINUM_TIMELINE_AUTHOR_MAX];
     char handle[PLATINUM_TIMELINE_HANDLE_MAX];
     char time[PLATINUM_TIMELINE_TIME_MAX];
@@ -88,13 +91,16 @@ wf_status platinum_timeline_refresh_native(platinum_timeline *timeline,
 wf_status platinum_timeline_load_older_native(
     platinum_timeline *timeline, platinum_atproto_client *client,
     unsigned short *dropped);
+/*
+ * Native createRecord/deleteRecord path for likes and reposts. Interaction
+ * URIs are retained per row so undo deletes only the record AppView reported.
+ */
+wf_status platinum_timeline_set_engagement_native(
+    platinum_timeline *timeline, platinum_atproto_client *client,
+    unsigned short index, int repost, int on);
 
 /*
- * Set the signed-in account's like (repost = 0) or repost (repost = 1) of the
- * post at `index` to `on`, through POST /v1/like or /v1/repost, and update the
- * row from the bridge's answer. The bridge is idempotent, so sending the state
- * the row already shows is harmless. On failure the row is left unchanged and
- * the status says why.
+ * Set engagement through the bridge for the legacy paired-session path.
  */
 wf_status platinum_timeline_set_engagement(platinum_timeline *timeline,
                                            platinum_bridge_client *bridge,
