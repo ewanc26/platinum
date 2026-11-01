@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Profiles read through the Mac's native session first: the Profile window loads `app.bsky.actor.getProfile` with viewer follow state and the pinned post, falling back to the bridge otherwise. Follow, mute and block still go through the bridge. ([#172](https://github.com/ewanc26/platinum/pull/172))
+
 - Threads open through the Mac's native session first: the Thread window reads `app.bsky.feed.getPostThread` with the native flatten and falls back to the bridge otherwise, the way the timeline and notifications already do. ([#171](https://github.com/ewanc26/platinum/pull/171))
 
 - The native client flattens `app.bsky.feed.getPostThread` in C the way the bridge did: ancestors oldest first, the post at depth 0, replies depth-first, at most 40 posts, six reply levels and ten ancestors, with blocked and missing posts skipped. Host tests cover the order, focus, pruning and not-found paths. The Thread window still reads through the bridge. ([#170](https://github.com/ewanc26/platinum/pull/170))
