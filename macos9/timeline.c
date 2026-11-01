@@ -210,7 +210,6 @@ int platinum_timeline_parse_view(platinum_post_preview *post,
     char created_at[64];
     char text[PLATINUM_TEXT_UTF8_CAPACITY];
     char text_macroman[PLATINUM_TEXT_MAX_CODEPOINTS + 1];
-    char viewer_uri[513];
 
     if (post == NULL)
         return 0;
