@@ -103,6 +103,8 @@ macos9/diag.c                     platform  # the Connection Status model; Wolfr
 macos9/diag.h                     platform
 macos9/diagwin.c                  platform  # the Connection Status window
 macos9/diagwin.h                  platform
+macos9/help.c                     platform  # the About and Help windows
+macos9/help.h                     platform
 macos9/preferences.h               platform
 macos9/profile.c                   platform  # the Profile window
 macos9/profile_feed.c              platform  # view model of a bridge profile, no QuickDraw so it links on a host

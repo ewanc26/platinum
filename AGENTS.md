@@ -153,6 +153,8 @@ platinum/
 │   ├── draft.c
 │   ├── drawutil.c
 │   ├── drawutil.h
+│   ├── help.c
+│   ├── help.h
 │   ├── fixture.c
 │   ├── diag.c
 │   ├── diagwin.c
