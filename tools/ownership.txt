@@ -134,6 +134,7 @@ macos9/textfield.h                 platform
 macos9/thread.c                    platform  # the Thread window
 macos9/thread.h                    platform
 macos9/thread_feed.c               platform  # view model of a bridge thread, no QuickDraw so it links on a host
+macos9/thread_native.c             atproto   # native getPostThread flatten (40 posts, 6 levels, 10 ancestors); no Toolbox, so it links on a host
 macos9/timeline.c                  platform
 macos9/timeline.h                  platform
 macos9/timeline_native.c            atproto   # the native getTimeline page fetch into the timeline model; separated so bridge-only tests and the fixture do not link the session stack
