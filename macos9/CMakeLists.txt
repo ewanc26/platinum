@@ -45,6 +45,7 @@ set(PLATINUM_SOURCES
     atproto_client.c
     atproto_feed.c
     atproto_identity.c
+    atproto_prefs.c
     atproto_session.c
     atproto_url.c
         avatar_cache.c

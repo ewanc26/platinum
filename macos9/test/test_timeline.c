@@ -403,6 +403,91 @@ static void test_native_timeline(void)
     platinum_atproto_client_free(client);
 }
 
+static const char *muted_prefs_body;
+static const char *muted_feed_body;
+
+static void muted_script(int call, int method, const char *url,
+                         const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    if (call == 1)
+        fake_body = muted_prefs_body;
+    else
+        fake_body = muted_feed_body;
+}
+
+static void test_native_muted(void)
+{
+    static platinum_timeline timeline;
+    static char muted_page[2048];
+    platinum_atproto_client *client;
+
+    client = make_native_client();
+    if (client == NULL)
+        return;
+    platinum_timeline_init(&timeline);
+
+    muted_prefs_body =
+        "{\"preferences\":["
+        "{\"$type\":\"app.bsky.actor.defs#mutedWordsPref\",\"items\":["
+        "{\"value\":\"spoiler\",\"targets\":[\"content\"]},"
+        "{\"value\":\"finale\",\"targets\":[\"tag\"]}"
+        "]}]}";
+    strcpy(muted_page, "{\"feed\":[");
+    strcat(muted_page,
+           "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/m1\","
+           "\"cid\":\"c1\","
+           "\"author\":{\"did\":\"did:plc:b\"},"
+           "\"record\":{\"text\":\"a spoiler here\"},"
+           "\"viewer\":{}}},");
+    strcat(muted_page,
+           "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/m2\","
+           "\"cid\":\"c2\","
+           "\"author\":{\"did\":\"did:plc:b\"},"
+           "\"record\":{\"text\":\"hello\","
+           "\"facets\":[{\"features\":["
+           "{\"$type\":\"app.bsky.richtext.facet#tag\","
+           "\"tag\":\"finale\"}]}]},"
+           "\"viewer\":{}}},");
+    strcat(muted_page,
+           "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/keep\","
+           "\"cid\":\"c3\","
+           "\"author\":{\"did\":\"did:plc:b\"},"
+           "\"record\":{\"text\":\"a clean post\"},"
+           "\"viewer\":{}}}]}");
+    muted_feed_body = muted_page;
+    fake_script = muted_script;
+    fake_call_count = 0;
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_OK,
+          "muted native refresh loads");
+    check(fake_call_count == 2, "prefs and timeline are both fetched");
+    check(timeline.count == 1, "muted posts are skipped");
+    if (timeline.count == 1)
+        check(strstr(timeline.posts[0].uri, "/keep") != NULL,
+              "the clean post is kept");
+    fake_script = NULL;
+
+    /* A preferences failure shows the page unfiltered. */
+    muted_prefs_body = "{\"oops\"}";
+    muted_feed_body =
+        "{\"feed\":[{\"post\":{\"uri\":\"at://did:plc:a/" 
+        "app.bsky.feed.post/p1\",\"cid\":\"c1\","
+        "\"author\":{\"did\":\"did:plc:a\"},"
+        "\"record\":{\"text\":\"a spoiler here\"}}}]}";
+    fake_script = muted_script;
+    fake_call_count = 0;
+    check(platinum_timeline_refresh_native(&timeline, client) == WF_OK,
+          "prefs failure still loads");
+    check(timeline.count == 1, "prefs failure shows the page unfiltered");
+    fake_script = NULL;
+
+    platinum_atproto_client_free(client);
+}
+
 static void test_engagement(void)
 {
     static platinum_timeline timeline;
@@ -466,6 +551,8 @@ int main(void)
     test_escape();
     test_engagement();
     test_native_timeline();
+    test_native_muted();
+    fake_script = NULL;
     if (failures != 0) {
         printf("test_timeline: %d of %d checks failed\n", failures, checks);
         return 1;
