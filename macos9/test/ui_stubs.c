@@ -174,6 +174,37 @@ void InitGraf(GrafPtr *thePort)
         *thePort = NULL;
 }
 
+/* Window lifecycle is a no-op on the host: the tests never open a window,
+ * they only need the content and geometry helpers to link. */
+OSErr platinum_window_open(WindowPtr *window, const Rect *bounds,
+                           ConstStr255Param title)
+{
+    (void)window;
+    (void)bounds;
+    (void)title;
+    return memFullErr;
+}
+
+void DisposeWindow(WindowPtr window)
+{
+    (void)window;
+}
+
+void SelectWindow(WindowPtr window)
+{
+    (void)window;
+}
+
+void BeginUpdate(WindowPtr window)
+{
+    (void)window;
+}
+
+void EndUpdate(WindowPtr window)
+{
+    (void)window;
+}
+
 /* The tests exercise layout, mouse and keyboard; the paired state is only read
  * by platinum_ui_draw, which they do not call. */
 int platinum_session_is_paired(const platinum_session *session)

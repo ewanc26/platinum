@@ -436,7 +436,11 @@ void platinum_application_handle_menu(platinum_application *app,
         else
             platinum_application_invalidate(app);
     } else if (menu_id == kHelpMenuID) {
-        if (item == 3)
+        if (item == 1)
+            platinum_application_open_help(app, PLATINUM_HELP_ABOUT);
+        else if (item == 2)
+            platinum_application_open_help(app, PLATINUM_HELP_GUIDE);
+        else if (item == 3)
             platinum_application_open_diag(app);
         platinum_application_invalidate(app);
     }

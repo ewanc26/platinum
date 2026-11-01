@@ -135,6 +135,7 @@ jobs:
             macos9/diagwin.c \
             macos9/draft.c \
             macos9/drawutil.c \
+            macos9/help.c \
             macos9/fixture.c \
             macos9/apppw.c \
             macos9/apppw_input.c \
@@ -190,6 +191,7 @@ jobs:
             macos9/test/test_atproto_url.c \
             macos9/test/test_bridge_client.c \
             macos9/test/test_diag.c \
+            macos9/test/test_help.c \
             macos9/test/test_image_blob.c \
             macos9/test/test_image_encode.c \
             macos9/test/test_compose.c \
@@ -330,6 +332,11 @@ jobs:
             macos9/state_panel.c macos9/screen_state.c \
             macos9/test/ui_stubs.c macos9/test/test_state_panel.c
           /tmp/test_state_panel
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_help \
+            macos9/help.c macos9/state_panel.c macos9/screen_state.c \
+            macos9/test/ui_stubs.c macos9/test/test_help.c
+          /tmp/test_help
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_secret \
             macos9/secret.c macos9/text_codec.c macos9/bridge_client.c \
