@@ -12,10 +12,14 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "atproto_url.h"
 
 #include "atproto_feed.h"
+#include "atproto_prefs.h"
+#include "muted_words.h"
+#include "text_codec.h"
 
 static void timeline_native_set_status(platinum_timeline *timeline,
                                        const char *status)
@@ -38,9 +42,102 @@ static void timeline_native_set_status(platinum_timeline *timeline,
 }
 
 /*
+ * Whether this postView is hidden by the muted-words list. Best-effort: text
+ * is record.text, tags are the validated tag facets, and following is whether
+ * author.viewer.following is present. A post that cannot be read is not
+ * muted; parse_view decides whether it is shown.
+ */
+static int timeline_native_is_muted(platinum_json post_view,
+                                    const platinum_muted_list *muted)
+{
+    platinum_json author;
+    platinum_json viewer;
+    platinum_json record;
+    platinum_json facets;
+    platinum_json facet;
+    platinum_json features;
+    platinum_json feature;
+    platinum_json following;
+    char text[PLATINUM_TEXT_UTF8_CAPACITY];
+    char tag_buffers[8][64];
+    const char *tags[8];
+    char facet_type[64];
+    long facet_count;
+    long feature_count;
+    long fi;
+    long gi;
+    int tag_count;
+    int followed;
+
+    if (muted == NULL || muted->count <= 0)
+        return 0;
+
+    text[0] = '\0';
+    tag_count = 0;
+    followed = 0;
+
+    if (platinum_json_member(post_view, "author", &author) == WF_OK) {
+        if (platinum_json_member(author, "viewer", &viewer) == WF_OK) {
+            if (platinum_json_member(viewer, "following",
+                                     &following) == WF_OK)
+                followed = 1;
+        }
+    }
+
+    if (platinum_json_member(post_view, "record", &record) == WF_OK) {
+        if (platinum_json_string_truncating(record, "text", text,
+                                            sizeof(text)) != WF_OK)
+            text[0] = '\0';
+        if (platinum_json_member(record, "facets", &facets) == WF_OK &&
+            platinum_json_count(facets, &facet_count) == WF_OK) {
+            if (facet_count > 32)
+                facet_count = 32;
+            for (fi = 0; fi < facet_count && tag_count < 8; fi++) {
+                if (platinum_json_element(facets, fi, &facet) != WF_OK)
+                    continue;
+                if (platinum_json_member(facet, "features",
+                                         &features) != WF_OK)
+                    continue;
+                if (platinum_json_count(features,
+                                         &feature_count) != WF_OK)
+                    continue;
+                if (feature_count > 8)
+                    feature_count = 8;
+                for (gi = 0; gi < feature_count && tag_count < 8; gi++) {
+                    if (platinum_json_element(features, gi,
+                                              &feature) != WF_OK)
+                        continue;
+                    facet_type[0] = '\0';
+                    if (platinum_json_string(feature, "$type", facet_type,
+                                             sizeof(facet_type)) != WF_OK)
+                        continue;
+                    if (strcmp(facet_type,
+                               "app.bsky.richtext.facet#tag") != 0)
+                        continue;
+                    tag_buffers[tag_count][0] = '\0';
+                    if (platinum_json_string(feature, "tag",
+                                             tag_buffers[tag_count],
+                                             sizeof(tag_buffers[tag_count]))
+                        != WF_OK)
+                        continue;
+                    if (tag_buffers[tag_count][0] == '\0')
+                        continue;
+                    tags[tag_count] = tag_buffers[tag_count];
+                    tag_count++;
+                }
+            }
+        }
+    }
+
+    return platinum_muted_match(muted, text, tag_count > 0 ? tags : NULL,
+                                tag_count, followed);
+}
+
+/*
  * One native page, with the same commit rules as the bridge page: the response
  * is validated before any row is dropped, and a failure leaves the loaded rows
- * and cursor alone.
+ * and cursor alone. Posts matching the muted-words list are skipped, so a page
+ * can come back short, the way the bridge behaved server-side.
  */
 static wf_status timeline_fetch_native(platinum_timeline *timeline,
                                        platinum_atproto_client *client,
@@ -52,12 +149,14 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
     platinum_json feed;
     platinum_json item;
     platinum_json post_view;
+    platinum_muted_list muted;
     long index;
     long available;
     long parsed;
     long drop;
     char cursor[PLATINUM_TIMELINE_CURSOR_MAX + 1];
     wf_status status;
+    long now;
 
     if (dropped != NULL)
         *dropped = 0;
@@ -65,6 +164,14 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
     timeline->loading = 1;
     timeline_native_set_status(timeline, append ? "Loading older posts..."
                                          : "Loading timeline...");
+    /* Best-effort: a preferences failure shows the page unfiltered. The
+     * prefs fetch runs first so the timeline remains the last request the
+     * tests observe. */
+    platinum_muted_clear(&muted);
+    now = (long)time(NULL);
+    if (now < 0)
+        now = 0;
+    (void)platinum_prefs_muted_load(client, &muted, now);
     memset(&response, 0, sizeof(response));
 
     status = platinum_atproto_timeline_page(
@@ -123,6 +230,8 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
         if (platinum_json_element(feed, index, &item) != WF_OK)
             continue;
         if (platinum_json_member(item, "post", &post_view) != WF_OK)
+            continue;
+        if (timeline_native_is_muted(post_view, &muted))
             continue;
         if (platinum_timeline_parse_view(&timeline->posts[timeline->count],
                                          post_view))

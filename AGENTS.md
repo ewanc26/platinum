@@ -131,6 +131,8 @@ platinum/
 │   ├── atproto_feed.c
 │   ├── atproto_feed.h
 │   ├── atproto_identity.c
+│   ├── atproto_prefs.c
+│   ├── atproto_prefs.h
 │   ├── atproto_session.c
 │   ├── atproto_url.c
 │   ├── bridge_client.c
