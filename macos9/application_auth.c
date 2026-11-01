@@ -156,13 +156,14 @@ static const char *apppw_failure_text(wf_status status)
 /*
  * Find the account from the handle and sign in to its own PDS. However it ends,
  * the password is wiped from the entry buffer and from the local copy, and the
- * window shows only bullets. Preferences says which handle method found the
- * account once the window has closed.
+ * window shows only bullets. On success the window stays open as the signed-in
+ * view: the handle, the PDS and which handle method found the account.
  */
 void platinum_application_attempt_apppw(platinum_application *app)
 {
     char handle[PLATINUM_APPPW_HANDLE_MAX * 4 + 1];
     char password[PLATINUM_SECRET_MAX * 4 + 1];
+    const platinum_atproto_session *account;
     wf_status status;
 
     if (app == NULL || app->apppw.window == NULL)
@@ -179,15 +180,28 @@ void platinum_application_attempt_apppw(platinum_application *app)
         return;
     }
 
-    platinum_apppw_set_status(&app->apppw,
-                              "Finding the account and signing in...");
+    platinum_apppw_set_resolving(&app->apppw, 1);
     status = platinum_session_sign_in_native(&app->session, handle, password);
     platinum_bridge_wipe(password, sizeof(password));
     platinum_secret_wipe(&app->apppw.password);
+    platinum_apppw_set_resolving(&app->apppw, 0);
 
     if (status != WF_OK) {
         platinum_apppw_set_status(&app->apppw, apppw_failure_text(status));
         return;
+    }
+
+    account = platinum_session_native_account(&app->session);
+    if (account != NULL) {
+        char shown[PLATINUM_APPPW_RESOLVED_HANDLE_MAX + 2];
+
+        shown[0] = '@';
+        strncpy(shown + 1, account->handle, sizeof(shown) - 2);
+        shown[sizeof(shown) - 1] = '\0';
+        platinum_apppw_set_resolved(
+            &app->apppw, shown, account->pds_url,
+            platinum_session_entryway_name(
+                platinum_session_entryway(&app->session)));
     }
 
     platinum_profile_close(&app->profile);
@@ -197,8 +211,14 @@ void platinum_application_attempt_apppw(platinum_application *app)
     platinum_search_close(&app->search);
     platinum_pairing_close(&app->pairing);
     platinum_timeline_init(&app->timeline);
-    platinum_apppw_close(&app->apppw);
-    SelectWindow(app->window);
+    if (account != NULL) {
+        /* The signed-in view stays in front; closing it returns to the main
+         * window. */
+        SelectWindow(app->apppw.window);
+    } else {
+        platinum_apppw_close(&app->apppw);
+        SelectWindow(app->window);
+    }
     platinum_application_refresh_timeline(app);
     platinum_application_invalidate(app);
 }
