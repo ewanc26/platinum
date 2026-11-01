@@ -45,7 +45,7 @@ goes through the bridge.
 | `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry, bootstrap-then-sign-in and the handle-only sign-in window are done; the bridge route is no longer called by the UI |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `session.c` | `test_session` (to add) | pending |
 | `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
-| `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_feed.c` | `test_profile` (to rewrite) | pending |
+| `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_native.c` read (`profile_feed.c` model) | `test_profile` | native read end to end (bridge fallback); follow/mute/block writes still pending |
 | `GET /v1/follows` | `app.bsky.graph.getFollows` | `people_feed.c` | `test_people` (to rewrite) | pending |
 | `GET /v1/followers` | `app.bsky.graph.getFollowers` | `people_feed.c` | `test_people` | pending |
 | `GET /v1/author-feed` | `app.bsky.feed.getAuthorFeed` | `profile_feed.c` | `test_profile` | pending |
@@ -99,7 +99,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Sign-in | `atproto_bootstrap.c` + `createSession` | native |
 | Home timeline | `atproto_feed.c` + `timeline_native.c` | native end to end, including likes and reposts |
 | Notifications | `atproto_feed.c` + `notifications_feed.c` | native |
-| Profile | bridge | pending |
+| Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback) |
 | Search (accounts and posts) | bridge | pending |
 | Saved feeds and lists | bridge | pending |

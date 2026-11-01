@@ -82,6 +82,7 @@ set(PLATINUM_SOURCES
     prefs_file.c
     profile.c
     profile_feed.c
+    profile_native.c
     scrollbar.c
     screen_state.c
     state_panel.c

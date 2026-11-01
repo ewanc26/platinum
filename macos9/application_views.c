@@ -61,10 +61,12 @@ void platinum_application_refresh_timeline(platinum_application *app)
 }
 
 /* Open the selected post's author in the Profile window. */
+/* Another account's profile. The native session first; the bridge is only
+ * a fallback. Follow, mute and block writes still need the bridge. */
 void platinum_application_show_author(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
-    const char *notice;
     wf_status status;
     short index;
 
@@ -73,14 +75,13 @@ void platinum_application_show_author(platinum_application *app)
     index = app->ui.selected_post;
     if (index < 0 || index >= (short)app->timeline.count)
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
+    if (client == NULL && bridge == NULL) {
         if (platinum_profile_open(&app->profile) == noErr) {
-            platinum_profile_set_status(&app->profile,
-                                        notice != NULL
-                                            ? notice
-                                            : "The bridge is unavailable.");
+            platinum_profile_set_status(
+                &app->profile,
+                platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN));
             SelectWindow(app->profile.window);
         }
         return;
@@ -88,8 +89,11 @@ void platinum_application_show_author(platinum_application *app)
     if (platinum_profile_open(&app->profile) != noErr)
         return;
 
-    status = platinum_profile_load(&app->profile, bridge,
-                                   app->timeline.posts[index].handle);
+    status = client != NULL
+                 ? platinum_profile_load_native(&app->profile, client,
+                                                app->timeline.posts[index].handle)
+                 : platinum_profile_load(&app->profile, bridge,
+                                         app->timeline.posts[index].handle);
     platinum_application_recover_auth(app, status);
     if (app->profile.window != NULL)
         InvalRect(&app->profile.window->portRect);
@@ -635,9 +639,6 @@ void platinum_application_load_older(platinum_application *app)
 
 void platinum_application_open_profile(platinum_application *app)
 {
-    platinum_bridge_client *bridge;
-    const char *notice;
-
     if (app == NULL)
         return;
 
@@ -650,17 +651,23 @@ void platinum_application_open_profile(platinum_application *app)
     if (platinum_profile_open(&app->profile) != noErr)
         return;
 
-    notice = platinum_application_bridge_notice(app);
-    if (notice != NULL) {
-        platinum_profile_set_status(&app->profile, notice);
-        SelectWindow(app->profile.window);
-        return;
-    }
-
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge != NULL) {
+    {
+        platinum_atproto_client *client;
+        platinum_bridge_client *bridge2;
         wf_status status;
-        status = platinum_profile_refresh(&app->profile, bridge);
+
+        client = platinum_session_client(&app->session);
+        bridge2 = client != NULL ? NULL : platinum_session_bridge(&app->session);
+        if (client == NULL && bridge2 == NULL) {
+            platinum_profile_set_status(
+                &app->profile,
+                platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN));
+            SelectWindow(app->profile.window);
+            return;
+        }
+        status = client != NULL
+                     ? platinum_profile_refresh_native(&app->profile, client)
+                     : platinum_profile_refresh(&app->profile, bridge2);
         platinum_application_recover_auth(app, status);
     }
 }
