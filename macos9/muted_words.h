@@ -22,9 +22,10 @@
  *    `expiresAt` that does not parse is treated as not expired, the safe
  *    direction for a mute, and `now` of 0 (clock unknown) expires nothing.
  *
- * No Toolbox and no allocation, so the rules are host-tested. This module does
- * not fetch or store preferences yet: the muted-words screen still reads them
- * through the bridge.
+ * No Toolbox and no allocation, so the rules are host-tested. Fetching lives
+ * in atproto_prefs.h: the native timeline loads getPreferences there and
+ * filters with this matcher. The muted-words screen still reads through the
+ * bridge.
  */
 
 #ifdef __cplusplus

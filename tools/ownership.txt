@@ -47,6 +47,8 @@ macos9/atproto_feed.c              atproto   # AppView feed requests (getTimelin
 macos9/atproto_feed.h              atproto
 macos9/atproto_identity.c          atproto   # DID document URLs, handle resolution, the #atproto_pds endpoint and the bidirectional handle claim; no Toolbox, so it links on a host
 macos9/atproto_identity.h          atproto
+macos9/atproto_prefs.c             atproto   # getPreferences read into the muted-words list; no Toolbox, so it links on a host
+macos9/atproto_prefs.h             atproto
 macos9/atproto_session.c           atproto   # createSession/refreshSession parsing, JWT expiry hint, XRPC error mapping; tokens are wiped on clear
 macos9/atproto_session.h           atproto
 macos9/atproto_url.c               atproto   # https-only service base, XRPC URLs, DID/handle/NSID/AT URI validation; no Toolbox
