@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Help menu items About Platinum and Platinum Help open local windows: the About box and a guide to the current shortcuts, account pairing and windows, with one Close button following the shared keyboard rules. Host tests cover the content and hit-testing. ([#165](https://github.com/ewanc26/platinum/pull/165))
+
 - Likes and reposts now use the Mac's native AT Protocol session alongside the native timeline. Platinum creates `app.bsky.feed.like` and `app.bsky.feed.repost` records with UTC timestamps, retains the URIs AppView reports, and deletes only the signed-in account's exact interaction record when undone. Host tests cover create, undo, URI ownership checks and row-state updates. The bridge path remains for bridge-paired sessions. ([#159](https://github.com/ewanc26/platinum/pull/159))
 
 - Thread, People, Conversations, Search, Notifications, the main timeline and Connection Status adopt the shared state panel (ADR 0012): a window with nothing to show draws the framed panel with its action button, and a window that already has rows keeps them and reports a failure on one line at the bottom. The panel's Sign In and Pair a Bridge open their own window and leave the current one open behind it. ([#161](https://github.com/ewanc26/platinum/pull/161))
