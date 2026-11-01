@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "atproto_client.h"
 #include "thread.h"
 #include "wolfram_stub.h"
 
@@ -180,11 +181,108 @@ static void test_list(void)
     platinum_bridge_client_free(bridge);
 }
 
+static const char *native_thread_body;
+
+static void native_thread_script(int call, int method, const char *url,
+                                 const char *body)
+{
+    (void)call;
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    fake_body = native_thread_body;
+}
+
+static platinum_atproto_client *native_thread_client(void)
+{
+    platinum_atproto_session session;
+    platinum_atproto_client *client;
+
+    client = platinum_atproto_client_new("https://pds.example");
+    if (client == NULL)
+        return NULL;
+    memset(&session, 0, sizeof(session));
+    strcpy(session.access_jwt, "access");
+    strcpy(session.refresh_jwt, "refresh");
+    strcpy(session.did, "did:plc:a");
+    strcpy(session.handle, "a.test");
+    strcpy(session.pds_url, "https://pds.example");
+    if (platinum_atproto_client_set_session(client, &session) != WF_OK) {
+        platinum_atproto_client_free(client);
+        return NULL;
+    }
+    return client;
+}
+
+static void test_native_thread(void)
+{
+    static platinum_thread thread;
+    static char body[8192];
+    platinum_atproto_client *client;
+
+    client = native_thread_client();
+    if (client == NULL)
+        return;
+    platinum_thread_init(&thread);
+
+    strcpy(body, "{\"thread\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\",");
+    strcat(body, "\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/root\",");
+    strcat(body, "\"cid\":\"croot\",\"author\":{\"did\":\"did:plc:a\"},");
+    strcat(body, "\"record\":{\"text\":\"root\"},\"viewer\":{}},");
+    strcat(body, "\"parent\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\",");
+    strcat(body, "\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/parent\",");
+    strcat(body, "\"cid\":\"cparent\",\"author\":{\"did\":\"did:plc:a\"},");
+    strcat(body, "\"record\":{\"text\":\"parent\"}}},");
+    strcat(body, "\"replies\":[{\"$type\":\"app.bsky.feed.defs#threadViewPost\",");
+    strcat(body, "\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/r1\",");
+    strcat(body, "\"cid\":\"cr1\",\"author\":{\"did\":\"did:plc:a\"},");
+    strcat(body, "\"record\":{\"text\":\"r1\"}}},");
+    strcat(body, "{\"$type\":\"app.bsky.feed.defs#blockedPost\",");
+    strcat(body, "\"uri\":\"at://x\"}]}}");
+    native_thread_body = body;
+    fake_script = native_thread_script;
+    check(platinum_thread_load_native(&thread, client,
+                                      "at://did:plc:a/app.bsky.feed.post/root")
+              == WF_OK,
+          "native thread loads");
+    check(strcmp(last_nsid, "app.bsky.feed.getPostThread") == 0,
+          "native thread calls getPostThread");
+    check(thread.count == 3, "parent, root and one reply");
+    if (thread.count == 3) {
+        check(thread.items[0].depth == -1, "parent first at depth -1");
+        check(thread.items[1].depth == 0, "root at depth 0");
+        check(thread.items[2].depth == 1, "reply at depth 1");
+        check(thread.focus == 1, "focus is the depth-0 post");
+    }
+    check(thread.truncated == 0, "nothing cut");
+    fake_script = NULL;
+
+    native_thread_body = "{\"thread\":{\"$type\":\"app.bsky.feed.defs#blockedPost\"}}";
+    fake_script = native_thread_script;
+    check(platinum_thread_load_native(&thread, client,
+                                      "at://did:plc:a/app.bsky.feed.post/gone")
+              == WF_ERR_NOT_FOUND,
+          "a blocked root is not found");
+    check(strcmp(thread.status, "That post no longer exists.") == 0,
+          "missing post says so");
+    fake_script = NULL;
+
+    check(platinum_thread_load_native(&thread, client, "")
+              == WF_ERR_INVALID_ARG,
+          "empty uri is refused");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_list();
     test_load();
     test_bound();
+    test_native_thread();
+    fake_script = NULL;
     if (failures != 0) {
         printf("test_thread: %d of %d checks failed\n", failures, checks);
         return 1;

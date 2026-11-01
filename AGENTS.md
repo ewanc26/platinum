@@ -188,6 +188,7 @@ platinum/
 │   ├── text_codec.h
 │   ├── thread.c
 │   ├── thread_feed.c
+│   ├── thread_native.c
 │   ├── timeline.c
 │   ├── timeline.h
 │   ├── timeline_native.c
