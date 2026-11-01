@@ -1,22 +1,23 @@
 # Switching the bridge's upstream sign-in to a Wolfram OAuth node
 
 Status: planning. Tracked in [#75](https://github.com/ewanc26/platinum/issues/75).
-The client side of Wolfram's pairing contract is ported and tested
-(`bridge/src/auth/oauth-node-pairing.ts`). The bridge's sign-in still runs its
-own OAuth client (`@atproto/oauth-client-node`). Nothing here changes the
-Mac-to-bridge protocol in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
+The pairing-contract parsers run in Wolfram's C through the Node addon
+(`bridge/src/auth/oauth-node-pairing.ts` is a thin adapter; vectors in
+`bridge/test/vectors/oauth_pairing.json` run through it). The bridge's sign-in
+still runs its own OAuth client (`@atproto/oauth-client-node`). Nothing here
+changes the Mac-to-bridge protocol in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 
 ## References and pins
 
 - Contract: Wolfram `docs/oauth-pairing.md`, `docs/oauth-node.md`, and
   `include/wolfram/oauth_pairing.h`.
 - Shared vectors: `bridge/test/vectors/oauth_pairing.json`. CI diffs them
-  against Wolfram commit `df6ee1f4bc5b5f59760ec1a88ecb86ea59c8a048`
+  against Wolfram commit `bfb50126b2943741fc5bccc931aa20baa54e445a`
   (`.github/workflows/ci.yml`). They are byte-identical to that commit.
-- C reference read for this port: `src/session/oauth/pairing.c` at Wolfram
-  `5edc0d9`. It matches the pinned commit. `src/node/oauth_node.c` changed
-  between the pin and `5edc0d9`, so the node side must be re-read before the
-  switch-over.
+- C reference read for this port: `src/session/oauth/pairing.c` at the pinned
+  commit. The node side (`src/node/oauth_node.c`) must be re-read at the
+  pinned commit before the switch-over; older reads at `5edc0d9` predate the
+  addon migration and are stale.
 
 ## Behaviour aligned to the C driver
 
@@ -93,10 +94,10 @@ These follow `pairing.c`, because the contract doc is silent on them:
   so.
 - **Single point of failure.** Every timeline, post and notification call goes
   through one node. Its availability becomes the bridge's availability.
-- **Serialised proxy.** `proxy_handler` in `oauth_node.c` holds the node's
-  global mutex across the whole upstream PDS call (lines 674 to 760 at
-  `5edc0d9`). Every proxied request for every session waits behind the slowest
-  one. This must be fixed or measured before the bridge depends on it.
+- **Serialised proxy.** `proxy_handler` in `oauth_node.c` has held the node's
+  global mutex across the whole upstream PDS call. Every proxied request for
+  every session waits behind the slowest one. Re-check this at the pinned
+  commit; it must be fixed or measured before the bridge depends on it.
 - **Content type.** The proxy labels every upstream body `application/json`,
   including `getBlob` image bytes. Check this before serving images through
   the node.
