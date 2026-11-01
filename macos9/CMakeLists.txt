@@ -93,6 +93,7 @@ set(PLATINUM_SOURCES
     textfield.c
     thread.c
     thread_feed.c
+    thread_native.c
     timeline.c
     timeline_native.c
     ui.c

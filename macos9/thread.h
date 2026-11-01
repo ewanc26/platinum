@@ -65,6 +65,16 @@ wf_status platinum_thread_load(platinum_thread *thread,
                                const char *uri);
 
 /*
+ * GET app.bsky.feed.getPostThread for the post `uri`, flattened the way the
+ * bridge did: ancestors oldest first, the post at depth 0, replies
+ * depth-first, at most 40 posts and six reply levels. Blocked, missing and
+ * unreadable posts are skipped; `truncated` says what was left out.
+ */
+wf_status platinum_thread_load_native(platinum_thread *thread,
+                                      platinum_atproto_client *client,
+                                      const char *uri);
+
+/*
  * Load a plain list of posts (no depths) from `route`, such as
  * "/v1/author-feed" with key "actor", replacing the list. `heading` is shown
  * above it. Pages with platinum_thread_load_more; at most PLATINUM_THREAD_MAX
