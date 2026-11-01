@@ -2,6 +2,7 @@
 #include "text_codec.h"
 
 #include "json_min.h"
+#include "atproto_url.h"
 #include <string.h>
 
 /*
@@ -277,20 +278,26 @@ int platinum_timeline_parse_view(platinum_post_preview *post,
     post->reply_count = timeline_json_number(item, "replyCount");
     post->quote_count = timeline_json_number(item, "quoteCount");
 
-    /* viewer.like and viewer.repost are record URIs when the viewer has done
-     * it, and absent otherwise. That is the AppView's representation; the
-     * bridge flattened it to booleans, which is what the row stores. */
+    /* Retain the AppView URIs: they identify the exact records to undo. */
     post->liked = 0;
     post->reposted = 0;
+    post->like_uri[0] = '\0';
+    post->repost_uri[0] = '\0';
     if (platinum_json_member(item, "viewer", &viewer) == WF_OK) {
-        if (platinum_json_string(viewer, "like", viewer_uri,
-                                 sizeof(viewer_uri)) == WF_OK &&
-            viewer_uri[0] != '\0')
+        if (timeline_copy_field(post->like_uri, sizeof(post->like_uri),
+                                viewer, "like", 0) &&
+            platinum_atproto_valid_at_uri(post->like_uri)) {
             post->liked = 1;
-        if (platinum_json_string(viewer, "repost", viewer_uri,
-                                 sizeof(viewer_uri)) == WF_OK &&
-            viewer_uri[0] != '\0')
+        } else {
+            post->like_uri[0] = '\0';
+        }
+        if (timeline_copy_field(post->repost_uri, sizeof(post->repost_uri),
+                                viewer, "repost", 0) &&
+            platinum_atproto_valid_at_uri(post->repost_uri)) {
             post->reposted = 1;
+        } else {
+            post->repost_uri[0] = '\0';
+        }
     }
 
     return 1;
