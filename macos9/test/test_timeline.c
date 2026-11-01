@@ -165,12 +165,12 @@ static const char *make_native_page(int first, int n, const char *cursor)
     strcpy(page, "{\"feed\":[");
     for (i = 0; i < n; ++i) {
         sprintf(item,
-                "%s{\"post\":{\"uri\":\"at://p/%d\",\"cid\":\"c%d\","
+                "%s{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/post-%d\",\"cid\":\"c%d\","
                 "\"author\":{\"did\":\"did:plc:a\",\"handle\":\"a.test\"},"
                 "\"record\":{\"text\":\"post %d\","
                 "\"createdAt\":\"2026-10-05T12:34:00.000Z\"},"
                 "\"likeCount\":4,\"repostCount\":2,"
-                "\"viewer\":{\"like\":\"at://like/1\"}}}",
+                "\"viewer\":{\"like\":\"at://did:plc:a/app.bsky.feed.like/like-old\"}}}",
                 i == 0 ? "" : ",", first + i, first + i, first + i);
         strcat(page, item);
     }
@@ -235,9 +235,86 @@ static void test_native_timeline(void)
           "native view reads record.text");
     check(timeline.posts[0].liked == 1,
           "native viewer.like sets the like flag");
+    check(strcmp(timeline.posts[0].like_uri,
+                 "at://did:plc:a/app.bsky.feed.like/like-old") == 0,
+          "native viewer.like URI is retained for undo");
     check(timeline.posts[0].reposted == 0,
           "an absent viewer.repost is not a repost");
     check(timeline.posts[0].like_count == 4, "native counts are read");
+
+    /* Undo an AppView-reported like by deleting that exact repo record. */
+    respond(WF_OK, "{}");
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 0, 0)
+              == WF_OK,
+          "native unlike succeeds");
+    check(strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0 &&
+              last_method == 2,
+          "native unlike uses deleteRecord");
+    check(strcmp(last_body,
+                 "{\"repo\":\"did:plc:a\",\"collection\":\"app.bsky.feed.like\","
+                 "\"rkey\":\"like-old\"}") == 0,
+          "native unlike deletes the retained record key");
+    check(timeline.posts[0].liked == 0 &&
+              timeline.posts[0].like_count == 3 &&
+              timeline.posts[0].like_uri[0] == '\0',
+          "native unlike updates the row and clears its record URI");
+
+    /* A new like is a repo record with a UTC timestamp and post subject. */
+    respond(WF_OK,
+            "{\"uri\":\"at://did:plc:a/app.bsky.feed.like/like-new\","
+            "\"cid\":\"bafylikenew\"}");
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 0, 1)
+              == WF_OK,
+          "native like succeeds");
+    check(strcmp(last_nsid, "com.atproto.repo.createRecord") == 0 &&
+              last_method == 2,
+          "native like uses createRecord");
+    check(strstr(last_body,
+                 "\"collection\":\"app.bsky.feed.like\"") != NULL &&
+              strstr(last_body,
+                 "\"subject\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/post-0\","
+                 "\"cid\":\"c0\"}") != NULL,
+          "native like sends the right collection and subject");
+    check(strstr(last_body, "\"createdAt\":\"") != NULL &&
+              strstr(last_body, "Z\"}}") != NULL,
+          "native like timestamp is UTC RFC 3339");
+    check(timeline.posts[0].liked == 1 &&
+              timeline.posts[0].like_count == 4 &&
+              strcmp(timeline.posts[0].like_uri,
+                     "at://did:plc:a/app.bsky.feed.like/like-new") == 0,
+          "native like retains the createRecord URI and updates the row");
+
+    /* Reposts use their own collection and can be undone the same way. */
+    respond(WF_OK,
+            "{\"uri\":\"at://did:plc:a/app.bsky.feed.repost/repost-new\","
+            "\"cid\":\"bafyrepostnew\"}");
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 1, 1)
+              == WF_OK,
+          "native repost succeeds");
+    check(strcmp(last_nsid, "com.atproto.repo.createRecord") == 0 &&
+              strstr(last_body,
+                     "\"collection\":\"app.bsky.feed.repost\"") != NULL,
+          "native repost uses its own record collection");
+    check(timeline.posts[0].reposted == 1 &&
+              timeline.posts[0].repost_count == 3 &&
+              strcmp(timeline.posts[0].repost_uri,
+                     "at://did:plc:a/app.bsky.feed.repost/repost-new") == 0,
+          "native repost retains its record URI and updates the row");
+
+    respond(WF_OK, "{}");
+    check(platinum_timeline_set_engagement_native(&timeline, client, 0, 1, 0)
+              == WF_OK,
+          "native undo repost succeeds");
+    check(strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0 &&
+              strcmp(last_body,
+                     "{\"repo\":\"did:plc:a\",\"collection\":\"app.bsky.feed.repost\","
+                     "\"rkey\":\"repost-new\"}") == 0,
+          "native undo repost deletes the retained record");
+    check(timeline.posts[0].reposted == 0 &&
+              timeline.posts[0].repost_count == 2 &&
+              timeline.posts[0].repost_uri[0] == '\0',
+          "native undo repost clears local state");
+
     check(platinum_timeline_has_older(&timeline),
           "native cursor allows an older page");
 
