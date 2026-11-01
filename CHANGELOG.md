@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- The app-password sign-in window follows the shared keyboard and state rules: Tab and Shift-Tab move through the handle, the password, Cancel and Sign In in drawing order, Return activates the focused button and signs in from a field, and Escape and Command-period cancel. While the account is resolved the window shows the loading panel, and on success it becomes the signed-in view — the handle, the server and which handle method found the account — with Close as the only stop; the password is wiped first. Host tests cover the focus and Return rules. ([#168](https://github.com/ewanc26/platinum/pull/168))
+
 - Help menu items About Platinum and Platinum Help open local windows: the About box and a guide to the current shortcuts, account pairing and windows, with one Close button following the shared keyboard rules. Host tests cover the content and hit-testing. ([#165](https://github.com/ewanc26/platinum/pull/165))
 
 - Likes and reposts now use the Mac's native AT Protocol session alongside the native timeline. Platinum creates `app.bsky.feed.like` and `app.bsky.feed.repost` records with UTC timestamps, retains the URIs AppView reports, and deletes only the signed-in account's exact interaction record when undone. Host tests cover create, undo, URI ownership checks and row-state updates. The bridge path remains for bridge-paired sessions. ([#159](https://github.com/ewanc26/platinum/pull/159))
