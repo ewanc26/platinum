@@ -10,6 +10,9 @@ pull request.
 
 ### Added
 
+- Likes and reposts now use the Mac's native AT Protocol session alongside the native timeline. Platinum creates \`app.bsky.feed.like\` and \`app.bsky.feed.repost\` records with UTC timestamps, retains the URIs AppView reports, and deletes only the signed-in account's exact interaction record when undone. Host tests cover create, undo, URI ownership checks and row-state updates. The bridge path remains for bridge-paired sessions. (PR pending)
+
+
 - A shared empty-and-state panel replaces bare error sentences: one framed panel with a title, wrapped message and an action button, laid out with the existing text and button helpers. Profile uses it first for the sign-in and bridge notices, with Sign In opening the app-password window and Pair a Bridge opening the pairing window; the other windows keep their existing status lines until they adopt it. Layout and wrapping are host-tested at 640x480 and 800x600 and at narrow and short sizes. ([#156](https://github.com/ewanc26/platinum/pull/156))
 
 - The native client has a C89 muted-word matcher: the same rules as Wolfram and the bridge (whole words versus substrings, content and tag targets, exclude-following, expiry judged at a caller-supplied clock), with 39 host checks. It is not wired to the Muted Words screen yet, which still reads through the bridge. ([#156](https://github.com/ewanc26/platinum/pull/156))
