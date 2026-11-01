@@ -507,11 +507,12 @@ void platinum_application_relate(platinum_application *app, int kind)
     InvalRect(&app->profile.window->portRect);
 }
 
-/* Open the thread around the selected post. */
+/* Open the thread around the selected post. The native session first; the
+ * bridge is only a fallback while the window has not migrated. */
 void platinum_application_show_thread(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
-    const char *notice;
     wf_status status;
     short index;
 
@@ -520,14 +521,13 @@ void platinum_application_show_thread(platinum_application *app)
     index = app->ui.selected_post;
     if (index < 0 || index >= (short)app->timeline.count)
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
+    if (client == NULL && bridge == NULL) {
         if (platinum_thread_open(&app->thread) == noErr) {
-            platinum_thread_set_status(&app->thread,
-                                       notice != NULL
-                                           ? notice
-                                           : "The bridge is unavailable.");
+            platinum_thread_set_status(
+                &app->thread,
+                platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN));
             SelectWindow(app->thread.window);
         }
         return;
@@ -535,8 +535,11 @@ void platinum_application_show_thread(platinum_application *app)
     if (platinum_thread_open(&app->thread) != noErr)
         return;
 
-    status = platinum_thread_load(&app->thread, bridge,
-                                  app->timeline.posts[index].uri);
+    status = client != NULL
+                 ? platinum_thread_load_native(&app->thread, client,
+                                               app->timeline.posts[index].uri)
+                 : platinum_thread_load(&app->thread, bridge,
+                                        app->timeline.posts[index].uri);
     platinum_application_recover_auth(app, status);
     if (app->thread.window != NULL)
         InvalRect(&app->thread.window->portRect);
