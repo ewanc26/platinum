@@ -46,6 +46,18 @@ wf_status platinum_atproto_notifications_page(
     platinum_atproto_client *client, const char *cursor, size_t limit,
     wf_response *out);
 
+/*
+ * Create or delete the signed-in user's like or repost for a post.
+ *
+ * record_uri is required when deleting and must be the URI of the signed-in
+ * account's record in the expected collection. On create, the raw
+ * createRecord response is returned in out so the caller can retain its URI.
+ */
+wf_status platinum_atproto_feed_engagement(
+    platinum_atproto_client *client, const char *post_uri,
+    const char *post_cid, int repost, int on, const char *record_uri,
+    wf_response *out);
+
 /* Mark notifications seen through app.bsky.notification.updateSeen. `seen_at`
  * is an RFC 3339 timestamp as the service sent it, never the Mac clock. */
 wf_status platinum_atproto_notification_seen(
