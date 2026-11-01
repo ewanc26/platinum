@@ -1,5 +1,6 @@
 #include "apppw.h"
 #include "drawutil.h"
+#include "state_panel.h"
 #include "textfield.h"
 
 #include <Quickdraw.h>
@@ -11,6 +12,16 @@ static unsigned char kTitle[] = {
 };
 static unsigned char kCancel[] = { 6, 'C', 'a', 'n', 'c', 'e', 'l' };
 static unsigned char kSignIn[] = { 7, 'S', 'i', 'g', 'n', ' ', 'I', 'n' };
+static unsigned char kClose[] = { 5, 'C', 'l', 'o', 's', 'e' };
+
+static void apppw_draw_focus(const Rect *rect)
+{
+    Rect inner;
+
+    inner = *rect;
+    InsetRect(&inner, 2, 2);
+    FrameRect(&inner);
+}
 
 static void apppw_buttons(const platinum_apppw *apppw, Rect *cancel,
                           Rect *go)
@@ -55,6 +66,54 @@ void platinum_apppw_set_status(platinum_apppw *apppw, const char *status)
         InvalRect(&apppw->window->portRect);
 }
 
+void platinum_apppw_set_resolving(platinum_apppw *apppw, int resolving)
+{
+    if (apppw == NULL || apppw->window == NULL)
+        return;
+    apppw->resolving = resolving ? 1 : 0;
+    if (apppw->resolving) {
+        /* No caret while the fields are hidden behind the panel. */
+        if (apppw->handle != NULL && apppw->key_focus == PLATINUM_APPPW_FOCUS_HANDLE)
+            TEDeactivate(apppw->handle);
+        /* The sign-in request blocks the event loop, so draw now: an
+         * invalidation would not repaint until the request finished. */
+        platinum_apppw_draw(apppw);
+    } else {
+        InvalRect(&apppw->window->portRect);
+    }
+}
+
+static void apppw_copy_line(char *dst, size_t capacity, const char *src)
+{
+    dst[0] = '\0';
+    if (src != NULL) {
+        strncpy(dst, src, capacity - 1);
+        dst[capacity - 1] = '\0';
+    }
+}
+
+void platinum_apppw_set_resolved(platinum_apppw *apppw, const char *handle,
+                                 const char *pds, const char *entryway)
+{
+    if (apppw == NULL)
+        return;
+    /* First, before anything can fail: the password goes. */
+    platinum_secret_wipe(&apppw->password);
+    if (apppw->handle != NULL)
+        TEDeactivate(apppw->handle);
+    apppw_copy_line(apppw->resolved_handle, sizeof(apppw->resolved_handle),
+                    handle);
+    apppw_copy_line(apppw->resolved_pds, sizeof(apppw->resolved_pds), pds);
+    apppw_copy_line(apppw->resolved_entryway,
+                    sizeof(apppw->resolved_entryway), entryway);
+    apppw->resolving = 0;
+    apppw->signed_in = 1;
+    apppw->key_focus = PLATINUM_APPPW_FOCUS_CANCEL;
+    apppw->status[0] = '\0';
+    if (apppw->window != NULL)
+        InvalRect(&apppw->window->portRect);
+}
+
 OSErr platinum_apppw_open(platinum_apppw *apppw, const char *handle)
 {
     Rect bounds;
@@ -81,7 +140,7 @@ OSErr platinum_apppw_open(platinum_apppw *apppw, const char *handle)
     if (handle != NULL && handle[0] != '\0')
         platinum_textfield_set(apppw->handle, handle);
 
-    apppw->active_field = 0;
+    apppw->key_focus = PLATINUM_APPPW_FOCUS_HANDLE;
     platinum_apppw_set_status(apppw, "Enter your handle and an app password.");
     SetPort((GrafPtr)apppw->window);
     platinum_apppw_draw(apppw);
@@ -104,7 +163,9 @@ void platinum_apppw_close(platinum_apppw *apppw)
         DisposeWindow(apppw->window);
         apppw->window = NULL;
     }
-    apppw->active_field = 0;
+    apppw->key_focus = PLATINUM_APPPW_FOCUS_HANDLE;
+    apppw->resolving = 0;
+    apppw->signed_in = 0;
     apppw->status[0] = '\0';
 }
 
@@ -114,6 +175,8 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     Rect frame;
     Rect cancel;
     Rect go;
+    Rect content;
+    platinum_panel panel;
     char mask[PLATINUM_SECRET_MAX + 1];
 
     if (apppw == NULL || apppw->window == NULL || apppw->handle == NULL)
@@ -122,6 +185,33 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     GetPort(&old_port);
     SetPort((GrafPtr)apppw->window);
     EraseRect(&apppw->window->portRect);
+
+    if (apppw->signed_in) {
+        platinum_draw_text("Signed in", 18, 24);
+        platinum_draw_text("Handle:", 18, 56);
+        platinum_draw_text(apppw->resolved_handle, 90, 56);
+        platinum_draw_text("Server:", 18, 84);
+        platinum_draw_text(apppw->resolved_pds, 90, 84);
+        platinum_draw_text("Found via:", 18, 112);
+        platinum_draw_text(apppw->resolved_entryway, 90, 112);
+
+        apppw_buttons(apppw, &cancel, &go);
+        platinum_draw_button(&cancel, kClose);
+        if (apppw->key_focus == PLATINUM_APPPW_FOCUS_CANCEL)
+            apppw_draw_focus(&cancel);
+        SetPort(old_port);
+        return;
+    }
+
+    if (apppw->resolving) {
+        content = apppw->window->portRect;
+        InsetRect(&content, 8, 8);
+        platinum_panel_set(&panel, PLATINUM_PANEL_LOADING,
+                           "Finding the account and signing in...");
+        platinum_panel_draw(&content, &panel);
+        SetPort(old_port);
+        return;
+    }
 
     platinum_draw_text("Handle (for example you.bsky.social):", 18, 24);
     frame = (*apppw->handle)->viewRect;
@@ -133,7 +223,7 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     FrameRect(&frame);
     if (platinum_secret_mask(&apppw->password, mask, sizeof(mask)) >= 0)
         platinum_draw_text(mask, frame.left + 4, frame.top + 15);
-    if (apppw->active_field == 1) {
+    if (apppw->key_focus == PLATINUM_APPPW_FOCUS_PASSWORD) {
         /* No insertion point to blink: a thick bottom edge says it is active. */
         MoveTo(frame.left, frame.bottom + 1);
         LineTo(frame.right, frame.bottom + 1);
@@ -144,12 +234,16 @@ void platinum_apppw_draw(platinum_apppw *apppw)
     apppw_buttons(apppw, &cancel, &go);
     platinum_draw_button(&cancel, kCancel);
     platinum_draw_button(&go, kSignIn);
+    if (apppw->key_focus == PLATINUM_APPPW_FOCUS_CANCEL)
+        apppw_draw_focus(&cancel);
+    else if (apppw->key_focus == PLATINUM_APPPW_FOCUS_SIGN_IN)
+        apppw_draw_focus(&go);
     SetPort(old_port);
 }
 
 static TEHandle apppw_field(const platinum_apppw *apppw)
 {
-    if (apppw->active_field == 0)
+    if (apppw->key_focus == PLATINUM_APPPW_FOCUS_HANDLE)
         return apppw->handle;
     return NULL;
 }
@@ -160,7 +254,7 @@ static void apppw_focus(platinum_apppw *apppw, short field)
 
     if (old_field != NULL)
         TEDeactivate(old_field);
-    apppw->active_field = field;
+    apppw->key_focus = field;
     if (apppw_field(apppw) != NULL)
         TEActivate(apppw_field(apppw));
     InvalRect(&apppw->window->portRect);
@@ -200,45 +294,64 @@ int platinum_apppw_handle_event(platinum_apppw *apppw, EventRecord *event)
             return PLATINUM_APPPW_NONE;
 
         case mouseDown:
+            if (apppw->resolving)
+                return PLATINUM_APPPW_NONE;
             where = event->where;
             GlobalToLocal(&where);
             apppw_buttons(apppw, &cancel, &go);
             if (PtInRect(where, &cancel))
                 return PLATINUM_APPPW_CANCEL;
-            if (PtInRect(where, &go))
+            /* The signed-in view has Close only; the Sign In rect is dead. */
+            if (!apppw->signed_in && PtInRect(where, &go))
                 return PLATINUM_APPPW_SIGN_IN;
+            if (apppw->signed_in)
+                return PLATINUM_APPPW_NONE;
             if (apppw->handle != NULL &&
                 PtInRect(where, &(*apppw->handle)->viewRect)) {
-                apppw_focus(apppw, 0);
+                apppw_focus(apppw, PLATINUM_APPPW_FOCUS_HANDLE);
                 TEClick(where, (event->modifiers & shiftKey) != 0,
                         apppw->handle);
             } else {
                 apppw_password_rect(apppw, &box);
                 if (PtInRect(where, &box))
-                    apppw_focus(apppw, 1);
+                    apppw_focus(apppw, PLATINUM_APPPW_FOCUS_PASSWORD);
             }
             return PLATINUM_APPPW_NONE;
 
         case keyDown:
         case autoKey:
+            if (apppw->resolving)
+                return PLATINUM_APPPW_NONE;
             key = (unsigned char)(event->message & charCodeMask);
-            if ((event->modifiers & cmdKey) != 0) {
-                if (key == 'w' || key == 'W')
+            if ((event->modifiers & cmdKey) != 0 && (key == 'w' || key == 'W'))
+                return PLATINUM_APPPW_CANCEL;
+            if (platinum_panel_key_is_cancel(event))
+                return PLATINUM_APPPW_CANCEL;
+            if (apppw->signed_in) {
+                if (platinum_panel_key_is_return(event))
                     return PLATINUM_APPPW_CANCEL;
+                return PLATINUM_APPPW_NONE;
+            }
+            if ((event->modifiers & cmdKey) != 0) {
                 /* No other command key reaches a field, the password least. */
                 return PLATINUM_APPPW_NONE;
             }
-            if (key == '\r' || key == 3)
-                return PLATINUM_APPPW_SIGN_IN;
+            if (platinum_panel_key_is_return(event))
+                return platinum_apppw_return_action(apppw->key_focus, 0);
             if (key == '\t') {
-                apppw_focus(apppw, (short)((apppw->active_field + 1) % 2));
+                apppw_focus(apppw,
+                            platinum_apppw_next_focus(
+                                apppw->key_focus,
+                                (event->modifiers & shiftKey) != 0, 0));
                 return PLATINUM_APPPW_NONE;
             }
-            if (apppw->active_field == 1) {
+            if (apppw->key_focus == PLATINUM_APPPW_FOCUS_PASSWORD) {
                 if (platinum_secret_key(&apppw->password, key))
                     InvalRect(&apppw->window->portRect);
                 return PLATINUM_APPPW_NONE;
             }
+            if (apppw->key_focus != PLATINUM_APPPW_FOCUS_HANDLE)
+                return PLATINUM_APPPW_NONE;
             field = apppw_field(apppw);
             if (field != NULL)
                 (void)platinum_textfield_key(field, event,
