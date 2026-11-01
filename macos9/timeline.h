@@ -11,8 +11,8 @@ extern "C" {
 #endif
 
 /* Rows kept in memory, and rows asked for per request. Loading an older page
- * past the cap drops the newest rows from the front, so memory stays bounded at
- * MAX_POSTS previews (about 130KB with their media references) however far back the reader goes. */
+ * past the cap drops the newest rows from the front, so memory stays bounded
+ * at MAX_POSTS previews, including their retained viewer record URIs. */
 #define PLATINUM_TIMELINE_MAX_POSTS 40
 #define PLATINUM_TIMELINE_PAGE 20
 #define PLATINUM_TIMELINE_AUTHOR_MAX 64
