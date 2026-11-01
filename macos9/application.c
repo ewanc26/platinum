@@ -155,6 +155,187 @@ static void focus_main(platinum_application *app)
     platinum_application_invalidate(app);
 }
 
+/* One routine per kind of secondary window, so the mouse and key paths
+ * share the same close-and-focus and sign-in/pairing behaviour instead of
+ * repeating it. Each takes the action its view reported and performs it. */
+static void handle_profile_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_PROFILE_CLOSE) {
+        platinum_profile_close(&app->profile);
+        focus_main(app);
+    } else if (action == PLATINUM_PROFILE_SIGN_IN) {
+        platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_PROFILE_PAIR) {
+        platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_diagwin_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_DIAGWIN_CLOSE) {
+        platinum_diagwin_close(&app->diagwin);
+        focus_main(app);
+    } else if (action == PLATINUM_DIAGWIN_CHECK) {
+        platinum_application_check_diag(app);
+    } else if (action == PLATINUM_DIAGWIN_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_DIAGWIN_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_help_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_HELP_CLOSE) {
+        platinum_help_close(&app->help);
+        focus_main(app);
+    }
+}
+
+static void handle_search_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_SEARCH_CANCEL) {
+        platinum_search_close(&app->search);
+        focus_main(app);
+    } else if (action == PLATINUM_SEARCH_RUN) {
+        platinum_application_run_search(app);
+    } else if (action == PLATINUM_SEARCH_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_SEARCH_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_people_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_PEOPLE_CLOSE) {
+        platinum_people_close(&app->people);
+        focus_main(app);
+    } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
+        platinum_application_more_people(app);
+    } else if (action == PLATINUM_PEOPLE_OPEN) {
+        platinum_application_open_person(app);
+    } else if (action == PLATINUM_PEOPLE_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_PEOPLE_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_thread_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_THREAD_CLOSE) {
+        platinum_thread_close(&app->thread);
+        focus_main(app);
+    } else if (action == PLATINUM_THREAD_LOAD_MORE) {
+        platinum_application_more_posts(app);
+    } else if (action == PLATINUM_THREAD_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_THREAD_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_notifications_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_NOTIFICATIONS_CLOSE) {
+        platinum_notifications_close(&app->notifications);
+        focus_main(app);
+    } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
+        platinum_application_refresh_notifications(app);
+    } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
+        platinum_application_older_notifications(app);
+    } else if (action == PLATINUM_NOTIFICATIONS_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_NOTIFICATIONS_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_conversations_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_CONVERSATIONS_CLOSE) {
+        platinum_conversations_close_window(&app->conversations);
+        focus_main(app);
+    } else if (action == PLATINUM_CONVERSATIONS_REFRESH) {
+        platinum_application_refresh_conversations(app);
+    } else if (action == PLATINUM_CONVERSATIONS_LOAD_OLDER) {
+        platinum_application_older_conversations(app);
+    } else if (action == PLATINUM_CONVERSATIONS_OPEN) {
+        platinum_application_open_conversation(app);
+    } else if (action == PLATINUM_CONVERSATIONS_SEND) {
+        platinum_application_send_message(app);
+    } else if (action == PLATINUM_CONVERSATIONS_OLDER_MESSAGES) {
+        platinum_application_older_messages(app);
+    } else if (action == PLATINUM_CONVERSATIONS_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_CONVERSATIONS_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_apppw_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_APPPW_CANCEL) {
+        platinum_apppw_close(&app->apppw);
+        focus_main(app);
+    } else if (action == PLATINUM_APPPW_SIGN_IN) {
+        platinum_application_attempt_apppw(app);
+    }
+}
+
+static void handle_pairing_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_PAIRING_CANCEL) {
+        platinum_pairing_close(&app->pairing);
+        focus_main(app);
+    } else if (action == PLATINUM_PAIRING_PAIR) {
+        platinum_application_attempt_pair(app);
+    }
+}
+
+static void handle_preferences_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_PREFERENCES_CLOSE) {
+        platinum_preferences_close(&app->preferences);
+        focus_main(app);
+    } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
+        platinum_application_sign_out(app);
+    } else if (action == PLATINUM_PREFERENCES_PAIR) {
+        platinum_preferences_close(&app->preferences);
+        platinum_application_open_pairing(app);
+    }
+}
+
+static void handle_compose_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_COMPOSE_CANCEL) {
+        platinum_application_close_compose(app, 0);
+        focus_main(app);
+    } else if (action == PLATINUM_COMPOSE_POST) {
+        platinum_application_submit_post(app);
+    }
+}
+
+static void handle_main_action(platinum_application *app, int action)
+{
+    if (action == PLATINUM_UI_ACTION_QUIT) {
+        app->running = 0;
+    } else if (action == PLATINUM_UI_ACTION_REFRESH) {
+        platinum_application_refresh_timeline(app);
+    } else if (action == PLATINUM_UI_ACTION_COMPOSE) {
+        platinum_application_new_post(app);
+    } else if (action == PLATINUM_UI_ACTION_PROFILE) {
+        platinum_application_open_profile(app);
+    } else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS) {
+        platinum_application_open_notifications(app);
+    } else if (action == PLATINUM_UI_ACTION_SIGN_IN) {
+        (void)platinum_application_open_apppw(app);
+    } else if (action == PLATINUM_UI_ACTION_PAIR) {
+        (void)platinum_application_open_pairing(app);
+    }
+}
+
 static int
 close_owned_window(platinum_application *app, WindowPtr window)
 {
@@ -209,34 +390,23 @@ handle_main_mouse(platinum_application *app, EventRecord *event)
 
     action = platinum_ui_handle_mouse(&app->layout, &app->ui, &app->session,
                                       &app->timeline, local_where);
-    if (action == PLATINUM_UI_ACTION_QUIT)
-        app->running = 0;
-    else if (action == PLATINUM_UI_ACTION_REFRESH)
-        platinum_application_refresh_timeline(app);
-    else if (action == PLATINUM_UI_ACTION_COMPOSE)
-        platinum_application_new_post(app);
-    else if (action == PLATINUM_UI_ACTION_PROFILE)
-        platinum_application_open_profile(app);
-    else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS)
-        platinum_application_open_notifications(app);
-    else if (action == PLATINUM_UI_ACTION_LOAD_OLDER)
+    if (action == PLATINUM_UI_ACTION_LOAD_OLDER) {
         platinum_application_load_older(app);
-    else if (action == PLATINUM_UI_ACTION_LIKE)
+    } else if (action == PLATINUM_UI_ACTION_LIKE) {
         platinum_application_engage(app, 0);
-    else if (action == PLATINUM_UI_ACTION_REPOST)
+    } else if (action == PLATINUM_UI_ACTION_REPOST) {
         platinum_application_engage(app, 1);
-    else if (action == PLATINUM_UI_ACTION_REPLY)
+    } else if (action == PLATINUM_UI_ACTION_REPLY) {
         platinum_application_reply(app);
-    else if (action == PLATINUM_UI_ACTION_THREAD)
+    } else if (action == PLATINUM_UI_ACTION_THREAD) {
         platinum_application_show_thread(app);
-    else if (action == PLATINUM_UI_ACTION_AUTHOR)
+    } else if (action == PLATINUM_UI_ACTION_AUTHOR) {
         platinum_application_show_author(app);
-    else if (action == PLATINUM_UI_ACTION_FOLLOW)
+    } else if (action == PLATINUM_UI_ACTION_FOLLOW) {
         platinum_application_follow(app);
-    else if (action == PLATINUM_UI_ACTION_SIGN_IN)
-        (void)platinum_application_open_apppw(app);
-    else if (action == PLATINUM_UI_ACTION_PAIR)
-        (void)platinum_application_open_pairing(app);
+    } else {
+        handle_main_action(app, action);
+    }
     platinum_application_invalidate(app);
 }
 
@@ -248,144 +418,45 @@ handle_secondary_mouse(platinum_application *app, WindowPtr window,
 
     if (window_open_is(window, app->profile.window)) {
         action = platinum_profile_handle_event(&app->profile, event);
-        if (action == PLATINUM_PROFILE_CLOSE) {
-            platinum_profile_close(&app->profile);
-            focus_main(app);
-        } else if (action == PLATINUM_PROFILE_SIGN_IN) {
-            platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_PROFILE_PAIR) {
-            platinum_application_open_pairing(app);
-        }
+        handle_profile_action(app, action);
     } else if (window_open_is(window, app->diagwin.window)) {
         action = platinum_diagwin_handle_event(&app->diagwin, event);
-        if (action == PLATINUM_DIAGWIN_CLOSE) {
-            platinum_diagwin_close(&app->diagwin);
-            focus_main(app);
-        } else if (action == PLATINUM_DIAGWIN_CHECK) {
-            platinum_application_check_diag(app);
-        } else if (action == PLATINUM_DIAGWIN_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_DIAGWIN_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_diagwin_action(app, action);
     } else if (window_open_is(window, app->help.window)) {
         action = platinum_help_handle_event(&app->help, event);
-        if (action == PLATINUM_HELP_CLOSE) {
-            platinum_help_close(&app->help);
-            focus_main(app);
-        }
+        handle_help_action(app, action);
     } else if (window_open_is(window, app->search.window)) {
         action = platinum_search_handle_event(&app->search, event);
-        if (action == PLATINUM_SEARCH_CANCEL) {
-            platinum_search_close(&app->search);
-            focus_main(app);
-        } else if (action == PLATINUM_SEARCH_RUN) {
-            platinum_application_run_search(app);
-        } else if (action == PLATINUM_SEARCH_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_SEARCH_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_search_action(app, action);
     } else if (window_open_is(window, app->people.window)) {
         action = platinum_people_handle_event(&app->people, event);
-        if (action == PLATINUM_PEOPLE_CLOSE) {
-            platinum_people_close(&app->people);
-            focus_main(app);
-        } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
-            platinum_application_more_people(app);
-        } else if (action == PLATINUM_PEOPLE_OPEN) {
-            platinum_application_open_person(app);
-        } else if (action == PLATINUM_PEOPLE_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_PEOPLE_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_people_action(app, action);
     } else if (window_open_is(window, app->thread.window)) {
         action = platinum_thread_handle_event(&app->thread, event);
-        if (action == PLATINUM_THREAD_CLOSE) {
-            platinum_thread_close(&app->thread);
-            focus_main(app);
-        } else if (action == PLATINUM_THREAD_LOAD_MORE) {
-            platinum_application_more_posts(app);
-        } else if (action == PLATINUM_THREAD_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_THREAD_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_thread_action(app, action);
     } else if (window_open_is(window, app->notifications.window)) {
         action = platinum_notifications_handle_event(&app->notifications, event);
-        if (action == PLATINUM_NOTIFICATIONS_CLOSE) {
-            platinum_notifications_close(&app->notifications);
-            focus_main(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
-            platinum_application_refresh_notifications(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
-            platinum_application_older_notifications(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_notifications_action(app, action);
     } else if (window_open_is(window, app->conversations.window)) {
         action = platinum_conversations_handle_event(&app->conversations, event);
-        if (action == PLATINUM_CONVERSATIONS_CLOSE) {
-            platinum_conversations_close_window(&app->conversations);
-            focus_main(app);
-        } else if (action == PLATINUM_CONVERSATIONS_REFRESH) {
-            platinum_application_refresh_conversations(app);
-        } else if (action == PLATINUM_CONVERSATIONS_LOAD_OLDER) {
-            platinum_application_older_conversations(app);
-        } else if (action == PLATINUM_CONVERSATIONS_OPEN) {
-            platinum_application_open_conversation(app);
-        } else if (action == PLATINUM_CONVERSATIONS_SEND) {
-            platinum_application_send_message(app);
-        } else if (action == PLATINUM_CONVERSATIONS_OLDER_MESSAGES) {
-            platinum_application_older_messages(app);
-        } else if (action == PLATINUM_CONVERSATIONS_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_CONVERSATIONS_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_conversations_action(app, action);
     } else if (window_open_is(window, app->apppw.window)) {
         action = platinum_apppw_handle_event(&app->apppw, event);
-        if (action == PLATINUM_APPPW_CANCEL) {
-            platinum_apppw_close(&app->apppw);
-            focus_main(app);
-        } else if (action == PLATINUM_APPPW_SIGN_IN) {
-            platinum_application_attempt_apppw(app);
-        }
+        handle_apppw_action(app, action);
     } else if (window_open_is(window, app->pairing.window)) {
         action = platinum_pairing_handle_event(&app->pairing, event);
-        if (action == PLATINUM_PAIRING_CANCEL) {
-            platinum_pairing_close(&app->pairing);
-            focus_main(app);
-        } else if (action == PLATINUM_PAIRING_PAIR) {
-            platinum_application_attempt_pair(app);
-        }
+        handle_pairing_action(app, action);
     } else if (window_open_is(window, app->preferences.window)) {
         action = platinum_preferences_handle_event(&app->preferences, event);
-        if (action == PLATINUM_PREFERENCES_CLOSE) {
-            platinum_preferences_close(&app->preferences);
-            focus_main(app);
-        } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
-            platinum_application_sign_out(app);
-        } else if (action == PLATINUM_PREFERENCES_PAIR) {
-            platinum_preferences_close(&app->preferences);
-            platinum_application_open_pairing(app);
-        }
+        handle_preferences_action(app, action);
     } else if (window_open_is(window, app->compose.window)) {
         action = platinum_compose_handle_event(&app->compose, event);
-        if (action == PLATINUM_COMPOSE_CANCEL) {
-            platinum_application_close_compose(app, 0);
-            focus_main(app);
-        } else if (action == PLATINUM_COMPOSE_POST) {
-            platinum_application_submit_post(app);
-        }
+        handle_compose_action(app, action);
     }
 }
 
 static void
-handle_secondary_update(platinum_application *app, WindowPtr window,
+forward_secondary_event(platinum_application *app, WindowPtr window,
                         EventRecord *event)
 {
     if (window_open_is(window, app->apppw.window))
@@ -413,31 +484,17 @@ handle_secondary_update(platinum_application *app, WindowPtr window,
 }
 
 static void
+handle_secondary_update(platinum_application *app, WindowPtr window,
+                        EventRecord *event)
+{
+    forward_secondary_event(app, window, event);
+}
+
+static void
 handle_secondary_activate(platinum_application *app, WindowPtr window,
                           EventRecord *event)
 {
-    if (window_open_is(window, app->apppw.window))
-        platinum_apppw_handle_event(&app->apppw, event);
-    else if (window_open_is(window, app->pairing.window))
-        platinum_pairing_handle_event(&app->pairing, event);
-    else if (window_open_is(window, app->preferences.window))
-        platinum_preferences_handle_event(&app->preferences, event);
-    else if (window_open_is(window, app->diagwin.window))
-        platinum_diagwin_handle_event(&app->diagwin, event);
-    else if (window_open_is(window, app->help.window))
-        platinum_help_handle_event(&app->help, event);
-    else if (window_open_is(window, app->search.window))
-        platinum_search_handle_event(&app->search, event);
-    else if (window_open_is(window, app->people.window))
-        platinum_people_handle_event(&app->people, event);
-    else if (window_open_is(window, app->thread.window))
-        platinum_thread_handle_event(&app->thread, event);
-    else if (window_open_is(window, app->notifications.window))
-        platinum_notifications_handle_event(&app->notifications, event);
-    else if (window_open_is(window, app->profile.window))
-        platinum_profile_handle_event(&app->profile, event);
-    else if (window_open_is(window, app->compose.window))
-        platinum_compose_handle_event(&app->compose, event);
+    forward_secondary_event(app, window, event);
 }
 
 static int
@@ -447,142 +504,43 @@ handle_secondary_key(platinum_application *app, EventRecord *event)
 
     if (app->apppw.window != NULL && FrontWindow() == app->apppw.window) {
         action = platinum_apppw_handle_event(&app->apppw, event);
-        if (action == PLATINUM_APPPW_CANCEL) {
-            platinum_apppw_close(&app->apppw);
-            focus_main(app);
-        } else if (action == PLATINUM_APPPW_SIGN_IN) {
-            platinum_application_attempt_apppw(app);
-        }
+        handle_apppw_action(app, action);
     } else if (app->pairing.window != NULL && FrontWindow() == app->pairing.window) {
         action = platinum_pairing_handle_event(&app->pairing, event);
-        if (action == PLATINUM_PAIRING_CANCEL) {
-            platinum_pairing_close(&app->pairing);
-            focus_main(app);
-        } else if (action == PLATINUM_PAIRING_PAIR) {
-            platinum_application_attempt_pair(app);
-        }
+        handle_pairing_action(app, action);
     } else if (app->preferences.window != NULL &&
                FrontWindow() == app->preferences.window) {
         action = platinum_preferences_handle_event(&app->preferences, event);
-        if (action == PLATINUM_PREFERENCES_CLOSE) {
-            platinum_preferences_close(&app->preferences);
-            focus_main(app);
-        } else if (action == PLATINUM_PREFERENCES_SIGN_OUT) {
-            platinum_application_sign_out(app);
-        } else if (action == PLATINUM_PREFERENCES_PAIR) {
-            platinum_preferences_close(&app->preferences);
-            platinum_application_open_pairing(app);
-        }
+        handle_preferences_action(app, action);
     } else if (app->diagwin.window != NULL && FrontWindow() == app->diagwin.window) {
         action = platinum_diagwin_handle_event(&app->diagwin, event);
-        if (action == PLATINUM_DIAGWIN_CLOSE) {
-            platinum_diagwin_close(&app->diagwin);
-            focus_main(app);
-        } else if (action == PLATINUM_DIAGWIN_CHECK) {
-            platinum_application_check_diag(app);
-        } else if (action == PLATINUM_DIAGWIN_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_DIAGWIN_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_diagwin_action(app, action);
     } else if (app->help.window != NULL && FrontWindow() == app->help.window) {
         action = platinum_help_handle_event(&app->help, event);
-        if (action == PLATINUM_HELP_CLOSE) {
-            platinum_help_close(&app->help);
-            focus_main(app);
-        }
+        handle_help_action(app, action);
     } else if (app->search.window != NULL && FrontWindow() == app->search.window) {
         action = platinum_search_handle_event(&app->search, event);
-        if (action == PLATINUM_SEARCH_CANCEL) {
-            platinum_search_close(&app->search);
-            focus_main(app);
-        } else if (action == PLATINUM_SEARCH_RUN) {
-            platinum_application_run_search(app);
-        } else if (action == PLATINUM_SEARCH_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_SEARCH_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_search_action(app, action);
     } else if (app->people.window != NULL && FrontWindow() == app->people.window) {
         action = platinum_people_handle_event(&app->people, event);
-        if (action == PLATINUM_PEOPLE_CLOSE) {
-            platinum_people_close(&app->people);
-            focus_main(app);
-        } else if (action == PLATINUM_PEOPLE_LOAD_MORE) {
-            platinum_application_more_people(app);
-        } else if (action == PLATINUM_PEOPLE_OPEN) {
-            platinum_application_open_person(app);
-        } else if (action == PLATINUM_PEOPLE_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_PEOPLE_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_people_action(app, action);
     } else if (app->thread.window != NULL && FrontWindow() == app->thread.window) {
         action = platinum_thread_handle_event(&app->thread, event);
-        if (action == PLATINUM_THREAD_CLOSE) {
-            platinum_thread_close(&app->thread);
-            focus_main(app);
-        } else if (action == PLATINUM_THREAD_LOAD_MORE) {
-            platinum_application_more_posts(app);
-        } else if (action == PLATINUM_THREAD_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_THREAD_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_thread_action(app, action);
     } else if (app->notifications.window != NULL &&
                FrontWindow() == app->notifications.window) {
         action = platinum_notifications_handle_event(&app->notifications, event);
-        if (action == PLATINUM_NOTIFICATIONS_CLOSE) {
-            platinum_notifications_close(&app->notifications);
-            focus_main(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_REFRESH) {
-            platinum_application_refresh_notifications(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_LOAD_OLDER) {
-            platinum_application_older_notifications(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_NOTIFICATIONS_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_notifications_action(app, action);
     } else if (app->conversations.window != NULL &&
                FrontWindow() == app->conversations.window) {
         action = platinum_conversations_handle_event(&app->conversations, event);
-        if (action == PLATINUM_CONVERSATIONS_CLOSE) {
-            platinum_conversations_close_window(&app->conversations);
-            focus_main(app);
-        } else if (action == PLATINUM_CONVERSATIONS_REFRESH) {
-            platinum_application_refresh_conversations(app);
-        } else if (action == PLATINUM_CONVERSATIONS_LOAD_OLDER) {
-            platinum_application_older_conversations(app);
-        } else if (action == PLATINUM_CONVERSATIONS_OPEN) {
-            platinum_application_open_conversation(app);
-        } else if (action == PLATINUM_CONVERSATIONS_SEND) {
-            platinum_application_send_message(app);
-        } else if (action == PLATINUM_CONVERSATIONS_OLDER_MESSAGES) {
-            platinum_application_older_messages(app);
-        } else if (action == PLATINUM_CONVERSATIONS_SIGN_IN) {
-            (void)platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_CONVERSATIONS_PAIR) {
-            (void)platinum_application_open_pairing(app);
-        }
+        handle_conversations_action(app, action);
     } else if (app->profile.window != NULL && FrontWindow() == app->profile.window) {
         action = platinum_profile_handle_event(&app->profile, event);
-        if (action == PLATINUM_PROFILE_CLOSE) {
-            platinum_profile_close(&app->profile);
-            focus_main(app);
-        } else if (action == PLATINUM_PROFILE_SIGN_IN) {
-            platinum_application_open_apppw(app);
-        } else if (action == PLATINUM_PROFILE_PAIR) {
-            platinum_application_open_pairing(app);
-        }
+        handle_profile_action(app, action);
     } else if (app->compose.window != NULL && FrontWindow() == app->compose.window) {
         action = platinum_compose_handle_event(&app->compose, event);
-        if (action == PLATINUM_COMPOSE_CANCEL) {
-            platinum_application_close_compose(app, 0);
-            focus_main(app);
-        } else if (action == PLATINUM_COMPOSE_POST) {
-            platinum_application_submit_post(app);
-        }
+        handle_compose_action(app, action);
     } else {
         return 0;
     }
@@ -595,20 +553,7 @@ handle_main_key(platinum_application *app, EventRecord *event)
     int action = platinum_ui_handle_key(&app->layout, &app->ui, &app->session,
                                         &app->timeline, event);
 
-    if (action == PLATINUM_UI_ACTION_QUIT)
-        app->running = 0;
-    else if (action == PLATINUM_UI_ACTION_REFRESH)
-        platinum_application_refresh_timeline(app);
-    else if (action == PLATINUM_UI_ACTION_COMPOSE)
-        platinum_application_new_post(app);
-    else if (action == PLATINUM_UI_ACTION_PROFILE)
-        platinum_application_open_profile(app);
-    else if (action == PLATINUM_UI_ACTION_NOTIFICATIONS)
-        platinum_application_open_notifications(app);
-    else if (action == PLATINUM_UI_ACTION_SIGN_IN)
-        (void)platinum_application_open_apppw(app);
-    else if (action == PLATINUM_UI_ACTION_PAIR)
-        (void)platinum_application_open_pairing(app);
+    handle_main_action(app, action);
     platinum_application_invalidate(app);
 }
 
