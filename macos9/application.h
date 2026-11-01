@@ -12,6 +12,7 @@
 #include "people.h"
 #include "search.h"
 #include "diagwin.h"
+#include "help.h"
 #include "apppw.h"
 #include "preferences.h"
 #include "pairing.h"
@@ -36,6 +37,7 @@ typedef struct platinum_application {
     platinum_people people;
     platinum_search search;
     platinum_diagwin diagwin;
+    platinum_help help;
     wf_status last_error; /* the last bridge failure the application noticed */
     int delete_armed; /* Delete My Post was chosen once and is waiting for the second */
     platinum_apppw apppw;

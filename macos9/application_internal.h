@@ -81,6 +81,7 @@ void platinum_application_relate(platinum_application *app, int kind);
 void platinum_application_show_thread(platinum_application *app);
 void platinum_application_open_diag(platinum_application *app);
 void platinum_application_check_diag(platinum_application *app);
+void platinum_application_open_help(platinum_application *app, short kind);
 void platinum_application_load_older(platinum_application *app);
 void platinum_application_open_profile(platinum_application *app);
 void platinum_application_open_notifications(platinum_application *app);

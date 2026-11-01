@@ -553,6 +553,17 @@ void platinum_application_open_diag(platinum_application *app)
     SelectWindow(app->diagwin.window);
 }
 
+/* Help > About Platinum and Help > Platinum Help. The help text is local,
+ * so unlike the other windows it needs no session or bridge notice. */
+void platinum_application_open_help(platinum_application *app, short kind)
+{
+    if (app == NULL)
+        return;
+    if (platinum_help_open(&app->help, kind) != noErr)
+        return;
+    SelectWindow(app->help.window);
+}
+
 /* Take a fresh snapshot: ask the bridge for /health and read what is known.
  * Never puts a token anywhere; only whether one is held. */
 void platinum_application_check_diag(platinum_application *app)

@@ -64,6 +64,7 @@ set(PLATINUM_SOURCES
     diagwin.c
     draft.c
     drawutil.c
+    help.c
     image_blob.c
     image_encode.c
     image_pix.c
