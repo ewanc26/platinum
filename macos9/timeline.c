@@ -2,7 +2,6 @@
 #include "text_codec.h"
 
 #include "json_min.h"
-#include "atproto_url.h"
 #include <string.h>
 
 /*
@@ -284,15 +283,13 @@ int platinum_timeline_parse_view(platinum_post_preview *post,
     post->repost_uri[0] = '\0';
     if (platinum_json_member(item, "viewer", &viewer) == WF_OK) {
         if (timeline_copy_field(post->like_uri, sizeof(post->like_uri),
-                                viewer, "like", 0) &&
-            platinum_atproto_valid_at_uri(post->like_uri)) {
+                                viewer, "like", 0)) {
             post->liked = 1;
         } else {
             post->like_uri[0] = '\0';
         }
         if (timeline_copy_field(post->repost_uri, sizeof(post->repost_uri),
-                                viewer, "repost", 0) &&
-            platinum_atproto_valid_at_uri(post->repost_uri)) {
+                                viewer, "repost", 0)) {
             post->reposted = 1;
         } else {
             post->repost_uri[0] = '\0';
