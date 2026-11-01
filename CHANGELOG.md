@@ -34,6 +34,8 @@ pull request.
 
 ### Changed
 
+- Folded the repeated window-handling blocks in `macos9/application.c` into one routine per window kind plus shared main-action and secondary-event forwarders, and the JSON string helpers in `macos9/json_min.c` into a single clipped-string helper. No behaviour change; `jscpd --min-tokens 80 --min-lines 12` over the two files now reports no clones. ([#166](https://github.com/ewanc26/platinum/pull/166))
+
 - The bridge's port of Wolfram's OAuth node pairing contract now matches Wolfram's C driver. A 404 ends a pairing with the contract's message, other non-2xx replies are retried, and a zero or negative `expires_at` means no expiry. Sign-in does not use it yet; wiring it in is tracked in [#75](https://github.com/ewanc26/platinum/issues/75).
 
 - Verified the Keychain question against the pinned Retro68 image: it ships no `Keychain.h`, `CarbonLib` or `KeychainLib`, so the refresh token cannot be persisted without an untested shim. ADR 0007 and `docs/research/2026-10-31-keychain-surface.md` record the check and the smallest shim that would unblock it. ([#156](https://github.com/ewanc26/platinum/pull/156))
