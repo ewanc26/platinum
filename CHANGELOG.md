@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- The native timeline filters itself with the account's muted words: the Mac reads `mutedWordsPref` from `app.bsky.actor.getPreferences` and skips matching posts on text, tag facets and follow state, the way the bridge did server-side. A preferences failure shows the page unfiltered. Host tests cover the prefs parse and the content, tag and failure paths. ([#169](https://github.com/ewanc26/platinum/pull/169))
+
 - The app-password sign-in window follows the shared keyboard and state rules: Tab and Shift-Tab move through the handle, the password, Cancel and Sign In in drawing order, Return activates the focused button and signs in from a field, and Escape and Command-period cancel. While the account is resolved the window shows the loading panel, and on success it becomes the signed-in view — the handle, the server and which handle method found the account — with Close as the only stop; the password is wiped first. Host tests cover the focus and Return rules. ([#168](https://github.com/ewanc26/platinum/pull/168))
 
 - Help menu items About Platinum and Platinum Help open local windows: the About box and a guide to the current shortcuts, account pairing and windows, with one Close button following the shared keyboard rules. Host tests cover the content and hit-testing. ([#165](https://github.com/ewanc26/platinum/pull/165))
