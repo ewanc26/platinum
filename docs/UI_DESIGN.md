@@ -160,6 +160,8 @@ Help remains the final application menu.
 
 Connection Status opens a small window with six lines: the bridge address, whether you are signed in (a token is held or not; the token itself is never shown), the bridge's `/health` answer (OK with its name and version, or why not), the last bridge failure the application noticed, free memory in KB, and whether the snapshot has been taken. Check Again takes a new one. It is there mainly so a hardware pass can see what failed without a debugger.
 
+About Platinum opens the About box: the client name, what it is, and that modern authentication and protocol work are provided by the Platinum Bridge. Platinum Help opens the guide: the keyboard shortcuts beside their menus, how account pairing works, and that each screen is a separate native document window with a close box. Both windows keep one Close button; Return activates it, Escape and Command-period close, and Tab moves focus to it.
+
 Drafts: closing the New Post window without sending keeps its text, and the next New Post puts it back with "Restored the post you did not send." Sending clears it. A reply or a quote is not kept, so it can't come back as a plain post. The text is a plain file in the Preferences folder.
 
 Keyboard equivalents should be provided for frequently used commands, including Command-N, Command-R, Command-W and Command-Q.
