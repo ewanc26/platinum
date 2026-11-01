@@ -52,9 +52,9 @@ goes through the bridge.
 | `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
-| \`GET /v1/timeline\` | \`app.bsky.feed.getTimeline\` | \`atproto_feed.c\` + \`timeline_native.c\` | \`test_timeline\` | native end to end: paging, 40-row cap, and failure handling; viewer interaction URIs are retained |
-| \`POST /v1/like\` | \`com.atproto.repo.createRecord\` / \`deleteRecord\`, \`app.bsky.feed.like\` | \`atproto_feed.c\` + \`timeline_native.c\` | \`test_timeline\` | native end to end; creates and removes the exact like record from the AppView viewer URI |
-| \`POST /v1/repost\` | \`com.atproto.repo.createRecord\` / \`deleteRecord\`, \`app.bsky.feed.repost\` | \`atproto_feed.c\` + \`timeline_native.c\` | \`test_timeline\` | native end to end; creates and removes the exact repost record from the AppView viewer URI |
+| `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end: paging, 40-row cap, and failure handling; viewer interaction URIs are retained |
+| `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end; creates and removes the exact like record from the AppView viewer URI |
+| `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end; creates and removes the exact repost record from the AppView viewer URI |
 | `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` | native: the window fetches and pages through the native session, with the same 20-row pages, 40-row cap and seen mark |
 | `POST /v1/notifications/seen` | `app.bsky.notification.updateSeen` | `notifications_feed.c` | `test_notifications` | native: the newest loaded item's `indexedAt`, never the Mac clock |
 | `GET /v1/thread` | `app.bsky.feed.getPostThread`, flattened in C with depth and size caps | `thread_feed.c` | `test_thread` (to rewrite) | pending |
