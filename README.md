@@ -60,7 +60,7 @@ Pairing is done in a browser, once:
 3. The bridge shows a six-character code, good for ten minutes and one use.
 4. Type it into Platinum. The Mac stores a bridge token, your DID and an installation ID.
 
-Your OAuth refresh credentials never leave the bridge. Tokens are revocable with `POST /v1/revoke`; treat them as credentials and keep them out of logs and bug reports. Signing in with an app password instead is possible if you set `PLATINUM_BRIDGE_ALLOW_APP_PASSWORD=1`, but read the warning in [docs/BRIDGE_PROTOCOL.md](docs/BRIDGE_PROTOCOL.md) first: over plain HTTP the password crosses your network in the clear. The Mac client has no window for it yet.
+Your OAuth refresh credentials never leave the bridge. Tokens are revocable with `POST /v1/revoke`; treat them as credentials and keep them out of logs and bug reports. Signing in with an app password instead is possible if you set `PLATINUM_BRIDGE_ALLOW_APP_PASSWORD=1`, but read the warning in [docs/BRIDGE_PROTOCOL.md](docs/BRIDGE_PROTOCOL.md) first: over plain HTTP the password crosses your network in the clear. The Mac client exposes this path through its dedicated sign-in window; do not enable it on an untrusted network without HTTPS and access control.
 
 The wire protocol is in [docs/BRIDGE_PROTOCOL.md](docs/BRIDGE_PROTOCOL.md). The window and menu design is in [docs/UI_DESIGN.md](docs/UI_DESIGN.md).
 
