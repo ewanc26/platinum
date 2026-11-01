@@ -161,6 +161,7 @@ void platinum_application_quote(platinum_application *app)
 void platinum_application_engage(platinum_application *app, int repost)
 {
     platinum_bridge_client *bridge;
+    platinum_atproto_client *client;
     const platinum_post_preview *post;
     wf_status status;
     short index;
@@ -170,18 +171,24 @@ void platinum_application_engage(platinum_application *app, int repost)
     index = app->ui.selected_post;
     if (index < 0 || index >= (short)app->timeline.count)
         return;
+
+    post = &app->timeline.posts[index];
+    client = platinum_session_client(&app->session);
     bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL) {
+    if (client != NULL) {
+        status = platinum_timeline_set_engagement_native(
+            &app->timeline, client, (unsigned short)index, repost,
+            repost ? !post->reposted : !post->liked);
+    } else if (bridge != NULL) {
+        status = platinum_timeline_set_engagement(
+            &app->timeline, bridge, (unsigned short)index, repost,
+            repost ? !post->reposted : !post->liked);
+    } else {
         strcpy(app->timeline.status,
-               "Likes and reposts still use the bridge. Pair one under File > Pair Account.");
+               "Likes and reposts need a signed-in account.");
         platinum_application_invalidate(app);
         return;
     }
-
-    post = &app->timeline.posts[index];
-    status = platinum_timeline_set_engagement(
-        &app->timeline, bridge, (unsigned short)index, repost,
-        repost ? !post->reposted : !post->liked);
     platinum_application_recover_auth(app, status);
     platinum_application_invalidate(app);
 }
