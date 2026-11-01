@@ -61,6 +61,18 @@ wf_status platinum_profile_refresh(platinum_profile *profile,
 wf_status platinum_profile_load(platinum_profile *profile,
                                 platinum_bridge_client *bridge,
                                 const char *actor);
+/*
+ * GET app.bsky.actor.getProfile for the actor (handle with or without @, or
+ * DID; NULL or empty is the signed-in account), filling the same model:
+ * viewer.following/followedBy as presence, muted as a boolean, blocking as
+ * presence, the pinned post from pinnedPost. Follow, mute and block writes
+ * stay on the bridge for now.
+ */
+wf_status platinum_profile_load_native(platinum_profile *profile,
+                                       platinum_atproto_client *client,
+                                       const char *actor);
+wf_status platinum_profile_refresh_native(platinum_profile *profile,
+                                          platinum_atproto_client *client);
 /* Follow or unfollow the account shown, idempotently. Only for someone else's
  * profile. On failure the shown state is unchanged. */
 wf_status platinum_profile_set_follow(platinum_profile *profile,

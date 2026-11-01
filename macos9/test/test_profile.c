@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "atproto_client.h"
 #include "profile.h"
 #include "wolfram_stub.h"
 
@@ -153,9 +154,99 @@ static void test_mute_block(void)
     platinum_bridge_client_free(bridge);
 }
 
+static const char *native_profile_body;
+
+static void native_profile_script(int call, int method, const char *url,
+                                  const char *body)
+{
+    (void)call;
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    fake_body = native_profile_body;
+}
+
+static platinum_atproto_client *native_profile_client(void)
+{
+    platinum_atproto_session session;
+    platinum_atproto_client *client;
+
+    client = platinum_atproto_client_new("https://pds.example");
+    if (client == NULL)
+        return NULL;
+    memset(&session, 0, sizeof(session));
+    strcpy(session.access_jwt, "access");
+    strcpy(session.refresh_jwt, "refresh");
+    strcpy(session.did, "did:plc:me");
+    strcpy(session.handle, "me.test");
+    strcpy(session.pds_url, "https://pds.example");
+    if (platinum_atproto_client_set_session(client, &session) != WF_OK) {
+        platinum_atproto_client_free(client);
+        return NULL;
+    }
+    return client;
+}
+
+static void test_native_profile(void)
+{
+    static platinum_profile profile;
+    static char body[4096];
+    platinum_atproto_client *client;
+
+    client = native_profile_client();
+    if (client == NULL)
+        return;
+    platinum_profile_init(&profile);
+
+    strcpy(body, "{\"did\":\"did:plc:bob\",");
+    strcat(body, "\"handle\":\"bob.test\",\"displayName\":\"Bob\",");
+    strcat(body, "\"description\":\"hi\",\"followersCount\":3,\"followsCount\":4,");
+    strcat(body, "\"postsCount\":5,\"viewer\":{\"following\":\"at://did:plc:me/app.bsky.graph.follow/f1\",");
+    strcat(body, "\"followedBy\":\"at://did:plc:bob/app.bsky.graph.follow/f2\",\"muted\":true,");
+    strcat(body, "\"blocking\":\"at://did:plc:bob/app.bsky.graph.block/b1\"},");
+    strcat(body, "\"pinnedPost\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/p1\",");
+    strcat(body, "\"cid\":\"c1\",\"author\":{\"did\":\"did:plc:bob\"},");
+    strcat(body, "\"record\":{\"text\":\"pinned words\"},\"viewer\":{}}}");
+    native_profile_body = body;
+    fake_script = native_profile_script;
+    check(platinum_profile_load_native(&profile, client, "@bob.test") == WF_OK,
+          "native profile loads");
+    check(strcmp(last_nsid, "app.bsky.actor.getProfile") == 0,
+          "native profile calls getProfile");
+    check(profile.other == 1 && profile.following == 1 && profile.followed_by == 1,
+          "viewer presence is follow state");
+    check(profile.muted == 1 && profile.blocking == 1, "mute and block read");
+    check(strcmp(profile.target_did, "did:plc:bob") == 0, "DID kept exactly");
+    check(profile.followers_count == 3 && strcmp(profile.display_name, "Bob") == 0,
+          "ordinary fields read");
+    check(profile.has_pinned == 1 && strstr(profile.pinned.line1, "pinned words") != NULL,
+          "pinnedPost read as a postView");
+    fake_script = NULL;
+
+    strcpy(body, "{\"did\":\"did:plc:me\",\"handle\":\"me.test\"}");
+    native_profile_body = body;
+    fake_script = native_profile_script;
+    check(platinum_profile_refresh_native(&profile, client) == WF_OK,
+          "own profile loads");
+    check(profile.other == 0 && profile.following == 0,
+          "follow state ignored on your own profile");
+    check(strcmp(last_param_values[0], "did:plc:me") == 0,
+          "own profile asks for the session DID");
+    fake_script = NULL;
+
+    check(platinum_profile_load_native(&profile, client, "@") == WF_ERR_INVALID_ARG,
+          "a bare @ is refused");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_mute_block();
+    test_native_profile();
+    fake_script = NULL;
     test_other();
     test_follow();
     if (failures != 0) {
