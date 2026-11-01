@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Threads open through the Mac's native session first: the Thread window reads `app.bsky.feed.getPostThread` with the native flatten and falls back to the bridge otherwise, the way the timeline and notifications already do. ([#171](https://github.com/ewanc26/platinum/pull/171))
+
 - The native client flattens `app.bsky.feed.getPostThread` in C the way the bridge did: ancestors oldest first, the post at depth 0, replies depth-first, at most 40 posts, six reply levels and ten ancestors, with blocked and missing posts skipped. Host tests cover the order, focus, pruning and not-found paths. The Thread window still reads through the bridge. ([#170](https://github.com/ewanc26/platinum/pull/170))
 
 - The native timeline filters itself with the account's muted words: the Mac reads `mutedWordsPref` from `app.bsky.actor.getPreferences` and skips matching posts on text, tag facets and follow state, the way the bridge did server-side. A preferences failure shows the page unfiltered. Host tests cover the prefs parse and the content, tag and failure paths. ([#169](https://github.com/ewanc26/platinum/pull/169))
