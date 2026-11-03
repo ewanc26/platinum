@@ -2,24 +2,32 @@
 
 #include "application_internal.h"
 
+/*
+ * Bring the compose window forward, or open it on the selected post. Returns
+ * the post to answer and opens compose for it, or NULL when there is nothing
+ * to answer (or compose is already up and has just been brought forward).
+ */
+static const platinum_post_preview *compose_for_selected(platinum_application *app)
+{
+    short index = platinum_application_selected_post(app);
+
+    if (index < 0)
+        return NULL;
+    if (app->compose.window != NULL) {
+        SelectWindow(app->compose.window);
+        return NULL;
+    }
+    if (platinum_compose_open(&app->compose) != noErr)
+        return NULL;
+    return &app->timeline.posts[index];
+}
+
 /* Open a compose window that answers the selected post. */
 void platinum_application_reply(platinum_application *app)
 {
-    const platinum_post_preview *post;
-    short index;
+    const platinum_post_preview *post = compose_for_selected(app);
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
-        return;
-    if (app->compose.window != NULL) {
-        SelectWindow(app->compose.window);
-        return;
-    }
-
-    post = &app->timeline.posts[index];
-    if (platinum_compose_open(&app->compose) != noErr)
+    if (post == NULL)
         return;
     (void)platinum_compose_set_reply(&app->compose, post->uri, post->cid,
                                      post->handle);
@@ -40,10 +48,8 @@ void platinum_application_delete_post(platinum_application *app)
     wf_status status;
     short index;
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
+    index = platinum_application_selected_post(app);
+    if (index < 0)
         return;
     bridge = platinum_session_bridge(&app->session);
     config = platinum_session_config(&app->session);
@@ -135,21 +141,9 @@ void platinum_application_close_compose(platinum_application *app,
 /* Open compose as a quote of the selected post. */
 void platinum_application_quote(platinum_application *app)
 {
-    const platinum_post_preview *post;
-    short index;
+    const platinum_post_preview *post = compose_for_selected(app);
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
-        return;
-    if (app->compose.window != NULL) {
-        SelectWindow(app->compose.window);
-        return;
-    }
-
-    post = &app->timeline.posts[index];
-    if (platinum_compose_open(&app->compose) != noErr)
+    if (post == NULL)
         return;
     (void)platinum_compose_set_quote(&app->compose, post->uri, post->cid,
                                      post->handle);
@@ -166,10 +160,8 @@ void platinum_application_engage(platinum_application *app, int repost)
     wf_status status;
     short index;
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
+    index = platinum_application_selected_post(app);
+    if (index < 0)
         return;
 
     post = &app->timeline.posts[index];

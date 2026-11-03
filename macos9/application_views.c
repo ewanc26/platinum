@@ -16,6 +16,84 @@ const char *platinum_application_bridge_notice(platinum_application *app)
     return platinum_screen_state_text(state);
 }
 
+short platinum_application_selected_post(platinum_application *app)
+{
+    short index;
+
+    if (app == NULL || !platinum_session_is_paired(&app->session))
+        return -1;
+    index = app->ui.selected_post;
+    if (index < 0 || index >= (short)app->timeline.count)
+        return -1;
+    return index;
+}
+
+/*
+ * The bridge each window view needs. With no bridge, or with a screen state
+ * that has something to say, the window is opened only to show that notice
+ * and NULL comes back; the caller then has nothing left to do. One per window
+ * kind, because each window opens and reports in its own way.
+ */
+static platinum_bridge_client *people_bridge(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const char *notice;
+
+    bridge = platinum_session_bridge(&app->session);
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_people_open(&app->people) == noErr) {
+            platinum_people_set_status(&app->people,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->people.window);
+        }
+        return NULL;
+    }
+    return bridge;
+}
+
+static platinum_bridge_client *profile_bridge(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const char *notice;
+
+    bridge = platinum_session_bridge(&app->session);
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_profile_open(&app->profile) == noErr) {
+            platinum_profile_set_status(&app->profile,
+                                        notice != NULL
+                                            ? notice
+                                            : "The bridge is unavailable.");
+            SelectWindow(app->profile.window);
+        }
+        return NULL;
+    }
+    return bridge;
+}
+
+static platinum_bridge_client *thread_bridge(platinum_application *app)
+{
+    platinum_bridge_client *bridge;
+    const char *notice;
+
+    bridge = platinum_session_bridge(&app->session);
+    notice = platinum_application_bridge_notice(app);
+    if (bridge == NULL || notice != NULL) {
+        if (platinum_thread_open(&app->thread) == noErr) {
+            platinum_thread_set_status(&app->thread,
+                                       notice != NULL
+                                           ? notice
+                                           : "The bridge is unavailable.");
+            SelectWindow(app->thread.window);
+        }
+        return NULL;
+    }
+    return bridge;
+}
+
 void platinum_application_refresh_timeline(platinum_application *app)
 {
     platinum_atproto_client *client;
@@ -64,27 +142,15 @@ void platinum_application_refresh_timeline(platinum_application *app)
 void platinum_application_show_author(platinum_application *app)
 {
     platinum_bridge_client *bridge;
-    const char *notice;
     wf_status status;
     short index;
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
+    index = platinum_application_selected_post(app);
+    if (index < 0)
         return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
+    bridge = profile_bridge(app);
+    if (bridge == NULL)
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
-        if (platinum_profile_open(&app->profile) == noErr) {
-            platinum_profile_set_status(&app->profile,
-                                        notice != NULL
-                                            ? notice
-                                            : "The bridge is unavailable.");
-            SelectWindow(app->profile.window);
-        }
-        return;
-    }
     if (platinum_profile_open(&app->profile) != noErr)
         return;
 
@@ -105,28 +171,18 @@ void platinum_application_show_people(platinum_application *app,
     const char *key;
     const char *value;
     const char *heading;
-    const char *notice;
     wf_status status;
     short index;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
-        if (platinum_people_open(&app->people) == noErr) {
-            platinum_people_set_status(&app->people,
-                                       notice != NULL
-                                           ? notice
-                                           : "The bridge is unavailable.");
-            SelectWindow(app->people.window);
-        }
+    bridge = people_bridge(app);
+    if (bridge == NULL)
         return;
-    }
 
     if (menu_item == 6 || menu_item == 7) {
-        index = app->ui.selected_post;
-        if (index < 0 || index >= (short)app->timeline.count)
+        index = platinum_application_selected_post(app);
+        if (index < 0)
             return;
         key = "uri";
         value = app->timeline.posts[index].uri;
@@ -241,23 +297,13 @@ void platinum_application_run_search(platinum_application *app)
 void platinum_application_show_words(platinum_application *app)
 {
     platinum_bridge_client *bridge;
-    const char *notice;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
-        if (platinum_people_open(&app->people) == noErr) {
-            platinum_people_set_status(&app->people,
-                                       notice != NULL
-                                           ? notice
-                                           : "The bridge is unavailable.");
-            SelectWindow(app->people.window);
-        }
+    bridge = people_bridge(app);
+    if (bridge == NULL)
         return;
-    }
     status = platinum_people_load_kind(
         &app->people, bridge, PLATINUM_PEOPLE_WORDS, "/v1/muted-words", NULL,
         NULL, "Muted words (click one, then View > Remove Muted Word)");
@@ -307,27 +353,15 @@ void platinum_application_show_posts(platinum_application *app)
 {
     platinum_bridge_client *bridge;
     const char *handle;
-    const char *notice;
     wf_status status;
     short index;
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
+    index = platinum_application_selected_post(app);
+    if (index < 0)
         return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
+    bridge = thread_bridge(app);
+    if (bridge == NULL)
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
-        if (platinum_thread_open(&app->thread) == noErr) {
-            platinum_thread_set_status(&app->thread,
-                                       notice != NULL
-                                           ? notice
-                                           : "The bridge is unavailable.");
-            SelectWindow(app->thread.window);
-        }
-        return;
-    }
     handle = app->timeline.posts[index].handle;
     if (handle[0] == '@')
         ++handle;
@@ -369,23 +403,13 @@ void platinum_application_show_named(platinum_application *app,
                                             int kind)
 {
     platinum_bridge_client *bridge;
-    const char *notice;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    notice = platinum_application_bridge_notice(app);
-    if (bridge == NULL || notice != NULL) {
-        if (platinum_people_open(&app->people) == noErr) {
-            platinum_people_set_status(&app->people,
-                                       notice != NULL
-                                           ? notice
-                                           : "The bridge is unavailable.");
-            SelectWindow(app->people.window);
-        }
+    bridge = people_bridge(app);
+    if (bridge == NULL)
         return;
-    }
     status = platinum_people_load_kind(
         &app->people, bridge, kind,
         kind == PLATINUM_PEOPLE_FEEDS ? "/v1/feeds" : "/v1/lists", NULL, NULL,
@@ -516,10 +540,8 @@ void platinum_application_show_thread(platinum_application *app)
     wf_status status;
     short index;
 
-    if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    index = app->ui.selected_post;
-    if (index < 0 || index >= (short)app->timeline.count)
+    index = platinum_application_selected_post(app);
+    if (index < 0)
         return;
     client = platinum_session_client(&app->session);
     bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);

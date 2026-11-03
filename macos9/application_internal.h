@@ -65,6 +65,11 @@ void platinum_application_handle_menu(platinum_application *app, long choice);
  * the bridge". Never opens a window itself.
  */
 const char *platinum_application_bridge_notice(platinum_application *app);
+/*
+ * The selected row of the timeline, or -1 when there is none to act on: no
+ * session, nothing paired or nothing selected.
+ */
+short platinum_application_selected_post(platinum_application *app);
 void platinum_application_refresh_timeline(platinum_application *app);
 void platinum_application_show_author(platinum_application *app);
 void platinum_application_show_people(platinum_application *app, int menu_item);
