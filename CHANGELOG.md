@@ -42,6 +42,8 @@ pull request.
 
 ### Changed
 
+- Folded the checks every application window restated into one routine each: `platinum_application_selected_post()` for the selected row, a bridge gate per window kind (`people_bridge`, `profile_bridge`, `thread_bridge`) that opens the window only to show the screen-state notice, and one compose opener shared by Reply and Quote. No behaviour change; `jscpd --min-tokens 80 --min-lines 12` reports no clones across the application files. ([#173](https://github.com/ewanc26/platinum/pull/173))
+
 - Folded the repeated window-handling blocks in `macos9/application.c` into one routine per window kind plus shared main-action and secondary-event forwarders, and the JSON string helpers in `macos9/json_min.c` into a single clipped-string helper. No behaviour change; `jscpd --min-tokens 80 --min-lines 12` over the two files now reports no clones. ([#166](https://github.com/ewanc26/platinum/pull/166))
 
 - The bridge's port of Wolfram's OAuth node pairing contract now matches Wolfram's C driver. A 404 ends a pairing with the contract's message, other non-2xx replies are retried, and a zero or negative `expires_at` means no expiry. Sign-in does not use it yet; wiring it in is tracked in [#75](https://github.com/ewanc26/platinum/issues/75).
