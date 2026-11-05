@@ -17,6 +17,7 @@ extern "C" {
 #define PLATINUM_PROFILE_NAME_MAX 96
 #define PLATINUM_PROFILE_DESCRIPTION_MAX 511
 #define PLATINUM_PROFILE_STATUS_MAX 127
+#define PLATINUM_PROFILE_URI_MAX 512
 
 typedef struct platinum_profile {
     WindowPtr window;
@@ -37,6 +38,10 @@ typedef struct platinum_profile {
     int block_armed;
     /* The account's DID, copied exactly (the display copy above may clip). */
     char target_did[PLATINUM_PROFILE_DID_MAX + 1];
+    /* The exact viewer records, when the profile came from the native read.
+     * They are what an unfollow or unblock deletes. */
+    char following_uri[PLATINUM_PROFILE_URI_MAX + 1];
+    char blocking_uri[PLATINUM_PROFILE_URI_MAX + 1];
     int has_pinned;
     platinum_post_preview pinned;
     char status[PLATINUM_PROFILE_STATUS_MAX + 1];
@@ -64,9 +69,9 @@ wf_status platinum_profile_load(platinum_profile *profile,
 /*
  * GET app.bsky.actor.getProfile for the actor (handle with or without @, or
  * DID; NULL or empty is the signed-in account), filling the same model:
- * viewer.following/followedBy as presence, muted as a boolean, blocking as
- * presence, the pinned post from pinnedPost. Follow, mute and block writes
- * stay on the bridge for now.
+ * viewer.following/followedBy and blocking as presence plus their exact record
+ * URIs, muted as a boolean, the pinned post from pinnedPost. Follow, mute and
+ * block writes use the native session first, with the bridge fallback.
  */
 wf_status platinum_profile_load_native(platinum_profile *profile,
                                        platinum_atproto_client *client,
@@ -88,6 +93,14 @@ enum {
 wf_status platinum_profile_set_relation(platinum_profile *profile,
                                         platinum_bridge_client *bridge,
                                         int kind, int on);
+/* The native counterparts: create/delete the exact follow or block record, or
+ * call actor.mute/unmute. The state changes only on a well-formed answer. */
+wf_status platinum_profile_set_follow_native(platinum_profile *profile,
+                                             platinum_atproto_client *client,
+                                             int on);
+wf_status platinum_profile_set_relation_native(platinum_profile *profile,
+                                               platinum_atproto_client *client,
+                                               int kind, int on);
 /* Set status text without touching any window. */
 void platinum_profile_status_text(platinum_profile *profile,
                                   const char *status);
