@@ -98,6 +98,61 @@ wf_status platinum_atproto_lists(platinum_atproto_client *client,
                                        names, values, 2, out);
 }
 
+/* getFollows and getFollowers take an actor, a limit and an optional cursor,
+ * so one builder serves both. */
+static wf_status graph_actor_page(platinum_atproto_client *client,
+                                  const char *nsid, const char *actor,
+                                  const char *cursor, size_t limit,
+                                  wf_response *out)
+{
+    const char *names[3];
+    const char *values[3];
+    char limit_text[8];
+    size_t count;
+
+    if (client == NULL || out == NULL || nsid == NULL || actor == NULL ||
+        actor[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_did(actor) &&
+        !platinum_atproto_valid_handle(actor))
+        return WF_ERR_INVALID_ARG;
+    if (limit < 1 || limit > 100)
+        return WF_ERR_INVALID_ARG;
+    if (cursor != NULL && strlen(cursor) > PLATINUM_ATPROTO_CURSOR_MAX)
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(limit_text, "%lu", (unsigned long)limit);
+    names[0] = "actor";
+    values[0] = actor;
+    names[1] = "limit";
+    values[1] = limit_text;
+    count = 2;
+
+    if (cursor != NULL && cursor[0] != '\0') {
+        names[2] = "cursor";
+        values[2] = cursor;
+        count = 3;
+    }
+
+    return platinum_atproto_client_get(client, nsid, names, values, count, out);
+}
+
+wf_status platinum_atproto_follows_page(platinum_atproto_client *client,
+                                       const char *actor, const char *cursor,
+                                       size_t limit, wf_response *out)
+{
+    return graph_actor_page(client, "app.bsky.graph.getFollows", actor, cursor,
+                            limit, out);
+}
+
+wf_status platinum_atproto_followers_page(platinum_atproto_client *client,
+                                         const char *actor, const char *cursor,
+                                         size_t limit, wf_response *out)
+{
+    return graph_actor_page(client, "app.bsky.graph.getFollowers", actor,
+                            cursor, limit, out);
+}
+
 /* getFeed and getList take one AT URI, a limit and an optional cursor, so one
  * builder serves both and only the NSID and parameter name differ. */
 static wf_status feed_uri_page(platinum_atproto_client *client,
