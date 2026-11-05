@@ -47,7 +47,7 @@ static void timeline_native_set_status(platinum_timeline *timeline,
  * author.viewer.following is present. A post that cannot be read is not
  * muted; parse_view decides whether it is shown.
  */
-static int timeline_native_is_muted(platinum_json post_view,
+int platinum_timeline_view_is_muted(platinum_json post_view,
                                     const platinum_muted_list *muted)
 {
     platinum_json author;
@@ -231,7 +231,7 @@ static wf_status timeline_fetch_native(platinum_timeline *timeline,
             continue;
         if (platinum_json_member(item, "post", &post_view) != WF_OK)
             continue;
-        if (timeline_native_is_muted(post_view, &muted))
+        if (platinum_timeline_view_is_muted(post_view, &muted))
             continue;
         if (platinum_timeline_parse_view(&timeline->posts[timeline->count],
                                          post_view))

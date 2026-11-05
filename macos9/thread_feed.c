@@ -20,6 +20,13 @@ static void thread_status(platinum_thread *thread, const char *status)
     thread->status[length] = '\0';
 }
 
+void platinum_thread_set_status(platinum_thread *thread, const char *status)
+{
+    if (thread == NULL)
+        return;
+    thread_status(thread, status);
+}
+
 void platinum_thread_init(platinum_thread *thread)
 {
     if (thread == NULL)
@@ -57,6 +64,7 @@ wf_status platinum_thread_load(platinum_thread *thread,
     thread->truncated = 0;
     thread->path[0] = '\0';
     thread->cursor[0] = '\0';
+    thread->native_feed = 0;
     strcpy(thread->heading, "Thread");
     thread->loading = 1;
     thread_status(thread, "Loading thread...");
@@ -216,6 +224,65 @@ static wf_status thread_fetch_list(platinum_thread *thread,
     return WF_OK;
 }
 
+void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
+                               platinum_post_view_filter filter,
+                               void *userdata, const char *cursor,
+                               unsigned short *dropped)
+{
+    /* Static for the same reason as thread_fetch_list's scratch. */
+    static platinum_post_preview parsed[PLATINUM_THREAD_PAGE];
+    platinum_json item;
+    platinum_json post_view;
+    long available;
+    long index;
+    long got;
+    long drop;
+
+    if (dropped != NULL)
+        *dropped = 0;
+    if (thread == NULL || filter == NULL ||
+        platinum_json_count(feed, &available) != WF_OK)
+        return;
+
+    got = 0;
+    for (index = 0; index < available && got < PLATINUM_THREAD_PAGE; ++index) {
+        if (platinum_json_element(feed, index, &item) != WF_OK)
+            continue;
+        if (platinum_json_member(item, "post", &post_view) != WF_OK)
+            continue;
+        if (filter(post_view, userdata))
+            continue;
+        if (platinum_timeline_parse_view(&parsed[got], post_view))
+            ++got;
+    }
+
+    /* Known good, so only now drop the first rows to stay within the cap. */
+    drop = (long)thread->count + got - PLATINUM_THREAD_MAX;
+    if (drop > (long)thread->count)
+        drop = (long)thread->count;
+    if (drop > 0) {
+        memmove(&thread->items[0], &thread->items[drop],
+                (size_t)((long)thread->count - drop) * sizeof(thread->items[0]));
+        thread->count = (unsigned short)((long)thread->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
+    }
+    for (index = 0; index < got; ++index) {
+        thread->items[thread->count].post = parsed[index];
+        thread->items[thread->count].depth = 0;
+        ++thread->count;
+    }
+
+    /* A cursor is copied exactly or not at all. */
+    thread->cursor[0] = '\0';
+    if (cursor != NULL && cursor[0] != '\0') {
+        strncpy(thread->cursor, cursor, sizeof(thread->cursor) - 1);
+        thread->cursor[sizeof(thread->cursor) - 1] = '\0';
+    }
+    thread->truncated = 0;
+    thread->focus = 0;
+}
+
 wf_status platinum_thread_load_list(platinum_thread *thread,
                                     platinum_bridge_client *bridge,
                                     const char *route,
@@ -240,6 +307,7 @@ wf_status platinum_thread_load_list(platinum_thread *thread,
         return WF_ERR_INVALID_ARG;
     }
     thread->cursor[0] = '\0';
+    thread->native_feed = 0;
     thread->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(thread->heading, heading, sizeof(thread->heading) - 1);

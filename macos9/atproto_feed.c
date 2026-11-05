@@ -98,6 +98,60 @@ wf_status platinum_atproto_lists(platinum_atproto_client *client,
                                        names, values, 2, out);
 }
 
+/* getFeed and getList take one AT URI, a limit and an optional cursor, so one
+ * builder serves both and only the NSID and parameter name differ. */
+static wf_status feed_uri_page(platinum_atproto_client *client,
+                               const char *nsid, const char *name,
+                               const char *uri, const char *cursor,
+                               size_t limit, wf_response *out)
+{
+    const char *names[3];
+    const char *values[3];
+    char limit_text[8];
+    size_t count;
+
+    if (client == NULL || out == NULL || nsid == NULL || name == NULL ||
+        uri == NULL || uri[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_at_uri(uri))
+        return WF_ERR_INVALID_ARG;
+    if (limit < 1 || limit > 100)
+        return WF_ERR_INVALID_ARG;
+    if (cursor != NULL && strlen(cursor) > PLATINUM_ATPROTO_CURSOR_MAX)
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(limit_text, "%lu", (unsigned long)limit);
+    names[0] = name;
+    values[0] = uri;
+    names[1] = "limit";
+    values[1] = limit_text;
+    count = 2;
+
+    if (cursor != NULL && cursor[0] != '\0') {
+        names[2] = "cursor";
+        values[2] = cursor;
+        count = 3;
+    }
+
+    return platinum_atproto_client_get(client, nsid, names, values, count, out);
+}
+
+wf_status platinum_atproto_feed_page(platinum_atproto_client *client,
+                                     const char *feed_uri, const char *cursor,
+                                     size_t limit, wf_response *out)
+{
+    return feed_uri_page(client, "app.bsky.feed.getFeed", "feed", feed_uri,
+                         cursor, limit, out);
+}
+
+wf_status platinum_atproto_list_page(platinum_atproto_client *client,
+                                     const char *list_uri, const char *cursor,
+                                     size_t limit, wf_response *out)
+{
+    return feed_uri_page(client, "app.bsky.graph.getList", "list", list_uri,
+                         cursor, limit, out);
+}
+
 wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,
                                           const char *const *uris,
                                           size_t count, wf_response *out)

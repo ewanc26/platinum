@@ -69,6 +69,23 @@ wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,
                                           size_t count, wf_response *out);
 
 /*
+ * One page of a saved feed: app.bsky.feed.getFeed with the generator URI.
+ * `cursor` is NULL or empty for the first page; `limit` is 1 to 100. The
+ * response shape is `{"feed":[{"post":{...}}],"cursor":"..."}`.
+ */
+wf_status platinum_atproto_feed_page(platinum_atproto_client *client,
+                                     const char *feed_uri, const char *cursor,
+                                     size_t limit, wf_response *out);
+
+/*
+ * One page of a list's members: app.bsky.graph.getList with the list URI.
+ * The response shape is `{"items":[{"subject":{...}}],"cursor":"..."}`.
+ */
+wf_status platinum_atproto_list_page(platinum_atproto_client *client,
+                                     const char *list_uri, const char *cursor,
+                                     size_t limit, wf_response *out);
+
+/*
  * Create or delete the signed-in user's like or repost for a post.
  *
  * record_uri is required when deleting and must be the URI of the signed-in

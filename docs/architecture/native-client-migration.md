@@ -61,9 +61,9 @@ goes through the bridge.
 | `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `application_views.c` / SQL | `test_search` | pending |
 | `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `application_views.c` | `test_search` | pending |
 | `GET /v1/feeds` | `app.bsky.actor.getPreferences` + `app.bsky.feed.getFeedGenerators` | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | `test_people`, `test_atproto_prefs` | native end to end (bridge fallback); `savedFeedsPrefV2` or the older `savedFeedsPref`, at most 25, named eight at a time |
-| `GET /v1/feed` | `app.bsky.feed.getFeed` | `timeline.c` | `test_timeline` | pending |
+| `GET /v1/feed` | `app.bsky.feed.getFeed` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap, cursor paging and muted-word filtering |
 | `GET /v1/lists` | `app.bsky.graph.getLists` | `named_native.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); the signed-in DID, 50 asked for and at most 40 shown |
-| `GET /v1/list` | `app.bsky.graph.getList` | `people_feed.c` | `test_people` | pending |
+| `GET /v1/list` | `app.bsky.graph.getList` | `named_native.c` + `atproto_feed.c` + `people_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/post/likes` | `app.bsky.feed.getLikes` | `people_feed.c` | `test_people` | pending |
 | `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` | `test_people` | pending |
 | `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `application_post.c` + a post mapper | `test_compose` (to extend) | pending |
@@ -102,7 +102,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback) |
 | Search (accounts and posts) | bridge | pending |
-| Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list (bridge fallback); opening a feed or a list's members still uses the bridge |
+| Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list and contents (bridge fallback); opening a feed or a list's members reads the AppView directly |
 | Compose, reply, quote | bridge | pending |
 | Conversations | bridge | pending |
 | Connection Status | bridge | pending |
