@@ -118,6 +118,25 @@ wf_status platinum_atproto_reposts_page(platinum_atproto_client *client,
                                         wf_response *out);
 
 /*
+ * One page of account search: app.bsky.actor.searchActors, with the UTF-8
+ * query `q`. The response shape is `{"actors":[profileView...],
+ * "cursor":"..."}`.
+ */
+wf_status platinum_atproto_search_actors_page(platinum_atproto_client *client,
+                                              const char *query,
+                                              const char *cursor, size_t limit,
+                                              wf_response *out);
+
+/*
+ * One page of post search: app.bsky.feed.searchPosts, with the UTF-8 query
+ * `q`. The response shape is `{"posts":[postView...],"cursor":"..."}`.
+ */
+wf_status platinum_atproto_search_posts_page(platinum_atproto_client *client,
+                                             const char *query,
+                                             const char *cursor, size_t limit,
+                                             wf_response *out);
+
+/*
  * Create or delete the signed-in user's like or repost for a post.
  *
  * record_uri is required when deleting and must be the URI of the signed-in
