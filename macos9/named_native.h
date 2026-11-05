@@ -2,9 +2,9 @@
 #define PLATINUM_NAMED_NATIVE_H
 
 /*
- * named_native.h -- Saved Feeds and My Lists fetched by the Mac itself.
+ * named_native.h -- Saved Feeds, My Lists and post search fetched by the Mac.
  *
- * Both screens are the People window with named rows. Saved feeds come from
+ * The first two screens are the People window with named rows. Saved feeds come from
  * app.bsky.actor.getPreferences (savedFeedsPrefV2, or the older savedFeedsPref)
  * and are named with app.bsky.feed.getFeedGenerators; My Lists comes from
  * app.bsky.graph.getLists for the signed-in account. Neither list pages; the
@@ -43,6 +43,12 @@ wf_status platinum_named_feed_native(platinum_thread *thread,
 wf_status platinum_named_author_native(platinum_thread *thread,
                                        platinum_atproto_client *client,
                                        const char *actor, const char *heading);
+
+/* Open post search results through app.bsky.feed.searchPosts. `query` is the
+ * UTF-8 search string; muted words are applied best-effort, as on a feed. */
+wf_status platinum_named_search_native(platinum_thread *thread,
+                                       platinum_atproto_client *client,
+                                       const char *query, const char *heading);
 
 /* The next page of that feed. WF_ERR_INVALID_ARG when there is no more. */
 wf_status platinum_named_feed_more_native(platinum_thread *thread,

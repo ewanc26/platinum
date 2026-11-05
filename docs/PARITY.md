@@ -43,8 +43,8 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Full-size image viewer | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Link-card previews | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Attach images to a post | yes | yes | [#33](https://github.com/ewanc26/platinum/issues/33) |
-| Actor search | yes | yes | implemented (`macos9/application_views.c`) |
-| Post search | yes | yes | implemented (`macos9/application_views.c`) |
+| Actor search | yes | yes | implemented (`macos9/people_feed.c`) |
+| Post search | yes | yes | implemented (`macos9/named_native.c`) |
 | Custom feeds | yes | yes | implemented (`macos9/named_native.c`) |
 | Lists | yes | yes | implemented (`macos9/named_native.c`) |
 | Mute and block | yes | yes | implemented (`macos9/profile_native.c`) |

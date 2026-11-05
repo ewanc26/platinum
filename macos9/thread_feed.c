@@ -228,10 +228,10 @@ static wf_status thread_fetch_list(platinum_thread *thread,
     return WF_OK;
 }
 
-void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
-                               platinum_post_view_filter filter,
-                               void *userdata, const char *cursor,
-                               unsigned short *dropped)
+static void thread_take_views(platinum_thread *thread, platinum_json items,
+                              int wrapped, platinum_post_view_filter filter,
+                              void *userdata, const char *cursor,
+                              unsigned short *dropped)
 {
     /* Static for the same reason as thread_fetch_list's scratch. */
     static platinum_post_preview parsed[PLATINUM_THREAD_PAGE];
@@ -245,15 +245,19 @@ void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
     if (dropped != NULL)
         *dropped = 0;
     if (thread == NULL || filter == NULL ||
-        platinum_json_count(feed, &available) != WF_OK)
+        platinum_json_count(items, &available) != WF_OK)
         return;
 
     got = 0;
     for (index = 0; index < available && got < PLATINUM_THREAD_PAGE; ++index) {
-        if (platinum_json_element(feed, index, &item) != WF_OK)
+        if (platinum_json_element(items, index, &item) != WF_OK)
             continue;
-        if (platinum_json_member(item, "post", &post_view) != WF_OK)
-            continue;
+        if (wrapped) {
+            if (platinum_json_member(item, "post", &post_view) != WF_OK)
+                continue;
+        } else {
+            post_view = item;
+        }
         if (filter(post_view, userdata))
             continue;
         if (platinum_timeline_parse_view(&parsed[got], post_view))
@@ -285,6 +289,22 @@ void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
     }
     thread->truncated = 0;
     thread->focus = 0;
+}
+
+void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
+                               platinum_post_view_filter filter,
+                               void *userdata, const char *cursor,
+                               unsigned short *dropped)
+{
+    thread_take_views(thread, feed, 1, filter, userdata, cursor, dropped);
+}
+
+void platinum_thread_take_posts(platinum_thread *thread, platinum_json posts,
+                                platinum_post_view_filter filter,
+                                void *userdata, const char *cursor,
+                                unsigned short *dropped)
+{
+    thread_take_views(thread, posts, 0, filter, userdata, cursor, dropped);
 }
 
 wf_status platinum_thread_load_list(platinum_thread *thread,

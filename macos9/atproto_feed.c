@@ -241,6 +241,55 @@ wf_status platinum_atproto_reposts_page(platinum_atproto_client *client,
                          post_uri, cursor, limit, out);
 }
 
+static wf_status search_page(platinum_atproto_client *client,
+                             const char *nsid, const char *query,
+                             const char *cursor, size_t limit,
+                             wf_response *out)
+{
+    const char *names[3];
+    const char *values[3];
+    char limit_text[8];
+    size_t count;
+
+    if (client == NULL || nsid == NULL || out == NULL || query == NULL ||
+        query[0] == '\0' || limit < 1 || limit > 100)
+        return WF_ERR_INVALID_ARG;
+    if (cursor != NULL && strlen(cursor) > PLATINUM_ATPROTO_CURSOR_MAX)
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(limit_text, "%lu", (unsigned long)limit);
+    names[0] = "q";
+    values[0] = query;
+    names[1] = "limit";
+    values[1] = limit_text;
+    count = 2;
+    if (cursor != NULL && cursor[0] != '\0') {
+        names[2] = "cursor";
+        values[2] = cursor;
+        count = 3;
+    }
+    return platinum_atproto_client_get(client, nsid, names, values, count,
+                                       out);
+}
+
+wf_status platinum_atproto_search_actors_page(platinum_atproto_client *client,
+                                              const char *query,
+                                              const char *cursor, size_t limit,
+                                              wf_response *out)
+{
+    return search_page(client, "app.bsky.actor.searchActors", query, cursor,
+                       limit, out);
+}
+
+wf_status platinum_atproto_search_posts_page(platinum_atproto_client *client,
+                                             const char *query,
+                                             const char *cursor, size_t limit,
+                                             wf_response *out)
+{
+    return search_page(client, "app.bsky.feed.searchPosts", query, cursor,
+                       limit, out);
+}
+
 wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,
                                           const char *const *uris,
                                           size_t count, wf_response *out)
