@@ -58,6 +58,7 @@ goes through the bridge.
 | `GET /v1/notifications` | `app.bsky.notification.listNotifications` | `notifications_feed.c` | `test_notifications` | native: the window fetches and pages through the native session, with the same 20-row pages, 40-row cap and seen mark |
 | `POST /v1/notifications/seen` | `app.bsky.notification.updateSeen` | `notifications_feed.c` | `test_notifications` | native: the newest loaded item's `indexedAt`, never the Mac clock |
 | `GET /v1/thread` | `app.bsky.feed.getPostThread` | `thread_native.c` flatten (40 posts, 6 reply levels, 10 ancestors) + `thread_feed.c` model | `test_thread` | native end to end (bridge fallback); flattened order, focus and truncation host-tested |
+| `POST /v1/thread/mute` | `app.bsky.graph.muteThread` / `unmuteThread` | `thread_native.c` + `thread_feed.c` | `test_thread` | native end to end (bridge fallback); the root comes from the post's record through `app.bsky.feed.getPosts`, and the window changes state only after the service confirms |
 | `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `application_views.c` / SQL | `test_search` | pending |
 | `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `application_views.c` | `test_search` | pending |
 | `GET /v1/feeds` | `app.bsky.actor.getPreferences` (saved feeds) | `application_views.c` | `test_prefs` (to extend) | pending |
@@ -100,7 +101,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Home timeline | `atproto_feed.c` + `timeline_native.c` | native end to end, including likes and reposts |
 | Notifications | `atproto_feed.c` + `notifications_feed.c` | native |
 | Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
-| Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback) |
+| Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback), including mute and unmute |
 | Search (accounts and posts) | bridge | pending |
 | Saved feeds and lists | bridge | pending |
 | Compose, reply, quote | bridge | pending |

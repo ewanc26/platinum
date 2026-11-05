@@ -15,6 +15,7 @@ import type {
   MuteBlockResult,
   Thread,
   ThreadPost,
+  ThreadMuteResult,
   ToggleResult,
   Profile,
   Timeline,
@@ -534,6 +535,27 @@ export class DomainApi {
     const result = await agent.getPostThread({ uri: ref.uri, depth: MAX_THREAD_DEPTH, parentHeight: MAX_ANCESTORS })
     const thread = flattenThread(result.data.thread)
     return thread.posts.length > 0 ? thread : undefined
+  }
+
+  /**
+   * Mute or unmute the thread a post belongs to. `uri` may name any post in the
+   * thread; its own record carries the root, and a top-level post is its own
+   * root. Mutings is private and leaves no record. A post that is gone is
+   * undefined, and nothing is written then.
+   */
+  async muteThread(agent: Agent, uri: string, on: boolean): Promise<ThreadMuteResult | undefined> {
+    const found = await agent.getPosts({ uris: [uri] })
+    const post = found.data.posts[0]
+    if (!post) return undefined
+    const record = post.record as { reply?: { root?: { uri?: unknown } } } | undefined
+    const named = record?.reply?.root?.uri
+    /* A reply that names a root the bridge cannot read is not treated as a
+     * top-level post: muting the reply would mute the wrong thread. */
+    const root = named === undefined ? uri : validPostRef(named, 'x')?.uri
+    if (!root) return undefined
+    if (on) await agent.app.bsky.graph.muteThread({ root })
+    else await agent.app.bsky.graph.unmuteThread({ root })
+    return { uri, root, on }
   }
 
   /**

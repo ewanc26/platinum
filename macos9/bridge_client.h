@@ -104,6 +104,15 @@ wf_status platinum_bridge_get_image(platinum_bridge_client *client,
 wf_status platinum_bridge_delete_post(platinum_bridge_client *client,
                                       const char *uri);
 
+/*
+ * Mute (on) or unmute a thread: POST /v1/thread/mute {"uri":"...","on":true}.
+ * `uri` may name any post in the thread; the bridge reads its record and uses
+ * the thread root. `uri` is escaped; empty or over 512 bytes is refused with no
+ * request.
+ */
+wf_status platinum_bridge_set_thread_mute(platinum_bridge_client *client,
+                                          const char *uri, int on);
+
 /* 1 if the AT URI `uri` names a record in the repo of `did` (an exact
  * comparison of the authority part), else 0. Used only to decide whether to
  * offer Delete; the bridge makes the real check. Pure. */

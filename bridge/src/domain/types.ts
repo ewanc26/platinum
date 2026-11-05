@@ -92,6 +92,13 @@ export interface Thread {
   truncated: boolean
 }
 
+/** The thread a post belongs to, and whether it was muted. `root` is the post the thread starts at. */
+export interface ThreadMuteResult {
+  uri: string
+  root: string
+  on: boolean
+}
+
 export interface Timeline {
   posts: TimelinePost[]
   cursor?: string

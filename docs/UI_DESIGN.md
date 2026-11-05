@@ -124,7 +124,7 @@ Standard Undo, Cut, Copy, Paste and Select All commands as applicable, followed 
 
 Load Older Posts fetches the next page of the timeline. Pressing Down Arrow on the last row does the same; the fetch is never started by scrolling, so it cannot begin in the middle of scroll-bar tracking. The list keeps at most forty posts: loading past that drops the newest ones from the top, and the selection stays on the post it was on.
 
-Show Thread opens a modeless Thread window around the selected post: earlier posts above it, the post itself marked "This post", and replies below, indented by depth up to six levels. It reads `GET /v1/thread`, which is bounded at forty posts, and says in words when replies were left out. It scrolls like Notifications and closes with Command-W.
+Show Thread opens a modeless Thread window around the selected post: earlier posts above it, the post itself marked "This post", and replies below, indented by depth up to six levels. It reads `GET /v1/thread`, which is bounded at forty posts, and says in words when replies were left out. It scrolls like Notifications and closes with Command-W. Mute or Unmute Thread acts on the thread in that window: it resolves the thread's root from the open post and mutes or unmutes the thread, then says "Thread muted." or "Thread unmuted." only after the service confirms. A failure leaves the window's state and the service alone and says the thread could not be muted. Muting a thread is private.
 
 ### Post
 
@@ -136,6 +136,7 @@ Show Thread opens a modeless Thread window around the selected post: earlier pos
 - Show Author's Profile (Command-I)
 - Follow or Unfollow (Command-Y)
 - Show Author's Posts
+- Mute or Unmute Thread
 - Mute or Unmute
 - Block or Unblock
 - Who Liked This, Who Reposted This

@@ -43,6 +43,11 @@ static unsigned char kDeleteItem[] = {
     14, 'D', 'e', 'l', 'e', 't', 'e', ' ', 'M', 'y', ' ', 'P', 'o', 's', 't'
 };
 
+static unsigned char kThreadMuteItem[] = {
+    21, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e',
+    ' ', 'T', 'h', 'r', 'e', 'a', 'd'
+};
+
 static unsigned char kMuteItem[] = {
     14, 'M', 'u', 't', 'e', ' ', 'o', 'r', ' ', 'U', 'n', 'm', 'u', 't', 'e'
 };
@@ -262,6 +267,7 @@ OSErr platinum_application_create_menus(platinum_application *app)
     AppendMenu(app->post_menu, kBlockItem);
     AppendMenu(app->post_menu, kQuoteItem);
     AppendMenu(app->post_menu, kDeleteItem);
+    AppendMenu(app->post_menu, kThreadMuteItem);
     SetItemCmd(app->post_menu, 1, 'l');
     SetItemCmd(app->post_menu, 2, 'e');
     SetItemCmd(app->post_menu, 3, 'j');
@@ -406,7 +412,9 @@ void platinum_application_handle_menu(platinum_application *app,
             }
         }
     } else if (menu_id == kPostMenuID) {
-        if (item == 14)
+        if (item == 15)
+            platinum_application_mute_thread(app);
+        else if (item == 14)
             platinum_application_delete_post(app);
         else if (item == 13)
             platinum_application_quote(app);

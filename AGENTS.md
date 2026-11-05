@@ -1015,6 +1015,7 @@ The current branch contains the first working bridge architecture and Mac-side b
 - People window for followers, following, likes and reposts;
 - other people's profiles with follow state and the pinned post, and follow or unfollow;
 - thread window around the selected post (`GET /v1/thread`, forty posts);
+- thread mute and unmute from the Thread window (the native session first, bridge fallback);
 - reply to the selected post (Post menu, `replyTo` on `POST /v1/post`);
 - notifications marked seen on view, by the newest item's own timestamp;
 - native TextEdit compose window and bridge-backed post submission;
