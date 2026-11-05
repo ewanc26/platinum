@@ -129,6 +129,22 @@ wf_status platinum_atproto_feed_engagement(
     const char *post_cid, int repost, int on, const char *record_uri,
     wf_response *out);
 
+/*
+ * Create or delete the signed-in account's follow or block of `subject_did`.
+ * `block` selects app.bsky.graph.block, otherwise app.bsky.graph.follow.
+ * `record_uri` is required when deleting and must name the signed-in account's
+ * record in that collection. A create returns the raw createRecord response so
+ * the caller can keep its URI for the undo.
+ */
+wf_status platinum_atproto_graph_relation(
+    platinum_atproto_client *client, const char *subject_did, int block,
+    int on, const char *record_uri, wf_response *out);
+
+/* Mute or unmute an account through app.bsky.actor.mute / unmute. */
+wf_status platinum_atproto_mute(platinum_atproto_client *client,
+                                const char *actor_did, int on,
+                                wf_response *out);
+
 /* Mark notifications seen through app.bsky.notification.updateSeen. `seen_at`
  * is an RFC 3339 timestamp as the service sent it, never the Mac clock. */
 wf_status platinum_atproto_notification_seen(

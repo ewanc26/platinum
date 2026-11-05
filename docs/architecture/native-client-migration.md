@@ -45,13 +45,13 @@ goes through the bridge.
 | `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry, bootstrap-then-sign-in and the handle-only sign-in window are done; the bridge route is no longer called by the UI |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `session.c` | `test_session` (to add) | pending |
 | `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
-| `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_native.c` read (`profile_feed.c` model) | `test_profile` | native read end to end (bridge fallback); follow/mute/block writes still pending |
+| `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_native.c` read (`profile_feed.c` model) | `test_profile` | native read end to end (bridge fallback); follow/mute/block writes migrated |
 | `GET /v1/follows` | `app.bsky.graph.getFollows` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/followers` | `app.bsky.graph.getFollowers` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/author-feed` | `app.bsky.feed.getAuthorFeed` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap, cursor paging and muted-word filtering |
-| `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
-| `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
-| `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
+| `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_native.c` + `atproto_feed.c` | `test_profile` | native end to end (bridge fallback); the create URI is kept and exactly that record is deleted on undo |
+| `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_native.c` + `atproto_feed.c` | `test_profile` | native end to end (bridge fallback) |
+| `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_native.c` + `atproto_feed.c` | `test_profile` | native end to end (bridge fallback); the create URI is kept and exactly that record is deleted on undo |
 | `GET /v1/timeline` | `app.bsky.feed.getTimeline` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end: paging, 40-row cap, and failure handling; viewer interaction URIs are retained |
 | `POST /v1/like` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.like` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end; creates and removes the exact like record from the AppView viewer URI |
 | `POST /v1/repost` | `com.atproto.repo.createRecord` / `deleteRecord`, `app.bsky.feed.repost` | `atproto_feed.c` + `timeline_native.c` | `test_timeline` | native end to end; creates and removes the exact repost record from the AppView viewer URI |
@@ -100,7 +100,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Sign-in | `atproto_bootstrap.c` + `createSession` | native |
 | Home timeline | `atproto_feed.c` + `timeline_native.c` | native end to end, including likes and reposts |
 | Notifications | `atproto_feed.c` + `notifications_feed.c` | native |
-| Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
+| Profile | `profile_native.c` + `profile_feed.c` | native read and follow/mute/block writes end to end (bridge fallback) |
 | Followers and following | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | Author posts | `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap and muted-word filtering |
 | Liked by / reposted by | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
