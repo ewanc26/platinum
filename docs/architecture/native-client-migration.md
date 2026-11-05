@@ -65,8 +65,8 @@ goes through the bridge.
 | `GET /v1/feed` | `app.bsky.feed.getFeed` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap, cursor paging and muted-word filtering |
 | `GET /v1/lists` | `app.bsky.graph.getLists` | `named_native.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); the signed-in DID, 50 asked for and at most 40 shown |
 | `GET /v1/list` | `app.bsky.graph.getList` | `named_native.c` + `atproto_feed.c` + `people_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
-| `GET /v1/post/likes` | `app.bsky.feed.getLikes` | `people_feed.c` | `test_people` | pending |
-| `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` | `test_people` | pending |
+| `GET /v1/post/likes` | `app.bsky.feed.getLikes` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
+| `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `application_post.c` + a post mapper | `test_compose` (to extend) | pending |
 | `POST /v1/post/delete` | `com.atproto.repo.deleteRecord` | `application_post.c` | `test_compose` | pending |
 | `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | `atproto_prefs.c` + `muted_words.c` (matcher) + `timeline_native.c` filter + `words_native.c` screen | `test_atproto_prefs`, `test_muted_words`, `test_timeline`, `test_people` | native end to end: the timeline filters content and tag facets (best-effort; prefs failure shows unfiltered) and the muted-words screen reads and writes through the session first (bridge fallback) |
@@ -103,6 +103,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
 | Followers and following | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | Author posts | `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap and muted-word filtering |
+| Liked by / reposted by | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback), including mute and unmute |
 | Search (accounts and posts) | bridge | pending |
 | Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list and contents (bridge fallback); opening a feed or a list's members reads the AppView directly |

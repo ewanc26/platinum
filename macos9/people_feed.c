@@ -244,6 +244,7 @@ wf_status platinum_people_load_kind(platinum_people *people,
     people->kind = kind;
     people->native_list = 0;
     people->native_follows = 0;
+    people->native_engagement = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -281,6 +282,7 @@ wf_status platinum_people_set_words(platinum_people *people,
     people->kind = PLATINUM_PEOPLE_WORDS;
     people->native_list = 0;
     people->native_follows = 0;
+    people->native_engagement = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -441,6 +443,8 @@ static wf_status people_fetch_native(platinum_people *people,
     platinum_json root;
     platinum_json actors;
     const char *member;
+    const char *profile_member;
+    const char *request_cursor;
     char cursor[sizeof(people->cursor)];
     long available;
     wf_status status;
@@ -454,17 +458,29 @@ static wf_status people_fetch_native(platinum_people *people,
         people->cursor[0] = '\0';
     }
 
+    request_cursor = append ? people->cursor : NULL;
     memset(&response, 0, sizeof(response));
     people->loading = 1;
     people_status(people, "Loading...");
-    if (people->native_follows == 2)
-        status = platinum_atproto_followers_page(
-            client, people->path, append ? people->cursor : NULL,
-            PLATINUM_PEOPLE_PAGE, &response);
+    if (people->native_engagement == 1)
+        status = platinum_atproto_likes_page(client, people->path,
+                                             request_cursor,
+                                             PLATINUM_PEOPLE_PAGE, &response);
+    else if (people->native_engagement == 2)
+        status = platinum_atproto_reposts_page(client, people->path,
+                                               request_cursor,
+                                               PLATINUM_PEOPLE_PAGE,
+                                               &response);
+    else if (people->native_follows == 2)
+        status = platinum_atproto_followers_page(client, people->path,
+                                                 request_cursor,
+                                                 PLATINUM_PEOPLE_PAGE,
+                                                 &response);
     else
-        status = platinum_atproto_follows_page(
-            client, people->path, append ? people->cursor : NULL,
-            PLATINUM_PEOPLE_PAGE, &response);
+        status = platinum_atproto_follows_page(client, people->path,
+                                               request_cursor,
+                                               PLATINUM_PEOPLE_PAGE,
+                                               &response);
     if (status != WF_OK) {
         people->loading = 0;
         people_status(people, status == WF_ERR_AUTH
@@ -474,7 +490,16 @@ static wf_status people_fetch_native(platinum_people *people,
         return status;
     }
 
-    member = people->native_follows == 2 ? "followers" : "follows";
+    if (people->native_engagement == 1) {
+        member = "likes";
+        profile_member = "actor";
+    } else if (people->native_engagement == 2) {
+        member = "repostedBy";
+        profile_member = NULL;
+    } else {
+        member = people->native_follows == 2 ? "followers" : "follows";
+        profile_member = NULL;
+    }
     if (platinum_json_open(&root, response.body != NULL ? response.body : "")
             != WF_OK ||
         platinum_json_member(root, member, &actors) != WF_OK ||
@@ -488,12 +513,32 @@ static wf_status people_fetch_native(platinum_people *people,
 
     if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) != WF_OK)
         cursor[0] = '\0';
-    people_take_profiles(people, actors, NULL, cursor, dropped);
+    people_take_profiles(people, actors, profile_member, cursor, dropped);
     wf_response_free(&response);
 
     people->loading = 0;
     people_status(people, people->count == 0 ? "Nobody to show." : NULL);
     return WF_OK;
+}
+
+static void people_native_begin(platinum_people *people, const char *path,
+                                const char *heading)
+{
+    people->kind = PLATINUM_PEOPLE_ACCOUNTS;
+    people->native_list = 0;
+    people->native_follows = 0;
+    people->native_engagement = 0;
+    people->count = 0;
+    people->scroll_row = 0;
+    people->selected = -1;
+    strncpy(people->path, path, sizeof(people->path) - 1);
+    people->path[sizeof(people->path) - 1] = '\0';
+    people->cursor[0] = '\0';
+    people->heading[0] = '\0';
+    if (heading != NULL) {
+        strncpy(people->heading, heading, sizeof(people->heading) - 1);
+        people->heading[sizeof(people->heading) - 1] = '\0';
+    }
 }
 
 static wf_status people_load_graph_native(platinum_people *people,
@@ -510,20 +555,8 @@ static wf_status people_load_graph_native(platinum_people *people,
     if (strlen(actor) >= sizeof(people->path))
         return WF_ERR_INVALID_ARG;
 
-    people->kind = PLATINUM_PEOPLE_ACCOUNTS;
-    people->native_list = 0;
+    people_native_begin(people, actor, heading);
     people->native_follows = followers ? 2 : 1;
-    people->count = 0;
-    people->scroll_row = 0;
-    people->selected = -1;
-    strncpy(people->path, actor, sizeof(people->path) - 1);
-    people->path[sizeof(people->path) - 1] = '\0';
-    people->cursor[0] = '\0';
-    people->heading[0] = '\0';
-    if (heading != NULL) {
-        strncpy(people->heading, heading, sizeof(people->heading) - 1);
-        people->heading[sizeof(people->heading) - 1] = '\0';
-    }
     return people_fetch_native(people, client, 0, NULL);
 }
 
@@ -543,13 +576,48 @@ wf_status platinum_people_followers_native(platinum_people *people,
     return people_load_graph_native(people, client, actor, 1, heading);
 }
 
-wf_status platinum_people_follows_more_native(platinum_people *people,
-                                              platinum_atproto_client *client,
-                                              unsigned short *dropped)
+static wf_status people_load_post_native(platinum_people *people,
+                                         platinum_atproto_client *client,
+                                         const char *post_uri, int engagement,
+                                         const char *heading)
+{
+    if (people == NULL || client == NULL || post_uri == NULL ||
+        post_uri[0] == '\0' || (engagement != 1 && engagement != 2))
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_at_uri(post_uri))
+        return WF_ERR_INVALID_ARG;
+    if (strlen(post_uri) >= sizeof(people->path))
+        return WF_ERR_INVALID_ARG;
+
+    people_native_begin(people, post_uri, heading);
+    people->native_engagement = engagement;
+    return people_fetch_native(people, client, 0, NULL);
+}
+
+wf_status platinum_people_likes_native(platinum_people *people,
+                                       platinum_atproto_client *client,
+                                       const char *post_uri,
+                                       const char *heading)
+{
+    return people_load_post_native(people, client, post_uri, 1, heading);
+}
+
+wf_status platinum_people_reposts_native(platinum_people *people,
+                                         platinum_atproto_client *client,
+                                         const char *post_uri,
+                                         const char *heading)
+{
+    return people_load_post_native(people, client, post_uri, 2, heading);
+}
+
+wf_status platinum_people_more_native(platinum_people *people,
+                                      platinum_atproto_client *client,
+                                      unsigned short *dropped)
 {
     if (dropped != NULL)
         *dropped = 0;
-    if (people == NULL || client == NULL || people->native_follows == 0 ||
+    if (people == NULL || client == NULL ||
+        (people->native_follows == 0 && people->native_engagement == 0) ||
         !platinum_people_has_more(people))
         return WF_ERR_INVALID_ARG;
     return people_fetch_native(people, client, 1, dropped);
