@@ -308,6 +308,33 @@ wf_status platinum_people_set_words(platinum_people *people,
     return WF_OK;
 }
 
+void platinum_people_take_named(platinum_people *people, platinum_json items,
+                                const char *name)
+{
+    platinum_json item;
+    platinum_person person;
+    long available;
+    long index;
+
+    if (people == NULL || name == NULL ||
+        platinum_json_count(items, &available) != WF_OK)
+        return;
+
+    for (index = 0; index < available && people->count < PLATINUM_PEOPLE_MAX;
+         ++index) {
+        if (platinum_json_element(items, index, &item) != WF_OK)
+            continue;
+        memset(&person, 0, sizeof(person));
+        people_copy(person.name, sizeof(person.name), item, name);
+        if (person.name[0] == '\0' ||
+            platinum_json_string(item, "uri", person.uri,
+                                 sizeof(person.uri)) != WF_OK)
+            continue;
+        people->items[people->count] = person;
+        ++people->count;
+    }
+}
+
 const platinum_person *platinum_people_selection(const platinum_people *people)
 {
     if (people == NULL || people->selected < 0 ||

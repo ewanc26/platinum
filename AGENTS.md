@@ -174,6 +174,7 @@ platinum/
 │   ├── image_pix.c
 │   ├── main.c
 │   ├── muted_words.c
+│   ├── named_native.c
 │   ├── search.c
 │   ├── screen_state.c
 │   ├── state_panel.c

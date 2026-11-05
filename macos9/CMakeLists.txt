@@ -72,6 +72,7 @@ set(PLATINUM_SOURCES
     json_min.c
     main.c
     muted_words.c
+    named_native.c
     notifications.c
     notifications_feed.c
     pairing.c
