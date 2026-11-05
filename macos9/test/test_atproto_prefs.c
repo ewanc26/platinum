@@ -156,6 +156,91 @@ static void test_save(void)
     platinum_atproto_client_free(client);
 }
 
+static void test_saved_feeds(void)
+{
+    static platinum_saved_feeds feeds;
+    static char many[8192];
+    static char item[160];
+    int i;
+
+    check(platinum_prefs_saved_feeds_parse(
+              "{\"preferences\":[{\"$type\":"
+              "\"app.bsky.actor.defs#savedFeedsPrefV2\",\"items\":["
+              "{\"type\":\"timeline\",\"value\":\"following\","
+              "\"pinned\":true},"
+              "{\"type\":\"feed\","
+              "\"value\":\"at://did:plc:a/app.bsky.feed.generator/one\","
+              "\"pinned\":true},"
+              "{\"type\":\"list\","
+              "\"value\":\"at://did:plc:a/app.bsky.graph.list/l\"},"
+              "{\"type\":\"feed\","
+              "\"value\":\"at://did:plc:a/app.bsky.feed.generator/two\"},"
+              "{\"type\":\"feed\",\"value\":\"https://not.at/uri\"},"
+              "{\"type\":\"feed\","
+              "\"value\":\"at://did:plc:a/app.bsky.graph.list/l\"}"
+              "]}]}",
+              &feeds) == WF_OK, "v2 saved feeds parse");
+    check(feeds.count == 2 &&
+              strcmp(feeds.uris[0],
+                     "at://did:plc:a/app.bsky.feed.generator/one") == 0 &&
+              strcmp(feeds.uris[1],
+                     "at://did:plc:a/app.bsky.feed.generator/two") == 0,
+          "only feed generators are kept, in order");
+
+    check(platinum_prefs_saved_feeds_parse(
+              "{\"preferences\":[{\"$type\":"
+              "\"app.bsky.actor.defs#savedFeedsPref\",\"saved\":["
+              "\"at://did:plc:a/app.bsky.feed.generator/one\","
+              "\"at://did:plc:a/app.bsky.graph.list/l\"],"
+              "\"pinned\":["
+              "\"at://did:plc:a/app.bsky.feed.generator/two\","
+              "\"at://did:plc:a/app.bsky.feed.generator/one\"]}]}",
+              &feeds) == WF_OK, "legacy saved feeds parse");
+    check(feeds.count == 2 &&
+              strcmp(feeds.uris[0],
+                     "at://did:plc:a/app.bsky.feed.generator/one") == 0 &&
+              strcmp(feeds.uris[1],
+                     "at://did:plc:a/app.bsky.feed.generator/two") == 0,
+          "saved and pinned merge without repeating a feed");
+
+    check(platinum_prefs_saved_feeds_parse(
+              "{\"preferences\":["
+              "{\"$type\":\"app.bsky.actor.defs#savedFeedsPrefV2\","
+              "\"items\":[]},"
+              "{\"$type\":\"app.bsky.actor.defs#savedFeedsPref\","
+              "\"saved\":["
+              "\"at://did:plc:a/app.bsky.feed.generator/old\"]}]}",
+              &feeds) == WF_OK && feeds.count == 0,
+          "an empty v2 preference wins over the old one");
+
+    check(platinum_prefs_saved_feeds_parse("{\"preferences\":[]}", &feeds)
+              == WF_OK && feeds.count == 0,
+          "no saved-feeds preference is an empty list");
+    check(platinum_prefs_saved_feeds_parse("{\"preferences\":{}}", &feeds)
+              == WF_ERR_PARSE,
+          "a non-array preferences body is refused");
+    check(platinum_prefs_saved_feeds_parse(NULL, &feeds)
+              == WF_ERR_INVALID_ARG, "a NULL body is refused");
+    check(platinum_prefs_saved_feeds_parse("{\"preferences\":[]}", NULL)
+              == WF_ERR_INVALID_ARG, "a NULL list is refused");
+
+    strcpy(many, "{\"preferences\":[{\"$type\":"
+                 "\"app.bsky.actor.defs#savedFeedsPrefV2\",\"items\":[");
+    for (i = 0; i < PLATINUM_SAVED_FEED_MAX + 1; i++) {
+        sprintf(item,
+                "%s{\"type\":\"feed\",\"value\":"
+                "\"at://did:plc:a/app.bsky.feed.generator/f%d\"}",
+                i ? "," : "", i);
+        strcat(many, item);
+    }
+    strcat(many, "]}]}");
+    check(platinum_prefs_saved_feeds_parse(many, &feeds) == WF_OK &&
+              feeds.count == PLATINUM_SAVED_FEED_MAX &&
+              strcmp(feeds.uris[PLATINUM_SAVED_FEED_MAX - 1],
+                     "at://did:plc:a/app.bsky.feed.generator/f24") == 0,
+          "at most 25 saved feeds are kept");
+}
+
 int main(void)
 {
     platinum_muted_list list;
@@ -227,6 +312,7 @@ int main(void)
               == WF_ERR_INVALID_ARG,
           "NULL body is refused");
 
+    test_saved_feeds();
     test_write();
     test_save();
 

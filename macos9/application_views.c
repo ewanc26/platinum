@@ -465,19 +465,37 @@ void platinum_application_more_posts(platinum_application *app)
 void platinum_application_show_named(platinum_application *app,
                                             int kind)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
+    const char *heading;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = people_bridge(app);
-    if (bridge == NULL)
+    if (kind != PLATINUM_PEOPLE_FEEDS && kind != PLATINUM_PEOPLE_LISTS)
         return;
-    status = platinum_people_load_kind(
-        &app->people, bridge, kind,
-        kind == PLATINUM_PEOPLE_FEEDS ? "/v1/feeds" : "/v1/lists", NULL, NULL,
-        kind == PLATINUM_PEOPLE_FEEDS ? "Saved feeds (click one)"
-                                      : "My lists (click one)");
+    heading = kind == PLATINUM_PEOPLE_FEEDS ? "Saved feeds (click one)"
+                                            : "My lists (click one)";
+
+    /* The native session first; the bridge is the fallback. */
+    client = platinum_session_client(&app->session);
+    if (client != NULL) {
+        if (platinum_people_open(&app->people) != noErr)
+            return;
+        status = kind == PLATINUM_PEOPLE_FEEDS
+                     ? platinum_named_feeds_native(&app->people, client,
+                                                   heading)
+                     : platinum_named_lists_native(&app->people, client,
+                                                   heading);
+    } else {
+        bridge = people_bridge(app);
+        if (bridge == NULL)
+            return;
+        status = platinum_people_load_kind(
+            &app->people, bridge, kind,
+            kind == PLATINUM_PEOPLE_FEEDS ? "/v1/feeds" : "/v1/lists", NULL,
+            NULL, heading);
+    }
     platinum_application_recover_auth(app, status);
     if (app->people.window != NULL)
         InvalRect(&app->people.window->portRect);
@@ -493,14 +511,29 @@ void platinum_application_open_person(platinum_application *app)
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
     row = platinum_people_selection(&app->people);
-    bridge = platinum_session_bridge(&app->session);
-    if (row == NULL || row->uri[0] == '\0' || bridge == NULL)
+    if (row == NULL || row->uri[0] == '\0')
         return;
-
     if (app->people.kind == PLATINUM_PEOPLE_WORDS) {
         /* A click only selects the word. */
         return;
     }
+
+    /* The lists themselves are native now, but opening a saved feed or a
+     * list's members still goes through the bridge. */
+    bridge = platinum_session_bridge(&app->session);
+    if ((app->people.kind == PLATINUM_PEOPLE_FEEDS ||
+         app->people.kind == PLATINUM_PEOPLE_LISTS) && bridge == NULL) {
+        platinum_people_set_status(
+            &app->people,
+            "Opening a feed or list still uses the bridge. "
+            "Pair one under File > Pair Account.");
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+        return;
+    }
+    if (bridge == NULL)
+        return;
+
     if (app->people.kind == PLATINUM_PEOPLE_FEEDS) {
         if (platinum_thread_open(&app->thread) != noErr)
             return;

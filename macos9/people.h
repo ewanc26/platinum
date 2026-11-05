@@ -2,6 +2,7 @@
 #define PLATINUM_PEOPLE_H
 
 #include "bridge_client.h"
+#include "json_min.h"
 #include "muted_words.h"
 #include "scrollbar.h"
 #include "state_panel.h"
@@ -101,6 +102,16 @@ wf_status platinum_people_load_kind(platinum_people *people,
                                     const char *key,
                                     const char *value,
                                     const char *heading);
+
+/*
+ * Take named rows from an AppView object array. `name` is the member to show:
+ * "displayName" for feed generators, "name" for lists. A row needs a
+ * displayable name and an exact AT URI in `uri`; a row missing either is
+ * skipped. The caller sets the kind, clears the list and owns the document.
+ * No rows past PLATINUM_PEOPLE_MAX are kept.
+ */
+void platinum_people_take_named(platinum_people *people, platinum_json items,
+                                const char *name);
 
 /* The clicked row after PLATINUM_PEOPLE_OPEN, or NULL. */
 const platinum_person *platinum_people_selection(const platinum_people *people);
