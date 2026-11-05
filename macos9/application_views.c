@@ -240,6 +240,7 @@ void platinum_application_more_people(platinum_application *app)
 /* Run the query typed in the Search window and show the results. */
 void platinum_application_run_search(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     const char *notice;
     char query[PLATINUM_SEARCH_MAX * 4 + 1];
@@ -248,6 +249,34 @@ void platinum_application_run_search(platinum_application *app)
 
     if (app == NULL || app->search.window == NULL)
         return;
+    if (platinum_search_query(&app->search, query, sizeof(query)) < 0) {
+        platinum_search_set_status(&app->search,
+                                   "Type something to search for (100 characters at most).");
+        return;
+    }
+
+    /* The native session first; the bridge is only a fallback. */
+    if (app->search.mode == PLATINUM_SEARCH_WORD) {
+        client = platinum_session_client(&app->session);
+        if (client != NULL) {
+            status = platinum_words_add_native(client, query);
+            if (status == WF_ERR_STATE) {
+                platinum_search_set_status(&app->search,
+                                           "The word list is full (48 words).");
+                return;
+            }
+            if (status != WF_OK) {
+                platinum_search_set_status(&app->search,
+                                           "The word could not be added.");
+                platinum_application_recover_auth(app, status);
+                return;
+            }
+            platinum_search_close(&app->search);
+            platinum_application_show_words(app);
+            return;
+        }
+    }
+
     bridge = platinum_session_bridge(&app->session);
     notice = platinum_application_bridge_notice(app);
     if (bridge == NULL || notice != NULL) {
@@ -255,11 +284,6 @@ void platinum_application_run_search(platinum_application *app)
                                    notice != NULL
                                        ? notice
                                        : "The bridge is unavailable.");
-        return;
-    }
-    if (platinum_search_query(&app->search, query, sizeof(query)) < 0) {
-        platinum_search_set_status(&app->search,
-                                   "Type something to search for (100 characters at most).");
         return;
     }
 
@@ -303,11 +327,23 @@ void platinum_application_run_search(platinum_application *app)
 /* Your muted words, in the People window. */
 void platinum_application_show_words(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
+    /* The native session first; the bridge is only a fallback. */
+    client = platinum_session_client(&app->session);
+    if (client != NULL) {
+        if (platinum_people_open(&app->people) != noErr)
+            return;
+        status = platinum_words_show_native(&app->people, client);
+        platinum_application_recover_auth(app, status);
+        if (app->people.window != NULL)
+            InvalRect(&app->people.window->portRect);
+        return;
+    }
     bridge = people_bridge(app);
     if (bridge == NULL)
         return;
@@ -322,15 +358,13 @@ void platinum_application_show_words(platinum_application *app)
 /* Remove the muted word selected in the People window. */
 void platinum_application_remove_word(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     const platinum_person *row;
     char word[sizeof(row->uri)];
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
-        return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
         return;
     row = platinum_people_selection(&app->people);
     if (app->people.window == NULL || app->people.kind != PLATINUM_PEOPLE_WORDS ||
@@ -343,6 +377,28 @@ void platinum_application_remove_word(platinum_application *app)
         return;
     }
     strcpy(word, row->uri);
+
+    /* The native session first; the bridge is only a fallback. */
+    client = platinum_session_client(&app->session);
+    if (client != NULL) {
+        status = platinum_words_remove_native(client, word);
+        if (status != WF_OK) {
+            platinum_people_set_status(
+                &app->people, status == WF_ERR_NOT_FOUND
+                                  ? "That word is no longer in the list."
+                                  : "The word could not be removed.");
+            platinum_application_recover_auth(app, status);
+            if (app->people.window != NULL)
+                InvalRect(&app->people.window->portRect);
+            return;
+        }
+        platinum_application_show_words(app);
+        return;
+    }
+
+    bridge = platinum_session_bridge(&app->session);
+    if (bridge == NULL)
+        return;
     status = platinum_bridge_set_muted_word(bridge, word, 0);
     if (status != WF_OK) {
         platinum_people_set_status(&app->people,

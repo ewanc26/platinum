@@ -209,6 +209,25 @@ int platinum_muted_add(platinum_muted_list *list, const char *value,
     return 1;
 }
 
+int platinum_muted_remove(platinum_muted_list *list, const char *value)
+{
+    int i;
+
+    if (!list || !value || value[0] == '\0')
+        return 0;
+
+    for (i = 0; i < list->count; i++) {
+        if (strcmp(list->words[i].value, value) == 0) {
+            memmove(&list->words[i], &list->words[i + 1],
+                    (size_t)(list->count - i - 1) * sizeof(list->words[0]));
+            list->count--;
+            memset(&list->words[list->count], 0, sizeof(list->words[0]));
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int platinum_muted_match(const platinum_muted_list *list, const char *text,
                          const char *const *tags, int tag_count,
                          int author_followed)

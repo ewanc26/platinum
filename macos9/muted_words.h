@@ -59,6 +59,10 @@ int platinum_muted_add(platinum_muted_list *list, const char *value,
                        int content, int tag, int exclude_following,
                        const char *expires_at);
 
+/* Remove the first word whose value equals `value` exactly (case included).
+ * Returns 1 when a word was removed, 0 when there is no such word. */
+int platinum_muted_remove(platinum_muted_list *list, const char *value);
+
 /* True if any word mutes a post with this `text` and these `tags` (with or
  * without '#') at the list's `now`. `text` and `tags` may be NULL,
  * `tag_count` is then ignored. */
