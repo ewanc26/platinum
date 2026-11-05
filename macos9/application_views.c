@@ -189,15 +189,26 @@ void platinum_application_show_people(platinum_application *app,
         index = platinum_application_selected_post(app);
         if (index < 0)
             return;
-        bridge = people_bridge(app);
-        if (bridge == NULL)
-            return;
         key = "uri";
         value = app->timeline.posts[index].uri;
         route = menu_item == 6 ? "/v1/post/likes" : "/v1/post/reposts";
         heading = menu_item == 6 ? "Liked by" : "Reposted by";
-        status = platinum_people_load(&app->people, bridge, route, key, value,
-                                      heading);
+        client = platinum_session_client(&app->session);
+        if (client != NULL) {
+            if (platinum_people_open(&app->people) != noErr)
+                return;
+            status = menu_item == 6
+                         ? platinum_people_likes_native(&app->people, client,
+                                                        value, heading)
+                         : platinum_people_reposts_native(&app->people, client,
+                                                          value, heading);
+        } else {
+            bridge = people_bridge(app);
+            if (bridge == NULL)
+                return;
+            status = platinum_people_load(&app->people, bridge, route, key,
+                                          value, heading);
+        }
     } else {
         /* The DID read exactly from the profile, not the clipped display copy. */
         if (app->profile.window == NULL || app->profile.target_did[0] == '\0')
@@ -249,12 +260,11 @@ void platinum_application_more_people(platinum_application *app)
             return;
         status = platinum_named_list_more_native(&app->people, client,
                                                  &dropped);
-    } else if (app->people.native_follows) {
-        /* `path` is a DID or handle now, so never hand it to the bridge. */
+    } else if (app->people.native_follows || app->people.native_engagement) {
+        /* `path` is a DID, handle or AT URI now, not a bridge route. */
         if (client == NULL)
             return;
-        status = platinum_people_follows_more_native(&app->people, client,
-                                                     &dropped);
+        status = platinum_people_more_native(&app->people, client, &dropped);
     } else {
         bridge = platinum_session_bridge(&app->session);
         if (bridge == NULL)

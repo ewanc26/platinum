@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Who Liked This and Who Reposted This are read by the Mac itself: the People window loads `app.bsky.feed.getLikes` and `app.bsky.feed.getRepostedBy` through the native session, falling back to the bridge otherwise. Both keep the People window's 20-row pages, 40-row cap and cursor paging. Host tests cover both methods, paging, the drop and the failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
+
 - An account's posts are read by the Mac itself: Show Author's Posts loads `app.bsky.feed.getAuthorFeed` through the native session with the bridge's `posts_no_replies` filter, falling back to the bridge otherwise. The posts list keeps its 20-row pages, 40-row cap, cursor paging and muted-word filtering. Host tests cover the filter, paging, the drop and the failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
 
 - Followers and following are read by the Mac itself: Show Followers and Show Following load `app.bsky.graph.getFollowers` and `app.bsky.graph.getFollows` through the native session, falling back to the bridge otherwise. Both keep the People window's 20-row pages, 40-row cap and cursor paging, and a clicked account opens through the native profile read first. Host tests cover both methods, paging, the drop and the failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
