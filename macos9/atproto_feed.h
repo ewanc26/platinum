@@ -86,6 +86,19 @@ wf_status platinum_atproto_list_page(platinum_atproto_client *client,
                                      size_t limit, wf_response *out);
 
 /*
+ * One page of an account's follows or followers:
+ * app.bsky.graph.getFollows / getFollowers. `actor` is a DID or handle.
+ * The response shapes are `{"follows":[profileView...],"cursor":"..."}`
+ * and `{"followers":[profileView...],"cursor":"..."}`.
+ */
+wf_status platinum_atproto_follows_page(platinum_atproto_client *client,
+                                       const char *actor, const char *cursor,
+                                       size_t limit, wf_response *out);
+wf_status platinum_atproto_followers_page(platinum_atproto_client *client,
+                                         const char *actor, const char *cursor,
+                                         size_t limit, wf_response *out);
+
+/*
  * Create or delete the signed-in user's like or repost for a post.
  *
  * record_uri is required when deleting and must be the URI of the signed-in
