@@ -128,6 +128,7 @@ wf_status platinum_thread_load_native(platinum_thread *thread,
     thread->muted = 0;
     thread->path[0] = '\0';
     thread->cursor[0] = '\0';
+    thread->native_feed = 0;
     strcpy(thread->heading, "Thread");
     thread->loading = 1;
     thread_native_status(thread, "Loading thread...");

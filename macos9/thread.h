@@ -34,6 +34,9 @@ typedef struct platinum_thread {
     short scroll_row;
     short focus;     /* index of the depth-0 post, or 0 */
     int truncated;   /* replies were left out to stay within the bound */
+    /* 1 when this list came from app.bsky.feed.getFeed, whose URI is in
+     * `path`; 0 for a bridge list, a thread or a search. */
+    int native_feed;
     int is_thread;   /* 1 for a thread, 0 for a plain list of posts */
     int muted;       /* the thread's last mute state, set only on success */
     /* When this shows a plain list of posts (an author's posts, a feed, search
@@ -89,6 +92,23 @@ wf_status platinum_thread_load_list(platinum_thread *thread,
                                     const char *key,
                                     const char *value,
                                     const char *heading);
+
+/* Decides whether one AppView postView is left out of a page. `userdata` is
+ * the caller's; the muted-words matcher is the usual one. */
+typedef int (*platinum_post_view_filter)(platinum_json post_view,
+                                         void *userdata);
+
+/*
+ * Take one page of app.bsky.feed.getFeed items (`{"post":postView}`) into a
+ * plain list: parse into scratch first, drop from the front to stay within
+ * PLATINUM_THREAD_MAX, append, and copy `cursor` exactly. A view the filter
+ * rejects is skipped. The caller has cleared the list for a fresh page and
+ * owns the document.
+ */
+void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
+                               platinum_post_view_filter filter,
+                               void *userdata, const char *cursor,
+                               unsigned short *dropped);
 wf_status platinum_thread_load_more(platinum_thread *thread,
                                     platinum_bridge_client *bridge,
                                     unsigned short *dropped);
