@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Follow, mute and block are written by the Mac itself: the Profile window creates and deletes `app.bsky.graph.follow` and `app.bsky.graph.block` records through `com.atproto.repo.createRecord` and `deleteRecord`, and calls `app.bsky.actor.mute` and `unmute`, falling back to the bridge when there is no native session. The exact follow and block record URIs from the AppView (or the create answer) are kept, so an undo deletes only that record; the block confirmation still asks twice. Host tests cover create, undo, record-URI retention, malformed answers and failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
+
 - Who Liked This and Who Reposted This are read by the Mac itself: the People window loads `app.bsky.feed.getLikes` and `app.bsky.feed.getRepostedBy` through the native session, falling back to the bridge otherwise. Both keep the People window's 20-row pages, 40-row cap and cursor paging. Host tests cover both methods, paging, the drop and the failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
 
 - An account's posts are read by the Mac itself: Show Author's Posts loads `app.bsky.feed.getAuthorFeed` through the native session with the bridge's `posts_no_replies` filter, falling back to the bridge otherwise. The posts list keeps its 20-row pages, 40-row cap, cursor paging and muted-word filtering. Host tests cover the filter, paging, the drop and the failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))

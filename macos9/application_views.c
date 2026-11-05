@@ -642,13 +642,15 @@ void platinum_application_open_person(platinum_application *app)
 /* Follow or unfollow the account in the Profile window. */
 void platinum_application_follow(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    client = platinum_session_client(&app->session);
+    bridge = client == NULL ? platinum_session_bridge(&app->session) : NULL;
+    if (client == NULL && bridge == NULL)
         return;
     if (app->profile.window == NULL || !app->profile.other) {
         if (app->profile.window != NULL)
@@ -657,8 +659,11 @@ void platinum_application_follow(platinum_application *app)
         return;
     }
 
-    status = platinum_profile_set_follow(&app->profile, bridge,
-                                         !app->profile.following);
+    status = client != NULL
+                 ? platinum_profile_set_follow_native(
+                       &app->profile, client, !app->profile.following)
+                 : platinum_profile_set_follow(&app->profile, bridge,
+                                               !app->profile.following);
     platinum_application_recover_auth(app, status);
     InvalRect(&app->profile.window->portRect);
 }
@@ -669,14 +674,16 @@ void platinum_application_follow(platinum_application *app)
  * menu choice disarms it. Unblocking needs no second step. */
 void platinum_application_relate(platinum_application *app, int kind)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     wf_status status;
     int on;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
+    client = platinum_session_client(&app->session);
+    bridge = client == NULL ? platinum_session_bridge(&app->session) : NULL;
+    if (client == NULL && bridge == NULL)
         return;
     if (app->profile.window == NULL || !app->profile.other) {
         if (app->profile.window != NULL)
@@ -696,7 +703,11 @@ void platinum_application_relate(platinum_application *app, int kind)
     }
     app->profile.block_armed = 0;
 
-    status = platinum_profile_set_relation(&app->profile, bridge, kind, on);
+    status = client != NULL
+                 ? platinum_profile_set_relation_native(&app->profile, client,
+                                                        kind, on)
+                 : platinum_profile_set_relation(&app->profile, bridge, kind,
+                                                 on);
     platinum_application_recover_auth(app, status);
     InvalRect(&app->profile.window->portRect);
 }
