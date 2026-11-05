@@ -168,8 +168,9 @@ wf_status platinum_atproto_author_page(platinum_atproto_client *client,
                             "posts_no_replies", cursor, limit, out);
 }
 
-/* getFeed and getList take one AT URI, a limit and an optional cursor, so one
- * builder serves both and only the NSID and parameter name differ. */
+/* getFeed, getList, getLikes and getRepostedBy take one AT URI, a limit and
+ * an optional cursor, so one builder serves all four; only the NSID and
+ * parameter name differ. */
 static wf_status feed_uri_page(platinum_atproto_client *client,
                                const char *nsid, const char *name,
                                const char *uri, const char *cursor,
@@ -220,6 +221,24 @@ wf_status platinum_atproto_list_page(platinum_atproto_client *client,
 {
     return feed_uri_page(client, "app.bsky.graph.getList", "list", list_uri,
                          cursor, limit, out);
+}
+
+wf_status platinum_atproto_likes_page(platinum_atproto_client *client,
+                                      const char *post_uri,
+                                      const char *cursor, size_t limit,
+                                      wf_response *out)
+{
+    return feed_uri_page(client, "app.bsky.feed.getLikes", "uri", post_uri,
+                         cursor, limit, out);
+}
+
+wf_status platinum_atproto_reposts_page(platinum_atproto_client *client,
+                                        const char *post_uri,
+                                        const char *cursor, size_t limit,
+                                        wf_response *out)
+{
+    return feed_uri_page(client, "app.bsky.feed.getRepostedBy", "uri",
+                         post_uri, cursor, limit, out);
 }
 
 wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,

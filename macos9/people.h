@@ -48,6 +48,9 @@ typedef struct platinum_people {
     /* 1 for app.bsky.graph.getFollows, 2 for getFollowers, with the actor in
      * `path`; 0 for every other source. */
     int native_follows;
+    /* 1 for app.bsky.feed.getLikes, 2 for getRepostedBy, with the post URI in
+     * `path`; 0 for every other source. */
+    int native_engagement;
     int kind;      /* PLATINUM_PEOPLE_ACCOUNTS, _FEEDS or _LISTS */
     short selected; /* row index, or -1 */
     char heading[PLATINUM_PEOPLE_HEADING_MAX];
@@ -132,11 +135,11 @@ void platinum_people_take_subjects(platinum_people *people, platinum_json items,
                                    unsigned short *dropped);
 
 /*
- * Open an account's follows or followers through the native session. The actor
- * is a DID or handle, copied exactly for paging. Both keep the People window's
- * 20-row pages and 40-row cap; the next page is
- * platinum_people_follows_more_native. The bridge fallback is
- * platinum_people_load.
+ * Open an account's follows or followers, or a post's likers or reposters,
+ * through the native session. The actor is a DID or handle; the post is an AT
+ * URI, copied exactly for paging. All keep the People window's 20-row pages and
+ * 40-row cap; the next page is platinum_people_more_native. The bridge
+ * fallback is platinum_people_load.
  */
 wf_status platinum_people_follows_native(platinum_people *people,
                                          platinum_atproto_client *client,
@@ -146,9 +149,17 @@ wf_status platinum_people_followers_native(platinum_people *people,
                                            platinum_atproto_client *client,
                                            const char *actor,
                                            const char *heading);
-wf_status platinum_people_follows_more_native(platinum_people *people,
-                                              platinum_atproto_client *client,
-                                              unsigned short *dropped);
+wf_status platinum_people_likes_native(platinum_people *people,
+                                       platinum_atproto_client *client,
+                                       const char *post_uri,
+                                       const char *heading);
+wf_status platinum_people_reposts_native(platinum_people *people,
+                                         platinum_atproto_client *client,
+                                         const char *post_uri,
+                                         const char *heading);
+wf_status platinum_people_more_native(platinum_people *people,
+                                      platinum_atproto_client *client,
+                                      unsigned short *dropped);
 
 /* The clicked row after PLATINUM_PEOPLE_OPEN, or NULL. */
 const platinum_person *platinum_people_selection(const platinum_people *people);

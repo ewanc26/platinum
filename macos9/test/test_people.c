@@ -1038,7 +1038,7 @@ static void test_follows_native(void)
           "follows fill the People list with their DIDs");
     check(platinum_people_has_more(&people), "a follows cursor means more");
 
-    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+    check(platinum_people_more_native(&people, client, &dropped) ==
               WF_OK && dropped == 0 && people.count == 40 &&
               strcmp(people.items[39].name, "User 39") == 0,
           "the next follows page is appended");
@@ -1047,13 +1047,13 @@ static void test_follows_native(void)
               strcmp(last_param_values[2], "f1") == 0,
           "the follows cursor is sent with the next page");
 
-    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+    check(platinum_people_more_native(&people, client, &dropped) ==
               WF_OK && dropped == 20 && people.count == 40 &&
               strcmp(people.items[0].name, "User 20") == 0,
           "the follows cap drops rows from the front");
     check(!platinum_people_has_more(&people), "no follows cursor ends the list");
     calls = fake_call_count;
-    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+    check(platinum_people_more_native(&people, client, &dropped) ==
               WF_ERR_INVALID_ARG && fake_call_count == calls,
           "nothing more makes no request");
 
@@ -1109,6 +1109,173 @@ static void test_follows_native(void)
     platinum_atproto_client_free(client);
 }
 
+static char engagement_bodies[3][16384];
+static const char *engagement_pages[3];
+
+static const char *make_engagement_page(char *body, const char *member,
+                                        const char *item_member, int first,
+                                        int count, const char *cursor)
+{
+    char profile[192];
+    char item[256];
+    int i;
+
+    strcpy(body, "{\"");
+    strcat(body, member);
+    strcat(body, "\":[");
+    for (i = 0; i < count; ++i) {
+        sprintf(profile,
+                "{\"did\":\"did:plc:%d\",\"handle\":\"u%d.test\","
+                "\"displayName\":\"User %d\"}",
+                first + i, first + i, first + i);
+        if (item_member != NULL)
+            sprintf(item, "%s{\"%s\":%s}", i ? "," : "", item_member,
+                    profile);
+        else
+            sprintf(item, "%s%s", i ? "," : "", profile);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static void engagement_script(int call, int method, const char *url,
+                              const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    fake_body = engagement_pages[call - 1];
+}
+
+static void test_engagement_native(void)
+{
+    static platinum_people people;
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    unsigned short dropped;
+    int calls;
+    const char *post_uri = "at://did:plc:a/app.bsky.feed.post/1";
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_people_init(&people);
+
+    engagement_pages[0] = make_engagement_page(engagement_bodies[0], "likes",
+                                               "actor", 0, 20, "e1");
+    engagement_pages[1] = make_engagement_page(engagement_bodies[1], "likes",
+                                               "actor", 20, 20, "e2");
+    engagement_pages[2] = make_engagement_page(engagement_bodies[2], "likes",
+                                               "actor", 40, 20, NULL);
+    fake_script = engagement_script;
+    fake_call_count = 0;
+    check(platinum_people_likes_native(&people, client, post_uri,
+                                       "Liked by") == WF_OK,
+          "who liked a post loads natively");
+    check(strcmp(last_nsid, "app.bsky.feed.getLikes") == 0,
+          "getLikes is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "uri") == 0 &&
+              strcmp(last_param_values[0], post_uri) == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the post URI and page size are asked for");
+    check(people.native_engagement == 1 && people.native_follows == 0 &&
+              people.native_list == 0 && people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].handle, "@u0.test") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0 &&
+              strcmp(people.heading, "Liked by") == 0,
+          "likers fill the People list from the actor views");
+    check(platinum_people_has_more(&people), "a likers cursor means more");
+
+    check(platinum_people_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 0 && people.count == 40 &&
+              strcmp(people.items[39].name, "User 39") == 0,
+          "the next likers page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "e1") == 0,
+          "the likers cursor is sent with the next page");
+
+    check(platinum_people_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 20 && people.count == 40 &&
+              strcmp(people.items[0].name, "User 20") == 0,
+          "the likers cap drops rows from the front");
+    check(!platinum_people_has_more(&people), "no likers cursor ends the list");
+    calls = fake_call_count;
+    check(platinum_people_more_native(&people, client, &dropped) ==
+              WF_ERR_INVALID_ARG &&
+              fake_call_count == calls,
+          "nothing more makes no request");
+
+    engagement_pages[0] = make_engagement_page(engagement_bodies[0],
+                                               "repostedBy", NULL, 0, 20,
+                                               NULL);
+    fake_call_count = 0;
+    check(platinum_people_reposts_native(&people, client, post_uri,
+                                         "Reposted by") == WF_OK &&
+              people.native_engagement == 2 && people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0,
+          "who reposted a post loads natively");
+    check(strcmp(last_nsid, "app.bsky.feed.getRepostedBy") == 0,
+          "getRepostedBy is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "uri") == 0 &&
+              strcmp(last_param_values[0], post_uri) == 0,
+          "the post URI is the parameter");
+    check(!platinum_people_has_more(&people), "no reposters cursor ends it");
+
+    engagement_pages[0] = "{\"likes\":[]}";
+    fake_call_count = 0;
+    check(platinum_people_likes_native(&people, client, post_uri, "x") ==
+              WF_OK &&
+              people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "an empty likers page says so");
+
+    engagement_pages[0] = "{\"likes\":{}}";
+    fake_call_count = 0;
+    check(platinum_people_likes_native(&people, client, post_uri, "x") ==
+              WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed likers page is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_people_likes_native(&people, client, post_uri, "x") ==
+              WF_ERR_NETWORK &&
+              strcmp(people.status, "The list could not be loaded.") == 0,
+          "a failed likers page is reported");
+    check(platinum_people_likes_native(&people, client, "not an at uri", "x") ==
+              WF_ERR_INVALID_ARG, "a post must be an AT URI");
+    check(platinum_people_likes_native(NULL, client, post_uri, "x") ==
+              WF_ERR_INVALID_ARG, "a NULL people list is refused");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_people_likes_native(&people, blank, post_uri, "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(people.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on likers");
+    platinum_atproto_client_free(blank);
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
@@ -1118,6 +1285,7 @@ int main(void)
     test_named_contents();
     test_author_contents();
     test_follows_native();
+    test_engagement_native();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);
