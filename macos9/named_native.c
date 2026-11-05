@@ -1,5 +1,5 @@
 /*
- * named_native.c -- Saved Feeds and My Lists without the bridge.
+ * named_native.c -- Saved Feeds, My Lists and post search without the bridge.
  *
  * The saved feeds are the custom feeds in app.bsky.actor.getPreferences. The
  * preference holds their AT URIs; the display names come from
@@ -7,9 +7,12 @@
  * PLATINUM_ATPROTO_PARAMS_MAX parameters in one query and this call takes one
  * per URI, so a longer saved list is asked for in batches and the answers are
  * kept in order. My Lists is one app.bsky.graph.getLists call for the
- * signed-in DID.
+ * signed-in DID. Post search is app.bsky.feed.searchPosts, kept in the Thread
+ * window with the same 20-row pages, 40-row cap and muted-word filter as a
+ * feed.
  *
- * No Toolbox here, so it links on a host for tests. The window is people.c.
+ * No Toolbox here, so it links on a host for tests. The windows are people.c
+ * and thread.c.
  */
 
 #include "named_native.h"
@@ -32,6 +35,7 @@ static void named_begin(platinum_people *people, int kind, const char *heading)
     people->native_list = 0;
     people->native_follows = 0;
     people->native_engagement = 0;
+    people->native_search = 0;
     people->path[0] = '\0';
     people->cursor[0] = '\0';
     people->count = 0;
@@ -203,6 +207,7 @@ static wf_status named_feed_page(platinum_thread *thread,
     platinum_json root;
     platinum_json feed;
     platinum_muted_list muted;
+    const char *member;
     char cursor[sizeof(thread->cursor)];
     long available;
     long now;
@@ -223,7 +228,11 @@ static wf_status named_feed_page(platinum_thread *thread,
     memset(&response, 0, sizeof(response));
     thread->loading = 1;
     platinum_thread_set_status(thread, "Loading...");
-    if (thread->native_feed == 2)
+    if (thread->native_feed == 3)
+        status = platinum_atproto_search_posts_page(
+            client, thread->path, append ? thread->cursor : NULL,
+            PLATINUM_THREAD_PAGE, &response);
+    else if (thread->native_feed == 2)
         status = platinum_atproto_author_page(
             client, thread->path, append ? thread->cursor : NULL,
             PLATINUM_THREAD_PAGE, &response);
@@ -235,14 +244,18 @@ static wf_status named_feed_page(platinum_thread *thread,
         wf_response_free(&response);
         thread->loading = 0;
         platinum_thread_set_status(
-            thread, status == WF_ERR_AUTH ? "Session expired. Sign in again."
-                                          : "The feed could not be loaded.");
+            thread, status == WF_ERR_AUTH
+                        ? "Session expired. Sign in again."
+                        : thread->native_feed == 3
+                              ? "The posts could not be loaded."
+                              : "The feed could not be loaded.");
         return status;
     }
 
+    member = thread->native_feed == 3 ? "posts" : "feed";
     if (platinum_json_open(&root, response.body != NULL ? response.body : "")
             != WF_OK ||
-        platinum_json_member(root, "feed", &feed) != WF_OK ||
+        platinum_json_member(root, member, &feed) != WF_OK ||
         platinum_json_count(feed, &available) != WF_OK) {
         wf_response_free(&response);
         thread->loading = 0;
@@ -253,8 +266,12 @@ static wf_status named_feed_page(platinum_thread *thread,
 
     if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) != WF_OK)
         cursor[0] = '\0';
-    platinum_thread_take_feed(thread, feed, named_view_is_muted, &muted, cursor,
-                              dropped);
+    if (thread->native_feed == 3)
+        platinum_thread_take_posts(thread, feed, named_view_is_muted, &muted,
+                                   cursor, dropped);
+    else
+        platinum_thread_take_feed(thread, feed, named_view_is_muted, &muted,
+                                  cursor, dropped);
     wf_response_free(&response);
 
     thread->loading = 0;
@@ -309,6 +326,30 @@ wf_status platinum_named_author_native(platinum_thread *thread,
     thread->path[sizeof(thread->path) - 1] = '\0';
     thread->cursor[0] = '\0';
     thread->native_feed = 2;
+    thread->heading[0] = '\0';
+    if (heading != NULL) {
+        strncpy(thread->heading, heading, sizeof(thread->heading) - 1);
+        thread->heading[sizeof(thread->heading) - 1] = '\0';
+    }
+    return named_feed_page(thread, client, 0, NULL);
+}
+
+wf_status platinum_named_search_native(platinum_thread *thread,
+                                       platinum_atproto_client *client,
+                                       const char *query, const char *heading)
+{
+    if (thread == NULL || client == NULL || query == NULL ||
+        query[0] == '\0' || strlen(query) >= sizeof(thread->path))
+        return WF_ERR_INVALID_ARG;
+
+    thread->count = 0;
+    thread->scroll_row = 0;
+    thread->focus = 0;
+    thread->truncated = 0;
+    strncpy(thread->path, query, sizeof(thread->path) - 1);
+    thread->path[sizeof(thread->path) - 1] = '\0';
+    thread->cursor[0] = '\0';
+    thread->native_feed = 3;
     thread->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(thread->heading, heading, sizeof(thread->heading) - 1);

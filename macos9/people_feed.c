@@ -245,6 +245,7 @@ wf_status platinum_people_load_kind(platinum_people *people,
     people->native_list = 0;
     people->native_follows = 0;
     people->native_engagement = 0;
+    people->native_search = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -283,6 +284,7 @@ wf_status platinum_people_set_words(platinum_people *people,
     people->native_list = 0;
     people->native_follows = 0;
     people->native_engagement = 0;
+    people->native_search = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -462,7 +464,11 @@ static wf_status people_fetch_native(platinum_people *people,
     memset(&response, 0, sizeof(response));
     people->loading = 1;
     people_status(people, "Loading...");
-    if (people->native_engagement == 1)
+    if (people->native_search)
+        status = platinum_atproto_search_actors_page(
+            client, people->path, request_cursor, PLATINUM_PEOPLE_PAGE,
+            &response);
+    else if (people->native_engagement == 1)
         status = platinum_atproto_likes_page(client, people->path,
                                              request_cursor,
                                              PLATINUM_PEOPLE_PAGE, &response);
@@ -490,7 +496,10 @@ static wf_status people_fetch_native(platinum_people *people,
         return status;
     }
 
-    if (people->native_engagement == 1) {
+    if (people->native_search) {
+        member = "actors";
+        profile_member = NULL;
+    } else if (people->native_engagement == 1) {
         member = "likes";
         profile_member = "actor";
     } else if (people->native_engagement == 2) {
@@ -528,6 +537,7 @@ static void people_native_begin(platinum_people *people, const char *path,
     people->native_list = 0;
     people->native_follows = 0;
     people->native_engagement = 0;
+    people->native_search = 0;
     people->count = 0;
     people->scroll_row = 0;
     people->selected = -1;
@@ -610,6 +620,20 @@ wf_status platinum_people_reposts_native(platinum_people *people,
     return people_load_post_native(people, client, post_uri, 2, heading);
 }
 
+wf_status platinum_people_search_native(platinum_people *people,
+                                        platinum_atproto_client *client,
+                                        const char *query,
+                                        const char *heading)
+{
+    if (people == NULL || client == NULL || query == NULL ||
+        query[0] == '\0' || strlen(query) >= sizeof(people->path))
+        return WF_ERR_INVALID_ARG;
+
+    people_native_begin(people, query, heading);
+    people->native_search = 1;
+    return people_fetch_native(people, client, 0, NULL);
+}
+
 wf_status platinum_people_more_native(platinum_people *people,
                                       platinum_atproto_client *client,
                                       unsigned short *dropped)
@@ -617,7 +641,8 @@ wf_status platinum_people_more_native(platinum_people *people,
     if (dropped != NULL)
         *dropped = 0;
     if (people == NULL || client == NULL ||
-        (people->native_follows == 0 && people->native_engagement == 0) ||
+        (people->native_follows == 0 && people->native_engagement == 0 &&
+         people->native_search == 0) ||
         !platinum_people_has_more(people))
         return WF_ERR_INVALID_ARG;
     return people_fetch_native(people, client, 1, dropped);

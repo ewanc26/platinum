@@ -34,8 +34,9 @@ typedef struct platinum_thread {
     short focus;     /* index of the depth-0 post, or 0 */
     int truncated;   /* replies were left out to stay within the bound */
     /* 1 when this list came from app.bsky.feed.getFeed, 2 when it came from
-     * app.bsky.feed.getAuthorFeed, with the URI or account in `path`; 0 for a
-     * bridge list, a thread or a search. */
+     * app.bsky.feed.getAuthorFeed, 3 when it came from
+     * app.bsky.feed.searchPosts, with the URI, account or query in `path`; 0
+     * for a bridge list or a thread. */
     int native_feed;
     /* When this shows a plain list of posts (an author's posts, a feed, search
      * results) rather than a thread, the request without its cursor, and the
@@ -107,6 +108,12 @@ void platinum_thread_take_feed(platinum_thread *thread, platinum_json feed,
                                platinum_post_view_filter filter,
                                void *userdata, const char *cursor,
                                unsigned short *dropped);
+/* The same, for app.bsky.feed.searchPosts, whose `posts` array holds the
+ * postView directly instead of the feed's {"post":postView} wrapper. */
+void platinum_thread_take_posts(platinum_thread *thread, platinum_json posts,
+                                platinum_post_view_filter filter,
+                                void *userdata, const char *cursor,
+                                unsigned short *dropped);
 wf_status platinum_thread_load_more(platinum_thread *thread,
                                     platinum_bridge_client *bridge,
                                     unsigned short *dropped);
