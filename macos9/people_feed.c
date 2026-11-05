@@ -240,6 +240,7 @@ wf_status platinum_people_load_kind(platinum_people *people,
     }
 
     people->kind = kind;
+    people->native_list = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -275,6 +276,7 @@ wf_status platinum_people_set_words(platinum_people *people,
         return WF_ERR_INVALID_ARG;
 
     people->kind = PLATINUM_PEOPLE_WORDS;
+    people->native_list = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -332,6 +334,62 @@ void platinum_people_take_named(platinum_people *people, platinum_json items,
             continue;
         people->items[people->count] = person;
         ++people->count;
+    }
+}
+
+void platinum_people_take_subjects(platinum_people *people, platinum_json items,
+                                   const char *cursor,
+                                   unsigned short *dropped)
+{
+    /* Static, not on the stack: a page of rows is about 13KB and a Classic Mac
+     * stack is small. Not re-entrant, which nothing here needs. */
+    static platinum_person parsed[PLATINUM_PEOPLE_PAGE];
+    platinum_json item;
+    platinum_json subject;
+    long available;
+    long index;
+    long got;
+    long drop;
+
+    if (dropped != NULL)
+        *dropped = 0;
+    if (people == NULL || platinum_json_count(items, &available) != WF_OK)
+        return;
+    if (available > PLATINUM_PEOPLE_PAGE)
+        available = PLATINUM_PEOPLE_PAGE;
+
+    got = 0;
+    for (index = 0; index < available && got < PLATINUM_PEOPLE_PAGE;
+         ++index) {
+        if (platinum_json_element(items, index, &item) != WF_OK)
+            continue;
+        if (platinum_json_member(item, "subject", &subject) != WF_OK)
+            continue;
+        if (people_parse(&parsed[got], subject, PLATINUM_PEOPLE_ACCOUNTS))
+            ++got;
+    }
+
+    /* Known good, so only now drop the first rows to stay within the cap. */
+    drop = (long)people->count + got - PLATINUM_PEOPLE_MAX;
+    if (drop > (long)people->count)
+        drop = (long)people->count;
+    if (drop > 0) {
+        memmove(&people->items[0], &people->items[drop],
+                (size_t)((long)people->count - drop) * sizeof(people->items[0]));
+        people->count = (unsigned short)((long)people->count - drop);
+        if (dropped != NULL)
+            *dropped = (unsigned short)drop;
+    }
+    for (index = 0; index < got; ++index) {
+        people->items[people->count] = parsed[index];
+        ++people->count;
+    }
+
+    /* A cursor is copied exactly or not at all. */
+    people->cursor[0] = '\0';
+    if (cursor != NULL && cursor[0] != '\0') {
+        strncpy(people->cursor, cursor, sizeof(people->cursor) - 1);
+        people->cursor[sizeof(people->cursor) - 1] = '\0';
     }
 }
 

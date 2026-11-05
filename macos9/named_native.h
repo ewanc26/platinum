@@ -14,6 +14,7 @@
 
 #include "atproto_client.h"
 #include "people.h"
+#include "thread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,6 +30,29 @@ wf_status platinum_named_feeds_native(platinum_people *people,
 wf_status platinum_named_lists_native(platinum_people *people,
                                       platinum_atproto_client *client,
                                       const char *heading);
+
+/* Open a saved feed's posts through app.bsky.feed.getFeed, replacing the
+ * Thread window's list with the first 20-row page. Muted words are applied
+ * best-effort, as on the timeline, so a page can come back short. */
+wf_status platinum_named_feed_native(platinum_thread *thread,
+                                     platinum_atproto_client *client,
+                                     const char *uri, const char *heading);
+
+/* The next page of that feed. WF_ERR_INVALID_ARG when there is no more. */
+wf_status platinum_named_feed_more_native(platinum_thread *thread,
+                                          platinum_atproto_client *client,
+                                          unsigned short *dropped);
+
+/* Open a list's members through app.bsky.graph.getList, replacing the People
+ * window's rows with the first 20-row page. */
+wf_status platinum_named_list_native(platinum_people *people,
+                                     platinum_atproto_client *client,
+                                     const char *uri, const char *heading);
+
+/* The next page of members. WF_ERR_INVALID_ARG when there is no more. */
+wf_status platinum_named_list_more_native(platinum_people *people,
+                                          platinum_atproto_client *client,
+                                          unsigned short *dropped);
 
 #ifdef __cplusplus
 }
