@@ -59,8 +59,8 @@ goes through the bridge.
 | `POST /v1/notifications/seen` | `app.bsky.notification.updateSeen` | `notifications_feed.c` | `test_notifications` | native: the newest loaded item's `indexedAt`, never the Mac clock |
 | `GET /v1/thread` | `app.bsky.feed.getPostThread` | `thread_native.c` flatten (40 posts, 6 reply levels, 10 ancestors) + `thread_feed.c` model | `test_thread` | native end to end (bridge fallback); flattened order, focus and truncation host-tested |
 | `POST /v1/thread/mute` | `app.bsky.graph.muteThread` / `unmuteThread` | `thread_native.c` + `thread_feed.c` | `test_thread` | native end to end (bridge fallback); the root comes from the post's record through `app.bsky.feed.getPosts`, and the window changes state only after the service confirms |
-| `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `application_views.c` / SQL | `test_search` | pending |
-| `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `application_views.c` | `test_search` | pending |
+| `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
+| `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap, cursor paging and muted-word filtering |
 | `GET /v1/feeds` | `app.bsky.actor.getPreferences` + `app.bsky.feed.getFeedGenerators` | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | `test_people`, `test_atproto_prefs` | native end to end (bridge fallback); `savedFeedsPrefV2` or the older `savedFeedsPref`, at most 25, named eight at a time |
 | `GET /v1/feed` | `app.bsky.feed.getFeed` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap, cursor paging and muted-word filtering |
 | `GET /v1/lists` | `app.bsky.graph.getLists` | `named_native.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); the signed-in DID, 50 asked for and at most 40 shown |
@@ -105,7 +105,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Author posts | `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap and muted-word filtering |
 | Liked by / reposted by | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback), including mute and unmute |
-| Search (accounts and posts) | bridge | pending |
+| Search (accounts and posts) | `people_feed.c`, `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); account results fill People, post results fill the posts list, both with 20-row pages, 40-row cap and cursor paging |
 | Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list and contents (bridge fallback); opening a feed or a list's members reads the AppView directly |
 | Compose, reply, quote | bridge | pending |
 | Conversations | bridge | pending |

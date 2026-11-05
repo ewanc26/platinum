@@ -32,7 +32,8 @@ typedef struct platinum_person {
 
 /*
  * One list of accounts: followers, following, who liked a post, who reposted
- * it. They share a shape and a window, so there is one model.
+ * it, or account search results. They share a shape and a window, so there is
+ * one model.
  */
 typedef struct platinum_people {
     WindowPtr window;
@@ -51,6 +52,9 @@ typedef struct platinum_people {
     /* 1 for app.bsky.feed.getLikes, 2 for getRepostedBy, with the post URI in
      * `path`; 0 for every other source. */
     int native_engagement;
+    /* 1 for app.bsky.actor.searchActors, with the UTF-8 query in `path`; 0 for
+     * every other source. */
+    int native_search;
     int kind;      /* PLATINUM_PEOPLE_ACCOUNTS, _FEEDS or _LISTS */
     short selected; /* row index, or -1 */
     char heading[PLATINUM_PEOPLE_HEADING_MAX];
@@ -157,6 +161,12 @@ wf_status platinum_people_reposts_native(platinum_people *people,
                                          platinum_atproto_client *client,
                                          const char *post_uri,
                                          const char *heading);
+/* Open account search results through app.bsky.actor.searchActors. `query` is
+ * the UTF-8 search string; pages and the cap are the same as the lists above. */
+wf_status platinum_people_search_native(platinum_people *people,
+                                        platinum_atproto_client *client,
+                                        const char *query,
+                                        const char *heading);
 wf_status platinum_people_more_native(platinum_people *people,
                                       platinum_atproto_client *client,
                                       unsigned short *dropped);
