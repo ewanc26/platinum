@@ -194,6 +194,8 @@ static void test_native_profile(void)
     static platinum_profile profile;
     static char body[4096];
     platinum_atproto_client *client;
+    platinum_atproto_client *expired;
+    platinum_atproto_session expired_session;
 
     client = native_profile_client();
     if (client == NULL)
@@ -205,7 +207,7 @@ static void test_native_profile(void)
     strcat(body, "\"description\":\"hi\",\"followersCount\":3,\"followsCount\":4,");
     strcat(body, "\"postsCount\":5,\"viewer\":{\"following\":\"at://did:plc:me/app.bsky.graph.follow/f1\",");
     strcat(body, "\"followedBy\":\"at://did:plc:bob/app.bsky.graph.follow/f2\",\"muted\":true,");
-    strcat(body, "\"blocking\":\"at://did:plc:bob/app.bsky.graph.block/b1\"},");
+    strcat(body, "\"blocking\":\"at://did:plc:me/app.bsky.graph.block/b1\"},");
     strcat(body, "\"pinnedPost\":{\"uri\":\"at://did:plc:bob/app.bsky.feed.post/p1\",");
     strcat(body, "\"cid\":\"c1\",\"author\":{\"did\":\"did:plc:bob\"},");
     strcat(body, "\"record\":{\"text\":\"pinned words\"},\"viewer\":{}}}");
@@ -223,14 +225,110 @@ static void test_native_profile(void)
           "ordinary fields read");
     check(profile.has_pinned == 1 && strstr(profile.pinned.line1, "pinned words") != NULL,
           "pinnedPost read as a postView");
+    check(strcmp(profile.following_uri,
+                 "at://did:plc:me/app.bsky.graph.follow/f1") == 0 &&
+              strcmp(profile.blocking_uri,
+                     "at://did:plc:me/app.bsky.graph.block/b1") == 0,
+          "viewer record URIs kept exactly");
+
+    strcpy(body, "{}");
+    native_profile_body = body;
+    check(platinum_profile_set_follow_native(&profile, client, 0) == WF_OK &&
+              profile.following == 0 && profile.following_uri[0] == '\0',
+          "native unfollow clears the follow");
+    check(strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0 &&
+              strstr(last_body, "\"rkey\":\"f1\"") != NULL &&
+              strstr(last_body, "app.bsky.graph.follow") != NULL,
+          "native unfollow deletes the held follow record");
+
+    strcpy(body, "{\"uri\":\"at://did:plc:me/app.bsky.graph.follow/f9\"}");
+    native_profile_body = body;
+    check(platinum_profile_set_follow_native(&profile, client, 1) == WF_OK &&
+              profile.following == 1 &&
+              strcmp(profile.following_uri,
+                     "at://did:plc:me/app.bsky.graph.follow/f9") == 0,
+          "native follow keeps the new record URI");
+    check(strcmp(last_nsid, "com.atproto.repo.createRecord") == 0 &&
+              strstr(last_body, "\"subject\":\"did:plc:bob\"") != NULL &&
+              strstr(last_body, "\"$type\":\"app.bsky.graph.follow\"") != NULL,
+          "native follow creates the subject record");
+
+    strcpy(body, "{}");
+    native_profile_body = body;
+    check(platinum_profile_set_relation_native(&profile, client,
+                                                PLATINUM_RELATION_MUTE, 0) == WF_OK &&
+              profile.muted == 0 &&
+              strcmp(last_nsid, "app.bsky.actor.unmute") == 0,
+          "native unmute calls actor.unmute");
+    check(platinum_profile_set_relation_native(&profile, client,
+                                                PLATINUM_RELATION_MUTE, 1) == WF_OK &&
+              profile.muted == 1 &&
+              strcmp(last_nsid, "app.bsky.actor.mute") == 0 &&
+              strcmp(last_body, "{\"actor\":\"did:plc:bob\"}") == 0,
+          "native mute calls actor.mute with the actor DID");
+
+    check(platinum_profile_set_relation_native(&profile, client,
+                                                PLATINUM_RELATION_BLOCK, 0) == WF_OK &&
+              profile.blocking == 0 && profile.blocking_uri[0] == '\0' &&
+              strstr(last_body, "\"rkey\":\"b1\"") != NULL,
+          "native unblock deletes the held block record");
+
+    strcpy(body, "{\"uri\":\"at://did:plc:me/app.bsky.graph.block/b9\"}");
+    native_profile_body = body;
+    check(platinum_profile_set_relation_native(&profile, client,
+                                                PLATINUM_RELATION_BLOCK, 1) == WF_OK &&
+              profile.blocking == 1 &&
+              strcmp(profile.blocking_uri,
+                     "at://did:plc:me/app.bsky.graph.block/b9") == 0 &&
+              strstr(last_body, "\"subject\":\"did:plc:bob\"") != NULL,
+          "native block keeps the new record URI");
+
+    strcpy(body, "{\"cid\":\"c\"}");
+    native_profile_body = body;
+    check(platinum_profile_set_follow_native(&profile, client, 0) == WF_OK &&
+              platinum_profile_set_follow_native(&profile, client, 1) == WF_ERR_PARSE &&
+              profile.following == 0 &&
+              strcmp(profile.status, "The server returned an invalid reply.") == 0,
+          "a create answer without a URI is not trusted");
+
+    strcpy(body, "{\"uri\":\"at://did:plc:bob/app.bsky.graph.follow/f9\"}");
+    native_profile_body = body;
+    check(platinum_profile_set_follow_native(&profile, client, 1) == WF_ERR_PARSE &&
+              profile.following == 0 &&
+              strcmp(profile.status, "The server returned an invalid reply.") == 0,
+          "a create answer from another repo is not trusted");
+
     fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_profile_set_relation_native(&profile, client,
+                                                PLATINUM_RELATION_MUTE, 0) != WF_OK &&
+              profile.muted == 1 &&
+              strcmp(profile.status, "The mute did not go through.") == 0,
+          "a failed native mute changes nothing and says so");
+
+    expired = platinum_atproto_client_new("https://pds.example");
+    if (expired != NULL) {
+        memset(&expired_session, 0, sizeof(expired_session));
+        strcpy(expired_session.did, "did:plc:me");
+        strcpy(expired_session.pds_url, "https://pds.example");
+        platinum_atproto_client_set_session(expired, &expired_session);
+        check(platinum_profile_set_relation_native(
+                  &profile, expired, PLATINUM_RELATION_MUTE, 0) == WF_ERR_AUTH &&
+                  profile.muted == 1 &&
+                  strcmp(profile.status,
+                         "Session expired. Sign in again.") == 0,
+              "an expired native session says so and changes nothing");
+        platinum_atproto_client_free(expired);
+    }
 
     strcpy(body, "{\"did\":\"did:plc:me\",\"handle\":\"me.test\"}");
     native_profile_body = body;
     fake_script = native_profile_script;
     check(platinum_profile_refresh_native(&profile, client) == WF_OK,
           "own profile loads");
-    check(profile.other == 0 && profile.following == 0,
+    check(profile.other == 0 && profile.following == 0 &&
+              profile.following_uri[0] == '\0' &&
+              profile.blocking_uri[0] == '\0',
           "follow state ignored on your own profile");
     check(strcmp(last_param_values[0], "did:plc:me") == 0,
           "own profile asks for the session DID");

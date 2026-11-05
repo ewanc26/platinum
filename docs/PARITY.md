@@ -33,7 +33,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Repost and undo | yes | yes | implemented (`bridge/src/domain/api.ts`) |
 | Own profile | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Other people's profiles | yes | yes | implemented (`macos9/profile_feed.c`) |
-| Follow and unfollow | yes | yes | implemented (`macos9/profile_feed.c`) |
+| Follow and unfollow | yes | yes | implemented (`macos9/profile_native.c`) |
 | Followers and following lists | yes | yes | implemented (`macos9/people_feed.c`) |
 | Profile posts tab | yes | yes | implemented (`macos9/named_native.c`) |
 | Pinned post | yes | yes | implemented (`macos9/profile_feed.c`) |
@@ -47,7 +47,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Post search | yes | yes | implemented (`macos9/application_views.c`) |
 | Custom feeds | yes | yes | implemented (`macos9/named_native.c`) |
 | Lists | yes | yes | implemented (`macos9/named_native.c`) |
-| Mute and block | yes | yes | implemented (`macos9/profile_feed.c`) |
+| Mute and block | yes | yes | implemented (`macos9/profile_native.c`) |
 | Muted words | no | yes | implemented (`macos9/application_views.c`) |
 | Who liked or reposted | yes | no | implemented (`macos9/people_feed.c`) |
 | Delete your own post | yes | no | implemented (`macos9/bridge_client.c`) |
