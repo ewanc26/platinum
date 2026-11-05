@@ -137,6 +137,15 @@ wf_status platinum_atproto_search_posts_page(platinum_atproto_client *client,
                                              wf_response *out);
 
 /*
+ * Delete one of the signed-in account's own app.bsky.feed.post records with
+ * com.atproto.repo.deleteRecord. The URI must name a post in the session's
+ * repo; anything else is refused before a request is made. Deleting a post
+ * that is already gone is left to the service.
+ */
+wf_status platinum_atproto_delete_post(platinum_atproto_client *client,
+                                       const char *post_uri);
+
+/*
  * Create or delete the signed-in user's like or repost for a post.
  *
  * record_uri is required when deleting and must be the URI of the signed-in

@@ -405,6 +405,46 @@ wf_status platinum_atproto_feed_engagement(
                                         body, out);
 }
 
+wf_status platinum_atproto_delete_post(platinum_atproto_client *client,
+                                       const char *post_uri)
+{
+    const platinum_atproto_session *session;
+    const char *collection = "app.bsky.feed.post";
+    char prefix[320];
+    char body[1024];
+    const char *rkey;
+    wf_response response;
+    wf_status status;
+    size_t prefix_length;
+
+    if (client == NULL || post_uri == NULL ||
+        !platinum_atproto_valid_at_uri(post_uri))
+        return WF_ERR_INVALID_ARG;
+
+    session = platinum_atproto_client_session(client);
+    if (session == NULL || !platinum_atproto_valid_did(session->did))
+        return WF_ERR_INVALID_ARG;
+    if (strlen(session->did) + strlen(collection) + 8 >= sizeof(prefix) ||
+        strlen(post_uri) + strlen(session->did) + 100 >= sizeof(body))
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(prefix, "at://%s/%s/", session->did, collection);
+    prefix_length = strlen(prefix);
+    if (strncmp(post_uri, prefix, prefix_length) != 0)
+        return WF_ERR_INVALID_ARG;
+    rkey = post_uri + prefix_length;
+    if (rkey[0] == '\0' || strchr(rkey, '/') != NULL)
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(body, "{\"repo\":\"%s\",\"collection\":\"%s\",\"rkey\":\"%s\"}",
+            session->did, collection, rkey);
+    memset(&response, 0, sizeof(response));
+    status = platinum_atproto_client_post(
+        client, "com.atproto.repo.deleteRecord", body, &response);
+    wf_response_free(&response);
+    return status;
+}
+
 wf_status platinum_atproto_graph_relation(
     platinum_atproto_client *client, const char *subject_did, int block,
     int on, const char *record_uri, wf_response *out)
