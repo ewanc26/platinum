@@ -404,7 +404,8 @@ jobs:
             -o /tmp/test_people \
             macos9/people_feed.c macos9/text_codec.c macos9/bridge_client.c \
             macos9/json_min.c macos9/words_native.c macos9/named_native.c \
-            macos9/atproto_feed.c \
+            macos9/atproto_feed.c macos9/thread_feed.c macos9/timeline.c \
+            macos9/timeline_native.c macos9/post_media.c \
             macos9/atproto_prefs.c macos9/atproto_client.c \
             macos9/atproto_bootstrap.c macos9/atproto_identity.c \
             macos9/atproto_session.c macos9/atproto_url.c \

@@ -551,12 +551,323 @@ static void test_named_native(void)
     platinum_atproto_client_free(client);
 }
 
+static char feed_bodies[3][16384];
+static char list_bodies[3][16384];
+static const char *feed_pages[3];
+static const char *list_pages[3];
+static const char *feed_prefs;
+static const char *feed_muted_prefs;
+
+static const char *make_feed_page(char *body, int first, int count,
+                                  const char *cursor)
+{
+    char item[512];
+    int i;
+
+    strcpy(body, "{\"feed\":[");
+    for (i = 0; i < count; i++) {
+        sprintf(item,
+                "%s{\"post\":{\"uri\":"
+                "\"at://did:plc:a/app.bsky.feed.post/%d\","
+                "\"cid\":\"c%d\",\"author\":{\"did\":\"did:plc:a\","
+                "\"handle\":\"a.test\",\"displayName\":\"A\"},"
+                "\"record\":{\"text\":\"post %d\","
+                "\"createdAt\":\"2026-01-01T12:00:00Z\"}}}",
+                i ? "," : "", first + i, first + i, first + i);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static const char *make_list_page(char *body, int first, int count,
+                                  const char *cursor)
+{
+    char item[512];
+    int i;
+
+    strcpy(body, "{\"items\":[");
+    for (i = 0; i < count; i++) {
+        sprintf(item,
+                "%s{\"uri\":\"at://did:plc:a/app.bsky.graph.list/x\","
+                "\"subject\":{\"did\":\"did:plc:%d\","
+                "\"handle\":\"u%d.test\",\"displayName\":\"User %d\"}}",
+                i ? "," : "", first + i, first + i, first + i);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static void feed_contents_script(int call, int method, const char *url,
+                                 const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    if (call == 1 && feed_muted_prefs != NULL)
+        fake_body = feed_muted_prefs;
+    else if (call % 2 == 1)
+        fake_body = feed_prefs;
+    else
+        fake_body = feed_pages[(call / 2) - 1];
+}
+
+static void list_contents_script(int call, int method, const char *url,
+                                 const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    fake_body = list_pages[call - 1];
+}
+
+static void test_named_contents(void)
+{
+    static platinum_thread thread;
+    static platinum_people people;
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    unsigned short dropped;
+    int calls;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_thread_init(&thread);
+    platinum_people_init(&people);
+
+    /* A saved feed: prefs first (best-effort filtering), then getFeed. */
+    feed_prefs = "{\"preferences\":[]}";
+    feed_muted_prefs = NULL;
+    feed_pages[0] = make_feed_page(feed_bodies[0], 0, 20, "f1");
+    feed_pages[1] = make_feed_page(feed_bodies[1], 20, 20, "f2");
+    feed_pages[2] = make_feed_page(feed_bodies[2], 40, 20, NULL);
+    fake_script = feed_contents_script;
+    fake_call_count = 0;
+    check(platinum_named_feed_native(&thread, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "Great feed") == WF_OK,
+          "a saved feed loads natively");
+    check(fake_call_count == 2, "prefs then the feed page");
+    check(strcmp(last_nsid, "app.bsky.feed.getFeed") == 0,
+          "getFeed is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "feed") == 0 &&
+              strcmp(last_param_values[0],
+                     "at://did:plc:me/app.bsky.feed.generator/g") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the feed URI and page size are asked for");
+    check(thread.native_feed == 1 && thread.count == 20 &&
+              strcmp(thread.items[0].post.author, "A") == 0 &&
+              strcmp(thread.items[0].post.line1, "post 0") == 0 &&
+              thread.items[0].depth == 0 &&
+              strcmp(thread.heading, "Great feed") == 0,
+          "feed posts fill the list with no depths");
+    check(platinum_thread_has_more(&thread), "a feed cursor means more");
+
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 0 && thread.count == 40 &&
+              strcmp(thread.items[39].post.line1, "post 39") == 0,
+          "the next feed page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "f1") == 0,
+          "the cursor is sent with the next page");
+
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 20 && thread.count == 40 &&
+              strcmp(thread.items[0].post.line1, "post 20") == 0,
+          "the feed cap drops rows from the front");
+    check(!platinum_thread_has_more(&thread), "no feed cursor ends the list");
+
+    /* Muted words skip a post, so a page can come back short. */
+    feed_muted_prefs =
+        "{\"preferences\":[{\"$type\":"
+        "\"app.bsky.actor.defs#mutedWordsPref\",\"items\":["
+        "{\"value\":\"spoiler\",\"targets\":[\"content\"]}]}]}";
+    feed_pages[0] =
+        "{\"feed\":["
+        "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/1\","
+        "\"cid\":\"c1\",\"author\":{\"did\":\"did:plc:a\","
+        "\"handle\":\"a.test\"},\"record\":{\"text\":\"a spoiler here\","
+        "\"createdAt\":\"2026-01-01T12:00:00Z\"}}},"
+        "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/2\","
+        "\"cid\":\"c2\",\"author\":{\"did\":\"did:plc:a\","
+        "\"handle\":\"a.test\"},\"record\":{\"text\":\"fine\","
+        "\"createdAt\":\"2026-01-01T12:00:00Z\"}}}]}";
+    fake_call_count = 0;
+    check(platinum_named_feed_native(&thread, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "Filtered") == WF_OK &&
+              thread.count == 1 &&
+              strcmp(thread.items[0].post.line1, "fine") == 0,
+          "a muted-word match is left out of a native feed page");
+    check(thread.status[0] == '\0', "a short feed page is not an error");
+    feed_muted_prefs = NULL;
+
+    feed_pages[0] = "{\"feed\":[]}";
+    fake_call_count = 0;
+    check(platinum_named_feed_native(&thread, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "x") == WF_OK &&
+              thread.count == 0 &&
+              strcmp(thread.status, "No posts to show.") == 0,
+          "an empty feed says so");
+
+    feed_pages[0] = "{\"feed\":{}}";
+    fake_call_count = 0;
+    check(platinum_named_feed_native(&thread, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "x") == WF_ERR_PARSE &&
+              strcmp(thread.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed feed page is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_feed_native(&thread, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "x") == WF_ERR_NETWORK &&
+              strcmp(thread.status, "The feed could not be loaded.") == 0,
+          "a failed feed page is reported");
+    check(platinum_named_feed_native(&thread, client, "not an at uri", "x") ==
+              WF_ERR_INVALID_ARG, "a feed must be an AT URI");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_named_feed_native(
+                  &thread, blank,
+                  "at://did:plc:me/app.bsky.feed.generator/g", "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(thread.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on a feed");
+    platinum_atproto_client_free(blank);
+
+    /* A list's members: one getList page at a time. */
+    list_pages[0] = make_list_page(list_bodies[0], 0, 20, "l1");
+    list_pages[1] = make_list_page(list_bodies[1], 20, 20, "l2");
+    list_pages[2] = make_list_page(list_bodies[2], 40, 20, NULL);
+    fake_script = list_contents_script;
+    fake_call_count = 0;
+    check(platinum_named_list_native(
+              &people, client, "at://did:plc:a/app.bsky.graph.list/x",
+              "Friends") == WF_OK,
+          "a list's members load natively");
+    check(strcmp(last_nsid, "app.bsky.graph.getList") == 0,
+          "getList is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "list") == 0 &&
+              strcmp(last_param_values[0],
+                     "at://did:plc:a/app.bsky.graph.list/x") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the list URI and page size are asked for");
+    check(people.native_list == 1 &&
+              people.kind == PLATINUM_PEOPLE_ACCOUNTS && people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].handle, "@u0.test") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0 &&
+              strcmp(people.heading, "Friends") == 0,
+          "members fill the People list with their DIDs");
+    check(platinum_people_has_more(&people), "a members cursor means more");
+
+    check(platinum_named_list_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 0 && people.count == 40 &&
+              strcmp(people.items[39].name, "User 39") == 0,
+          "the next members page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "l1") == 0,
+          "the members cursor is sent with the next page");
+
+    check(platinum_named_list_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 20 && people.count == 40 &&
+              strcmp(people.items[0].name, "User 20") == 0,
+          "the members cap drops rows from the front");
+    check(!platinum_people_has_more(&people), "no members cursor ends the list");
+    calls = fake_call_count;
+    check(platinum_named_list_more_native(&people, client, &dropped) ==
+              WF_ERR_INVALID_ARG &&
+              fake_call_count == calls,
+          "nothing more makes no request");
+
+    list_pages[0] = "{\"items\":[]}";
+    fake_call_count = 0;
+    check(platinum_named_list_native(
+              &people, client, "at://did:plc:a/app.bsky.graph.list/x",
+              "x") == WF_OK &&
+              people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "an empty list says so");
+
+    list_pages[0] = "{\"items\":{}}";
+    fake_call_count = 0;
+    check(platinum_named_list_native(
+              &people, client, "at://did:plc:a/app.bsky.graph.list/x",
+              "x") == WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed members page is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_list_native(
+              &people, client, "at://did:plc:a/app.bsky.graph.list/x",
+              "x") == WF_ERR_NETWORK &&
+              strcmp(people.status, "The list could not be loaded.") == 0,
+          "a failed members page is reported");
+    check(platinum_named_list_native(&people, client, "not an at uri", "x") ==
+              WF_ERR_INVALID_ARG, "a list must be an AT URI");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_named_list_native(
+                  &people, blank,
+                  "at://did:plc:a/app.bsky.graph.list/x", "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(people.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on members");
+    platinum_atproto_client_free(blank);
+
+    check(platinum_named_feed_native(NULL, client,
+                                     "at://did:plc:me/app.bsky.feed.generator/g",
+                                     "x") == WF_ERR_INVALID_ARG,
+          "a NULL thread is refused");
+    check(platinum_named_list_native(NULL, client,
+                                     "at://did:plc:a/app.bsky.graph.list/x",
+                                     "x") == WF_ERR_INVALID_ARG,
+          "a NULL people list is refused");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
     test_words_native();
     test_named();
     test_named_native();
+    test_named_contents();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);

@@ -41,6 +41,9 @@ typedef struct platinum_people {
     short scroll_row;
     char path[PLATINUM_PEOPLE_PATH_MAX]; /* the request without the cursor */
     char cursor[256];
+    /* 1 when this list is app.bsky.graph.getList's members, whose list URI is
+     * in `path`; 0 for a bridge list, search, muted words or named rows. */
+    int native_list;
     int kind;      /* PLATINUM_PEOPLE_ACCOUNTS, _FEEDS or _LISTS */
     short selected; /* row index, or -1 */
     char heading[PLATINUM_PEOPLE_HEADING_MAX];
@@ -112,6 +115,17 @@ wf_status platinum_people_load_kind(platinum_people *people,
  */
 void platinum_people_take_named(platinum_people *people, platinum_json items,
                                 const char *name);
+
+/*
+ * Take one page of app.bsky.graph.getList items (`{"subject":profileView}`)
+ * into the list: parse each item's subject as an account, drop from the front
+ * to stay within the cap, append, and copy `cursor` exactly. A subject without
+ * a did is skipped. The caller has cleared the list for a fresh page and owns
+ * the document.
+ */
+void platinum_people_take_subjects(platinum_people *people, platinum_json items,
+                                   const char *cursor,
+                                   unsigned short *dropped);
 
 /* The clicked row after PLATINUM_PEOPLE_OPEN, or NULL. */
 const platinum_person *platinum_people_selection(const platinum_people *people);
