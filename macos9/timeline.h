@@ -4,6 +4,7 @@
 #include "atproto_client.h"
 #include "bridge_client.h"
 #include "json_min.h"
+#include "muted_words.h"
 #include "post_media.h"
 
 #ifdef __cplusplus
@@ -69,6 +70,12 @@ int platinum_timeline_parse_post(platinum_post_preview *post,
  */
 int platinum_timeline_parse_view(platinum_post_preview *post,
                                  platinum_json item);
+
+/* 1 when this AppView postView is hidden by `muted` (text, validated tag
+ * facets, and following for exclude-following words). A view that cannot be
+ * read is not muted; its parse decides whether it is shown. */
+int platinum_timeline_view_is_muted(platinum_json post_view,
+                                    const platinum_muted_list *muted);
 
 void platinum_timeline_init(platinum_timeline *timeline);
 wf_status platinum_timeline_refresh(platinum_timeline *timeline,

@@ -216,16 +216,27 @@ void platinum_application_show_people(platinum_application *app,
 
 void platinum_application_more_people(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     unsigned short dropped;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
-        return;
-    status = platinum_people_load_more(&app->people, bridge, &dropped);
+    dropped = 0;
+    client = platinum_session_client(&app->session);
+    if (app->people.native_list) {
+        /* `path` holds an AT URI now, so never hand it to the bridge. */
+        if (client == NULL)
+            return;
+        status = platinum_named_list_more_native(&app->people, client,
+                                                 &dropped);
+    } else {
+        bridge = platinum_session_bridge(&app->session);
+        if (bridge == NULL)
+            return;
+        status = platinum_people_load_more(&app->people, bridge, &dropped);
+    }
     platinum_application_recover_auth(app, status);
     if (status == WF_OK) {
         app->people.scroll_row -= (short)dropped;
@@ -440,16 +451,27 @@ void platinum_application_show_posts(platinum_application *app)
 
 void platinum_application_more_posts(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     unsigned short dropped;
     wf_status status;
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL)
-        return;
-    status = platinum_thread_load_more(&app->thread, bridge, &dropped);
+    dropped = 0;
+    client = platinum_session_client(&app->session);
+    if (app->thread.native_feed) {
+        /* `path` holds an AT URI now, so never hand it to the bridge. */
+        if (client == NULL)
+            return;
+        status = platinum_named_feed_more_native(&app->thread, client,
+                                                 &dropped);
+    } else {
+        bridge = platinum_session_bridge(&app->session);
+        if (bridge == NULL)
+            return;
+        status = platinum_thread_load_more(&app->thread, bridge, &dropped);
+    }
     platinum_application_recover_auth(app, status);
     if (status == WF_OK) {
         app->thread.scroll_row -= (short)dropped;
@@ -504,6 +526,7 @@ void platinum_application_show_named(platinum_application *app,
 /* A clicked row in the People window: open the account, feed or list. */
 void platinum_application_open_person(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     const platinum_person *row;
     wf_status status;
@@ -518,27 +541,22 @@ void platinum_application_open_person(platinum_application *app)
         return;
     }
 
-    /* The lists themselves are native now, but opening a saved feed or a
-     * list's members still goes through the bridge. */
+    /* The native session first; the bridge is the fallback. */
+    client = platinum_session_client(&app->session);
     bridge = platinum_session_bridge(&app->session);
-    if ((app->people.kind == PLATINUM_PEOPLE_FEEDS ||
-         app->people.kind == PLATINUM_PEOPLE_LISTS) && bridge == NULL) {
-        platinum_people_set_status(
-            &app->people,
-            "Opening a feed or list still uses the bridge. "
-            "Pair one under File > Pair Account.");
-        if (app->people.window != NULL)
-            InvalRect(&app->people.window->portRect);
-        return;
-    }
-    if (bridge == NULL)
-        return;
 
     if (app->people.kind == PLATINUM_PEOPLE_FEEDS) {
         if (platinum_thread_open(&app->thread) != noErr)
             return;
-        status = platinum_thread_load_list(&app->thread, bridge, "/v1/feed",
-                                           "uri", row->uri, row->name);
+        if (client != NULL)
+            status = platinum_named_feed_native(&app->thread, client, row->uri,
+                                                row->name);
+        else if (bridge != NULL)
+            status = platinum_thread_load_list(&app->thread, bridge,
+                                               "/v1/feed", "uri", row->uri,
+                                               row->name);
+        else
+            return;
         platinum_application_recover_auth(app, status);
         if (app->thread.window != NULL)
             InvalRect(&app->thread.window->portRect);
@@ -549,14 +567,20 @@ void platinum_application_open_person(platinum_application *app)
 
         strcpy(name, row->name);
         strcpy(uri, row->uri);
-        status = platinum_people_load_kind(&app->people, bridge,
-                                           PLATINUM_PEOPLE_ACCOUNTS, "/v1/list",
-                                           "uri", uri, name);
+        if (client != NULL)
+            status = platinum_named_list_native(&app->people, client, uri,
+                                                name);
+        else if (bridge != NULL)
+            status = platinum_people_load_kind(
+                &app->people, bridge, PLATINUM_PEOPLE_ACCOUNTS, "/v1/list",
+                "uri", uri, name);
+        else
+            return;
         platinum_application_recover_auth(app, status);
         if (app->people.window != NULL)
             InvalRect(&app->people.window->portRect);
     } else {
-        if (platinum_profile_open(&app->profile) != noErr)
+        if (bridge == NULL || platinum_profile_open(&app->profile) != noErr)
             return;
         status = platinum_profile_load(&app->profile, bridge, row->uri);
         platinum_application_recover_auth(app, status);
