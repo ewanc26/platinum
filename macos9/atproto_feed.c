@@ -102,11 +102,11 @@ wf_status platinum_atproto_lists(platinum_atproto_client *client,
  * so one builder serves both. */
 static wf_status graph_actor_page(platinum_atproto_client *client,
                                   const char *nsid, const char *actor,
-                                  const char *cursor, size_t limit,
-                                  wf_response *out)
+                                  const char *filter, const char *cursor,
+                                  size_t limit, wf_response *out)
 {
-    const char *names[3];
-    const char *values[3];
+    const char *names[4];
+    const char *values[4];
     char limit_text[8];
     size_t count;
 
@@ -128,10 +128,15 @@ static wf_status graph_actor_page(platinum_atproto_client *client,
     values[1] = limit_text;
     count = 2;
 
+    if (filter != NULL && filter[0] != '\0') {
+        names[count] = "filter";
+        values[count] = filter;
+        count++;
+    }
     if (cursor != NULL && cursor[0] != '\0') {
-        names[2] = "cursor";
-        values[2] = cursor;
-        count = 3;
+        names[count] = "cursor";
+        values[count] = cursor;
+        count++;
     }
 
     return platinum_atproto_client_get(client, nsid, names, values, count, out);
@@ -141,16 +146,26 @@ wf_status platinum_atproto_follows_page(platinum_atproto_client *client,
                                        const char *actor, const char *cursor,
                                        size_t limit, wf_response *out)
 {
-    return graph_actor_page(client, "app.bsky.graph.getFollows", actor, cursor,
-                            limit, out);
+    return graph_actor_page(client, "app.bsky.graph.getFollows", actor, NULL,
+                            cursor, limit, out);
 }
 
 wf_status platinum_atproto_followers_page(platinum_atproto_client *client,
                                          const char *actor, const char *cursor,
                                          size_t limit, wf_response *out)
 {
-    return graph_actor_page(client, "app.bsky.graph.getFollowers", actor,
+    return graph_actor_page(client, "app.bsky.graph.getFollowers", actor, NULL,
                             cursor, limit, out);
+}
+
+wf_status platinum_atproto_author_page(platinum_atproto_client *client,
+                                       const char *actor, const char *cursor,
+                                       size_t limit, wf_response *out)
+{
+    /* The bridge asked for posts without replies; keep that on the native
+     * path so the profile tab does not change shape. */
+    return graph_actor_page(client, "app.bsky.feed.getAuthorFeed", actor,
+                            "posts_no_replies", cursor, limit, out);
 }
 
 /* getFeed and getList take one AT URI, a limit and an optional cursor, so one

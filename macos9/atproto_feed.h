@@ -98,6 +98,13 @@ wf_status platinum_atproto_followers_page(platinum_atproto_client *client,
                                          const char *actor, const char *cursor,
                                          size_t limit, wf_response *out);
 
+/* One page of an account's own posts: app.bsky.feed.getAuthorFeed, with the
+ * bridge's `posts_no_replies` filter. The response shape is
+ * `{"feed":[{"post":{...}}],"cursor":"..."}`. */
+wf_status platinum_atproto_author_page(platinum_atproto_client *client,
+                                       const char *actor, const char *cursor,
+                                       size_t limit, wf_response *out);
+
 /*
  * Create or delete the signed-in user's like or repost for a post.
  *

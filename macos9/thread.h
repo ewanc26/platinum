@@ -33,8 +33,9 @@ typedef struct platinum_thread {
     short scroll_row;
     short focus;     /* index of the depth-0 post, or 0 */
     int truncated;   /* replies were left out to stay within the bound */
-    /* 1 when this list came from app.bsky.feed.getFeed, whose URI is in
-     * `path`; 0 for a bridge list, a thread or a search. */
+    /* 1 when this list came from app.bsky.feed.getFeed, 2 when it came from
+     * app.bsky.feed.getAuthorFeed, with the URI or account in `path`; 0 for a
+     * bridge list, a thread or a search. */
     int native_feed;
     /* When this shows a plain list of posts (an author's posts, a feed, search
      * results) rather than a thread, the request without its cursor, and the
