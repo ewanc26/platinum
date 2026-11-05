@@ -861,6 +861,157 @@ static void test_named_contents(void)
     platinum_atproto_client_free(client);
 }
 
+static char follow_bodies[3][16384];
+static const char *follow_pages[3];
+
+static const char *make_follow_page(char *body, const char *member, int first,
+                                    int count, const char *cursor)
+{
+    char item[256];
+    int i;
+
+    strcpy(body, "{\"");
+    strcat(body, member);
+    strcat(body, "\":[");
+    for (i = 0; i < count; ++i) {
+        sprintf(item,
+                "%s{\"did\":\"did:plc:%d\",\"handle\":\"u%d.test\","
+                "\"displayName\":\"User %d\"}",
+                i ? "," : "", first + i, first + i, first + i);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static void follows_script(int call, int method, const char *url,
+                           const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    fake_body = follow_pages[call - 1];
+}
+
+static void test_follows_native(void)
+{
+    static platinum_people people;
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    unsigned short dropped;
+    int calls;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_people_init(&people);
+
+    follow_pages[0] = make_follow_page(follow_bodies[0], "follows", 0, 20, "f1");
+    follow_pages[1] = make_follow_page(follow_bodies[1], "follows", 20, 20, "f2");
+    follow_pages[2] = make_follow_page(follow_bodies[2], "follows", 40, 20, NULL);
+    fake_script = follows_script;
+    fake_call_count = 0;
+    check(platinum_people_follows_native(&people, client, "did:plc:me",
+                                         "Following") == WF_OK,
+          "follows load natively");
+    check(strcmp(last_nsid, "app.bsky.graph.getFollows") == 0,
+          "getFollows is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "actor") == 0 &&
+              strcmp(last_param_values[0], "did:plc:me") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the actor and page size are asked for");
+    check(people.native_follows == 1 && people.native_list == 0 &&
+              people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].handle, "@u0.test") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0 &&
+              strcmp(people.heading, "Following") == 0,
+          "follows fill the People list with their DIDs");
+    check(platinum_people_has_more(&people), "a follows cursor means more");
+
+    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+              WF_OK && dropped == 0 && people.count == 40 &&
+              strcmp(people.items[39].name, "User 39") == 0,
+          "the next follows page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "f1") == 0,
+          "the follows cursor is sent with the next page");
+
+    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+              WF_OK && dropped == 20 && people.count == 40 &&
+              strcmp(people.items[0].name, "User 20") == 0,
+          "the follows cap drops rows from the front");
+    check(!platinum_people_has_more(&people), "no follows cursor ends the list");
+    calls = fake_call_count;
+    check(platinum_people_follows_more_native(&people, client, &dropped) ==
+              WF_ERR_INVALID_ARG && fake_call_count == calls,
+          "nothing more makes no request");
+
+    follow_pages[0] = make_follow_page(follow_bodies[0], "followers", 0, 20, NULL);
+    fake_call_count = 0;
+    check(platinum_people_followers_native(&people, client, "me.test",
+                                           "Followers") == WF_OK &&
+              people.native_follows == 2 && people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0,
+          "followers load natively from a handle");
+    check(strcmp(last_nsid, "app.bsky.graph.getFollowers") == 0,
+          "getFollowers is the call");
+    check(last_param_count == 2 && strcmp(last_param_names[0], "actor") == 0 &&
+              strcmp(last_param_values[0], "me.test") == 0,
+          "the handle is the actor");
+    check(!platinum_people_has_more(&people), "no followers cursor ends it");
+
+    follow_pages[0] = "{\"follows\":[]}";
+    fake_call_count = 0;
+    check(platinum_people_follows_native(&people, client, "did:plc:me", "x") ==
+              WF_OK && people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "an empty follows page says so");
+
+    follow_pages[0] = "{\"follows\":{}}";
+    fake_call_count = 0;
+    check(platinum_people_follows_native(&people, client, "did:plc:me", "x") ==
+              WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed follows page is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_people_follows_native(&people, client, "did:plc:me", "x") ==
+              WF_ERR_NETWORK &&
+              strcmp(people.status, "The list could not be loaded.") == 0,
+          "a failed follows page is reported");
+    check(platinum_people_follows_native(&people, client, "not an actor", "x") ==
+              WF_ERR_INVALID_ARG, "an actor must be a DID or handle");
+    check(platinum_people_follows_native(NULL, client, "did:plc:me", "x") ==
+              WF_ERR_INVALID_ARG, "a NULL people list is refused");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_people_follows_native(&people, blank, "did:plc:me",
+                                             "x") == WF_ERR_AUTH &&
+              strcmp(people.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on follows");
+    platinum_atproto_client_free(blank);
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
@@ -868,6 +1019,7 @@ int main(void)
     test_named();
     test_named_native();
     test_named_contents();
+    test_follows_native();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);

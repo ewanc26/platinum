@@ -5,6 +5,8 @@
 #include "people.h"
 #include "text_codec.h"
 
+#include "atproto_feed.h"
+#include "atproto_url.h"
 #include "json_min.h"
 #include <string.h>
 
@@ -241,6 +243,7 @@ wf_status platinum_people_load_kind(platinum_people *people,
 
     people->kind = kind;
     people->native_list = 0;
+    people->native_follows = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -277,6 +280,7 @@ wf_status platinum_people_set_words(platinum_people *people,
 
     people->kind = PLATINUM_PEOPLE_WORDS;
     people->native_list = 0;
+    people->native_follows = 0;
     people->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(people->heading, heading, sizeof(people->heading) - 1);
@@ -337,9 +341,9 @@ void platinum_people_take_named(platinum_people *people, platinum_json items,
     }
 }
 
-void platinum_people_take_subjects(platinum_people *people, platinum_json items,
-                                   const char *cursor,
-                                   unsigned short *dropped)
+static void people_take_profiles(platinum_people *people, platinum_json items,
+                                 const char *member, const char *cursor,
+                                 unsigned short *dropped)
 {
     /* Static, not on the stack: a page of rows is about 13KB and a Classic Mac
      * stack is small. Not re-entrant, which nothing here needs. */
@@ -363,8 +367,12 @@ void platinum_people_take_subjects(platinum_people *people, platinum_json items,
          ++index) {
         if (platinum_json_element(items, index, &item) != WF_OK)
             continue;
-        if (platinum_json_member(item, "subject", &subject) != WF_OK)
-            continue;
+        if (member != NULL) {
+            if (platinum_json_member(item, member, &subject) != WF_OK)
+                continue;
+        } else {
+            subject = item;
+        }
         if (people_parse(&parsed[got], subject, PLATINUM_PEOPLE_ACCOUNTS))
             ++got;
     }
@@ -393,6 +401,13 @@ void platinum_people_take_subjects(platinum_people *people, platinum_json items,
     }
 }
 
+void platinum_people_take_subjects(platinum_people *people, platinum_json items,
+                                   const char *cursor,
+                                   unsigned short *dropped)
+{
+    people_take_profiles(people, items, "subject", cursor, dropped);
+}
+
 const platinum_person *platinum_people_selection(const platinum_people *people)
 {
     if (people == NULL || people->selected < 0 ||
@@ -416,4 +431,126 @@ wf_status platinum_people_load_more(platinum_people *people,
     if (people == NULL || bridge == NULL || !platinum_people_has_more(people))
         return WF_ERR_INVALID_ARG;
     return people_fetch(people, bridge, 1, dropped);
+}
+
+static wf_status people_fetch_native(platinum_people *people,
+                                     platinum_atproto_client *client,
+                                     int append, unsigned short *dropped)
+{
+    wf_response response;
+    platinum_json root;
+    platinum_json actors;
+    const char *member;
+    char cursor[sizeof(people->cursor)];
+    long available;
+    wf_status status;
+
+    if (dropped != NULL)
+        *dropped = 0;
+    if (!append) {
+        people->count = 0;
+        people->scroll_row = 0;
+        people->selected = -1;
+        people->cursor[0] = '\0';
+    }
+
+    memset(&response, 0, sizeof(response));
+    people->loading = 1;
+    people_status(people, "Loading...");
+    if (people->native_follows == 2)
+        status = platinum_atproto_followers_page(
+            client, people->path, append ? people->cursor : NULL,
+            PLATINUM_PEOPLE_PAGE, &response);
+    else
+        status = platinum_atproto_follows_page(
+            client, people->path, append ? people->cursor : NULL,
+            PLATINUM_PEOPLE_PAGE, &response);
+    if (status != WF_OK) {
+        people->loading = 0;
+        people_status(people, status == WF_ERR_AUTH
+                                  ? "Session expired. Sign in again."
+                                  : "The list could not be loaded.");
+        wf_response_free(&response);
+        return status;
+    }
+
+    member = people->native_follows == 2 ? "followers" : "follows";
+    if (platinum_json_open(&root, response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(root, member, &actors) != WF_OK ||
+        platinum_json_count(actors, &available) != WF_OK) {
+        people->loading = 0;
+        people_status(people, "The server returned an invalid list.");
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+    (void)available;
+
+    if (platinum_json_string(root, "cursor", cursor, sizeof(cursor)) != WF_OK)
+        cursor[0] = '\0';
+    people_take_profiles(people, actors, NULL, cursor, dropped);
+    wf_response_free(&response);
+
+    people->loading = 0;
+    people_status(people, people->count == 0 ? "Nobody to show." : NULL);
+    return WF_OK;
+}
+
+static wf_status people_load_graph_native(platinum_people *people,
+                                          platinum_atproto_client *client,
+                                          const char *actor, int followers,
+                                          const char *heading)
+{
+    if (people == NULL || client == NULL || actor == NULL || actor[0] == '\0' ||
+        (followers != 0 && followers != 1))
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_did(actor) &&
+        !platinum_atproto_valid_handle(actor))
+        return WF_ERR_INVALID_ARG;
+    if (strlen(actor) >= sizeof(people->path))
+        return WF_ERR_INVALID_ARG;
+
+    people->kind = PLATINUM_PEOPLE_ACCOUNTS;
+    people->native_list = 0;
+    people->native_follows = followers ? 2 : 1;
+    people->count = 0;
+    people->scroll_row = 0;
+    people->selected = -1;
+    strncpy(people->path, actor, sizeof(people->path) - 1);
+    people->path[sizeof(people->path) - 1] = '\0';
+    people->cursor[0] = '\0';
+    people->heading[0] = '\0';
+    if (heading != NULL) {
+        strncpy(people->heading, heading, sizeof(people->heading) - 1);
+        people->heading[sizeof(people->heading) - 1] = '\0';
+    }
+    return people_fetch_native(people, client, 0, NULL);
+}
+
+wf_status platinum_people_follows_native(platinum_people *people,
+                                         platinum_atproto_client *client,
+                                         const char *actor,
+                                         const char *heading)
+{
+    return people_load_graph_native(people, client, actor, 0, heading);
+}
+
+wf_status platinum_people_followers_native(platinum_people *people,
+                                           platinum_atproto_client *client,
+                                           const char *actor,
+                                           const char *heading)
+{
+    return people_load_graph_native(people, client, actor, 1, heading);
+}
+
+wf_status platinum_people_follows_more_native(platinum_people *people,
+                                              platinum_atproto_client *client,
+                                              unsigned short *dropped)
+{
+    if (dropped != NULL)
+        *dropped = 0;
+    if (people == NULL || client == NULL || people->native_follows == 0 ||
+        !platinum_people_has_more(people))
+        return WF_ERR_INVALID_ARG;
+    return people_fetch_native(people, client, 1, dropped);
 }
