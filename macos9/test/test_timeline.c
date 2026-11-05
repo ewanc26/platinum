@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "atproto_client.h"
+#include "atproto_feed.h"
 #include "timeline.h"
 #include "wolfram_stub.h"
 
@@ -488,6 +489,71 @@ static void test_native_muted(void)
     platinum_atproto_client_free(client);
 }
 
+static void test_native_delete_post(void)
+{
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    platinum_atproto_session expired;
+    int calls;
+    wf_status status;
+
+    client = make_native_client();
+    if (client == NULL)
+        return;
+
+    respond(WF_OK, "{}");
+    check(platinum_atproto_delete_post(
+              client, "at://did:plc:a/app.bsky.feed.post/3k") == WF_OK,
+          "native delete succeeds");
+    check(strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0 &&
+              last_method == 2,
+          "native delete uses deleteRecord");
+    check(strcmp(last_body,
+                 "{\"repo\":\"did:plc:a\","
+                 "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3k\"}") == 0,
+          "native delete sends the exact repo, collection and rkey");
+
+    calls = fake_call_count;
+    last_method = 0;
+    check(platinum_atproto_delete_post(
+              client, "at://did:plc:b/app.bsky.feed.post/3k") ==
+              WF_ERR_INVALID_ARG &&
+              fake_call_count == calls && last_method == 0,
+          "another account's post is refused with no request");
+    check(platinum_atproto_delete_post(
+              client, "at://did:plc:a/app.bsky.feed.like/3k") ==
+              WF_ERR_INVALID_ARG,
+          "a non-post record is refused");
+    check(platinum_atproto_delete_post(client, "not an at uri") ==
+              WF_ERR_INVALID_ARG,
+          "a malformed URI is refused");
+    check(platinum_atproto_delete_post(NULL,
+                                       "at://did:plc:a/app.bsky.feed.post/3k") ==
+              WF_ERR_INVALID_ARG,
+          "a NULL client is refused");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    if (blank != NULL) {
+        memset(&expired, 0, sizeof(expired));
+        strcpy(expired.did, "did:plc:a");
+        strcpy(expired.handle, "a.test");
+        strcpy(expired.pds_url, "https://pds.example");
+        platinum_atproto_client_set_session(blank, &expired);
+        check(platinum_atproto_delete_post(
+                  blank, "at://did:plc:a/app.bsky.feed.post/3k") == WF_ERR_AUTH,
+              "an expired native session is an auth failure on delete");
+        platinum_atproto_client_free(blank);
+    }
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, "");
+    status = platinum_atproto_delete_post(
+        client, "at://did:plc:a/app.bsky.feed.post/3k");
+    check(status != WF_OK, "a failed native delete is reported");
+
+    platinum_atproto_client_free(client);
+}
+
 static void test_engagement(void)
 {
     static platinum_timeline timeline;
@@ -552,6 +618,7 @@ int main(void)
     test_engagement();
     test_native_timeline();
     test_native_muted();
+    test_native_delete_post();
     fake_script = NULL;
     if (failures != 0) {
         printf("test_timeline: %d of %d checks failed\n", failures, checks);
