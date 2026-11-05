@@ -73,6 +73,53 @@ wf_status platinum_atproto_notifications_page(
                                        names, values, count, out);
 }
 
+wf_status platinum_atproto_lists(platinum_atproto_client *client,
+                                 const char *actor, size_t limit,
+                                 wf_response *out)
+{
+    const char *names[2];
+    const char *values[2];
+    char limit_text[8];
+
+    if (client == NULL || out == NULL || actor == NULL || actor[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+    if (limit < 1 || limit > 100)
+        return WF_ERR_INVALID_ARG;
+    if (strlen(actor) > PLATINUM_ATPROTO_DID_MAX)
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(limit_text, "%lu", (unsigned long)limit);
+    names[0] = "actor";
+    values[0] = actor;
+    names[1] = "limit";
+    values[1] = limit_text;
+
+    return platinum_atproto_client_get(client, "app.bsky.graph.getLists",
+                                       names, values, 2, out);
+}
+
+wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,
+                                          const char *const *uris,
+                                          size_t count, wf_response *out)
+{
+    const char *names[PLATINUM_ATPROTO_PARAMS_MAX];
+    size_t index;
+
+    if (client == NULL || out == NULL || uris == NULL || count == 0)
+        return WF_ERR_INVALID_ARG;
+    if (count > PLATINUM_ATPROTO_PARAMS_MAX)
+        return WF_ERR_INVALID_ARG;
+    for (index = 0; index < count; index++) {
+        if (uris[index] == NULL ||
+            !platinum_atproto_valid_at_uri(uris[index]))
+            return WF_ERR_INVALID_ARG;
+        names[index] = "feeds";
+    }
+
+    return platinum_atproto_client_get(client, "app.bsky.feed.getFeedGenerators",
+                                       names, uris, count, out);
+}
+
 static int feed_valid_cid(const char *cid)
 {
     const char *scan;

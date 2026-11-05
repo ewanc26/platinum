@@ -47,6 +47,28 @@ wf_status platinum_atproto_notifications_page(
     wf_response *out);
 
 /*
+ * Fetch the signed-in account's own lists: app.bsky.graph.getLists.
+ *
+ * `actor` is a DID or handle and `limit` is 1 to 100. The response shape is
+ * `{"lists":[{"uri","name",...}],"cursor":"..."}`. The route this replaces
+ * did not page, so the screen asks once.
+ */
+wf_status platinum_atproto_lists(platinum_atproto_client *client,
+                                 const char *actor, size_t limit,
+                                 wf_response *out);
+
+/*
+ * Name saved feed generators: app.bsky.feed.getFeedGenerators, with one
+ * repeated `feeds` parameter per URI. The session layer accepts at most
+ * PLATINUM_ATPROTO_PARAMS_MAX parameters, so a longer saved list is asked for
+ * in batches. The response shape is `{"feeds":[{"uri","displayName",...}]}`
+ * in the order asked.
+ */
+wf_status platinum_atproto_feed_generators(platinum_atproto_client *client,
+                                          const char *const *uris,
+                                          size_t count, wf_response *out);
+
+/*
  * Create or delete the signed-in user's like or repost for a post.
  *
  * record_uri is required when deleting and must be the URI of the signed-in
