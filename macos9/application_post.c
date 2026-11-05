@@ -2,6 +2,8 @@
 
 #include "application_internal.h"
 
+#include "atproto_feed.h"
+
 /*
  * Bring the compose window forward, or open it on the selected post. Returns
  * the post to answer and opens compose for it, or NULL when there is nothing
@@ -38,12 +40,15 @@ void platinum_application_reply(platinum_application *app)
 /*
  * Delete the selected post if it is yours. Deleting cannot be undone, so the
  * first request only asks; the same request again does it, and any other menu
- * choice cancels. The bridge checks ownership too.
+ * choice cancels. The selected post must be in the signed-in repo.
  */
 void platinum_application_delete_post(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
+    const platinum_atproto_session *session;
     const platinum_config *config;
+    const char *owner_did;
     const platinum_post_preview *post;
     wf_status status;
     short index;
@@ -51,17 +56,35 @@ void platinum_application_delete_post(platinum_application *app)
     index = platinum_application_selected_post(app);
     if (index < 0)
         return;
-    bridge = platinum_session_bridge(&app->session);
-    config = platinum_session_config(&app->session);
-    if (bridge == NULL || config == NULL) {
-        strcpy(app->timeline.status,
-               "Deleting a post still uses the bridge. Pair one under File > Pair Account.");
-        platinum_application_invalidate(app);
-        return;
+
+    client = platinum_session_client(&app->session);
+    bridge = NULL;
+    config = NULL;
+    owner_did = NULL;
+    if (client != NULL) {
+        session = platinum_atproto_client_session(client);
+        if (session == NULL || session->did[0] == '\0') {
+            app->delete_armed = 0;
+            strcpy(app->timeline.status, "Session expired. Sign in again.");
+            platinum_application_invalidate(app);
+            return;
+        }
+        owner_did = session->did;
+    } else {
+        bridge = platinum_session_bridge(&app->session);
+        config = platinum_session_config(&app->session);
+        if (bridge == NULL || config == NULL) {
+            app->delete_armed = 0;
+            strcpy(app->timeline.status,
+                   "Deleting a post needs a signed-in account or a paired bridge.");
+            platinum_application_invalidate(app);
+            return;
+        }
+        owner_did = config->did;
     }
 
     post = &app->timeline.posts[index];
-    if (!platinum_post_uri_is_in_repo(post->uri, config->did)) {
+    if (!platinum_post_uri_is_in_repo(post->uri, owner_did)) {
         app->delete_armed = 0;
         strcpy(app->timeline.status, "That is not your post, so I can't delete it.");
         platinum_application_invalidate(app);
@@ -76,7 +99,9 @@ void platinum_application_delete_post(platinum_application *app)
     }
     app->delete_armed = 0;
 
-    status = platinum_bridge_delete_post(bridge, post->uri);
+    status = client != NULL
+                 ? platinum_atproto_delete_post(client, post->uri)
+                 : platinum_bridge_delete_post(bridge, post->uri);
     platinum_application_recover_auth(app, status);
     if (status != WF_OK) {
         strcpy(app->timeline.status, "The post could not be deleted.");
