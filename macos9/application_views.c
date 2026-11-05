@@ -173,6 +173,7 @@ void platinum_application_show_author(platinum_application *app)
 void platinum_application_show_people(platinum_application *app,
                                              int menu_item)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     const char *route;
     const char *key;
@@ -183,32 +184,49 @@ void platinum_application_show_people(platinum_application *app,
 
     if (app == NULL || !platinum_session_is_paired(&app->session))
         return;
-    bridge = people_bridge(app);
-    if (bridge == NULL)
-        return;
 
     if (menu_item == 6 || menu_item == 7) {
         index = platinum_application_selected_post(app);
         if (index < 0)
             return;
+        bridge = people_bridge(app);
+        if (bridge == NULL)
+            return;
         key = "uri";
         value = app->timeline.posts[index].uri;
         route = menu_item == 6 ? "/v1/post/likes" : "/v1/post/reposts";
         heading = menu_item == 6 ? "Liked by" : "Reposted by";
+        status = platinum_people_load(&app->people, bridge, route, key, value,
+                                      heading);
     } else {
         /* The DID read exactly from the profile, not the clipped display copy. */
         if (app->profile.window == NULL || app->profile.target_did[0] == '\0')
             return;
-        key = "actor";
-        value = app->profile.target_did;
-        route = menu_item == 8 ? "/v1/followers" : "/v1/follows";
-        heading = menu_item == 8 ? "Followers of this account" : "Followed by this account";
+        client = platinum_session_client(&app->session);
+        if (client != NULL) {
+            if (platinum_people_open(&app->people) != noErr)
+                return;
+            status = menu_item == 8
+                         ? platinum_people_followers_native(
+                               &app->people, client, app->profile.target_did,
+                               "Followers of this account")
+                         : platinum_people_follows_native(
+                               &app->people, client, app->profile.target_did,
+                               "Followed by this account");
+        } else {
+            bridge = people_bridge(app);
+            if (bridge == NULL)
+                return;
+            key = "actor";
+            value = app->profile.target_did;
+            route = menu_item == 8 ? "/v1/followers" : "/v1/follows";
+            heading = menu_item == 8 ? "Followers of this account"
+                                     : "Followed by this account";
+            status = platinum_people_load(&app->people, bridge, route, key,
+                                          value, heading);
+        }
     }
 
-    if (platinum_people_open(&app->people) != noErr)
-        return;
-    status = platinum_people_load(&app->people, bridge, route, key, value,
-                                  heading);
     platinum_application_recover_auth(app, status);
     if (app->people.window != NULL)
         InvalRect(&app->people.window->portRect);
@@ -231,6 +249,12 @@ void platinum_application_more_people(platinum_application *app)
             return;
         status = platinum_named_list_more_native(&app->people, client,
                                                  &dropped);
+    } else if (app->people.native_follows) {
+        /* `path` is a DID or handle now, so never hand it to the bridge. */
+        if (client == NULL)
+            return;
+        status = platinum_people_follows_more_native(&app->people, client,
+                                                     &dropped);
     } else {
         bridge = platinum_session_bridge(&app->session);
         if (bridge == NULL)
@@ -580,9 +604,15 @@ void platinum_application_open_person(platinum_application *app)
         if (app->people.window != NULL)
             InvalRect(&app->people.window->portRect);
     } else {
-        if (bridge == NULL || platinum_profile_open(&app->profile) != noErr)
+        if (platinum_profile_open(&app->profile) != noErr)
             return;
-        status = platinum_profile_load(&app->profile, bridge, row->uri);
+        if (client != NULL)
+            status = platinum_profile_load_native(&app->profile, client,
+                                                  row->uri);
+        else if (bridge != NULL)
+            status = platinum_profile_load(&app->profile, bridge, row->uri);
+        else
+            return;
         platinum_application_recover_auth(app, status);
         if (app->profile.window != NULL)
             InvalRect(&app->profile.window->portRect);
