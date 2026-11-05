@@ -34,7 +34,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Other people's profiles | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Follow and unfollow | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Followers and following lists | yes | yes | implemented (`macos9/people_feed.c`) |
-| Profile posts tab | yes | yes | implemented (`macos9/thread_feed.c`) |
+| Profile posts tab | yes | yes | implemented (`macos9/named_native.c`) |
 | Pinned post | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Avatars | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
 | Post images | yes | yes | [#32](https://github.com/ewanc26/platinum/issues/32) |
