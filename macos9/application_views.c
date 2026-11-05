@@ -449,6 +449,7 @@ void platinum_application_remove_word(platinum_application *app)
 /* The author's own posts, in the posts list. */
 void platinum_application_show_posts(platinum_application *app)
 {
+    platinum_atproto_client *client;
     platinum_bridge_client *bridge;
     const char *handle;
     wf_status status;
@@ -457,17 +458,26 @@ void platinum_application_show_posts(platinum_application *app)
     index = platinum_application_selected_post(app);
     if (index < 0)
         return;
-    bridge = thread_bridge(app);
-    if (bridge == NULL)
-        return;
     handle = app->timeline.posts[index].handle;
     if (handle[0] == '@')
         ++handle;
-    if (handle[0] == '\0' || platinum_thread_open(&app->thread) != noErr)
+    if (handle[0] == '\0')
         return;
 
-    status = platinum_thread_load_list(&app->thread, bridge, "/v1/author-feed",
-                                       "actor", handle, "Posts by this author");
+    client = platinum_session_client(&app->session);
+    if (client != NULL) {
+        if (platinum_thread_open(&app->thread) != noErr)
+            return;
+        status = platinum_named_author_native(&app->thread, client, handle,
+                                              "Posts by this author");
+    } else {
+        bridge = thread_bridge(app);
+        if (bridge == NULL)
+            return;
+        status = platinum_thread_load_list(&app->thread, bridge,
+                                           "/v1/author-feed", "actor", handle,
+                                           "Posts by this author");
+    }
     platinum_application_recover_auth(app, status);
     if (app->thread.window != NULL)
         InvalRect(&app->thread.window->portRect);
@@ -485,7 +495,7 @@ void platinum_application_more_posts(platinum_application *app)
     dropped = 0;
     client = platinum_session_client(&app->session);
     if (app->thread.native_feed) {
-        /* `path` holds an AT URI now, so never hand it to the bridge. */
+        /* `path` holds an AT URI or an account now, not a bridge route. */
         if (client == NULL)
             return;
         status = platinum_named_feed_more_native(&app->thread, client,
