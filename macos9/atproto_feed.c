@@ -356,6 +356,97 @@ wf_status platinum_atproto_feed_engagement(
                                         body, out);
 }
 
+wf_status platinum_atproto_graph_relation(
+    platinum_atproto_client *client, const char *subject_did, int block,
+    int on, const char *record_uri, wf_response *out)
+{
+    const platinum_atproto_session *session;
+    const char *collection;
+    char prefix[320];
+    char body[2048];
+    char created_at[32];
+    const char *rkey;
+    time_t now;
+    struct tm *utc;
+    size_t prefix_length;
+
+    if (client == NULL || out == NULL || (block != 0 && block != 1) ||
+        (on != 0 && on != 1))
+        return WF_ERR_INVALID_ARG;
+
+    session = platinum_atproto_client_session(client);
+    if (session == NULL || !platinum_atproto_valid_did(session->did) ||
+        !platinum_atproto_valid_did(subject_did))
+        return WF_ERR_INVALID_ARG;
+
+    collection = block ? "app.bsky.graph.block" : "app.bsky.graph.follow";
+    if (strlen(session->did) + strlen(collection) + 8 >= sizeof(prefix) ||
+        strlen(session->did) + strlen(subject_did) + 200 >= sizeof(body))
+        return WF_ERR_INVALID_ARG;
+
+    if (on) {
+        now = time(NULL);
+        if (now == (time_t)-1)
+            return WF_ERR_STATE;
+        utc = gmtime(&now);
+        if (utc == NULL ||
+            strftime(created_at, sizeof(created_at), "%Y-%m-%dT%H:%M:%SZ",
+                     utc) == 0)
+            return WF_ERR_STATE;
+
+        sprintf(body,
+                "{\"repo\":\"%s\",\"collection\":\"%s\","
+                "\"record\":{\"$type\":\"%s\",\"subject\":\"%s\","
+                "\"createdAt\":\"%s\"}}",
+                session->did, collection, collection, subject_did, created_at);
+        return platinum_atproto_client_post(client,
+                                            "com.atproto.repo.createRecord",
+                                            body, out);
+    }
+
+    if (record_uri == NULL ||
+        !platinum_atproto_valid_at_uri(record_uri))
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(prefix, "at://%s/%s/", session->did, collection);
+    prefix_length = strlen(prefix);
+    if (strncmp(record_uri, prefix, prefix_length) != 0)
+        return WF_ERR_INVALID_ARG;
+
+    rkey = record_uri + prefix_length;
+    if (rkey[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+    if (strlen(record_uri) + strlen(session->did) + 100 >= sizeof(body))
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(body, "{\"repo\":\"%s\",\"collection\":\"%s\",\"rkey\":\"%s\"}",
+            session->did, collection, rkey);
+    return platinum_atproto_client_post(client,
+                                        "com.atproto.repo.deleteRecord",
+                                        body, out);
+}
+
+wf_status platinum_atproto_mute(platinum_atproto_client *client,
+                                const char *actor_did, int on,
+                                wf_response *out)
+{
+    char escaped[600];
+    char body[640];
+
+    if (client == NULL || out == NULL ||
+        !platinum_atproto_valid_did(actor_did) || (on != 0 && on != 1))
+        return WF_ERR_INVALID_ARG;
+    if (platinum_json_escape(escaped, sizeof(escaped), actor_did) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+    if (strlen(escaped) + 24 >= sizeof(body))
+        return WF_ERR_INVALID_ARG;
+
+    sprintf(body, "{\"actor\":\"%s\"}", escaped);
+    return platinum_atproto_client_post(
+        client, on ? "app.bsky.actor.mute" : "app.bsky.actor.unmute", body,
+        out);
+}
+
 wf_status platinum_atproto_notification_seen(
     platinum_atproto_client *client, const char *seen_at, wf_response *out)
 {

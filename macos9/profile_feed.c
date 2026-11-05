@@ -164,6 +164,8 @@ wf_status platinum_profile_load(platinum_profile *profile,
     profile->muted = 0;
     profile->blocking = 0;
     profile->block_armed = 0;
+    profile->following_uri[0] = '\0';
+    profile->blocking_uri[0] = '\0';
     if (profile->other) {
         if (platinum_json_bool(root, "muted", &flag) == WF_OK)
             profile->muted = flag;
@@ -267,10 +269,13 @@ wf_status platinum_profile_set_relation(platinum_profile *profile,
 
     if (kind == PLATINUM_RELATION_MUTE)
         profile->muted = now_on;
-    else if (kind == PLATINUM_RELATION_BLOCK)
+    else if (kind == PLATINUM_RELATION_BLOCK) {
         profile->blocking = now_on;
-    else
+        profile->blocking_uri[0] = '\0';
+    } else {
         profile->following = now_on;
+        profile->following_uri[0] = '\0';
+    }
     platinum_profile_status_text(profile, NULL);
     return WF_OK;
 }
