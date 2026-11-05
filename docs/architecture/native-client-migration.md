@@ -48,7 +48,7 @@ goes through the bridge.
 | `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_native.c` read (`profile_feed.c` model) | `test_profile` | native read end to end (bridge fallback); follow/mute/block writes still pending |
 | `GET /v1/follows` | `app.bsky.graph.getFollows` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/followers` | `app.bsky.graph.getFollowers` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
-| `GET /v1/author-feed` | `app.bsky.feed.getAuthorFeed` | `profile_feed.c` | `test_profile` | pending |
+| `GET /v1/author-feed` | `app.bsky.feed.getAuthorFeed` | `named_native.c` + `atproto_feed.c` + `thread_feed.c` | `test_people` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap, cursor paging and muted-word filtering |
 | `POST /v1/follow` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.follow` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/mute` | `app.bsky.actor.mute` / `unmute` | `profile_feed.c` | `test_profile` | pending |
 | `POST /v1/block` | `com.atproto.repo.createRecord` / `deleteRecord`, collection `app.bsky.graph.block` | `profile_feed.c` | `test_profile` | pending |
@@ -101,6 +101,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Notifications | `atproto_feed.c` + `notifications_feed.c` | native |
 | Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
 | Followers and following | `people_feed.c` + `atproto_feed.c` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
+| Author posts | `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); `posts_no_replies`, 20-row pages, 40-row cap and muted-word filtering |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback) |
 | Search (accounts and posts) | bridge | pending |
 | Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list and contents (bridge fallback); opening a feed or a list's members reads the AppView directly |

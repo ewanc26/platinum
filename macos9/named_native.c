@@ -222,9 +222,14 @@ static wf_status named_feed_page(platinum_thread *thread,
     memset(&response, 0, sizeof(response));
     thread->loading = 1;
     platinum_thread_set_status(thread, "Loading...");
-    status = platinum_atproto_feed_page(client, thread->path,
-                                        append ? thread->cursor : NULL,
-                                        PLATINUM_THREAD_PAGE, &response);
+    if (thread->native_feed == 2)
+        status = platinum_atproto_author_page(
+            client, thread->path, append ? thread->cursor : NULL,
+            PLATINUM_THREAD_PAGE, &response);
+    else
+        status = platinum_atproto_feed_page(
+            client, thread->path, append ? thread->cursor : NULL,
+            PLATINUM_THREAD_PAGE, &response);
     if (status != WF_OK) {
         wf_response_free(&response);
         thread->loading = 0;
@@ -275,6 +280,34 @@ wf_status platinum_named_feed_native(platinum_thread *thread,
     thread->path[sizeof(thread->path) - 1] = '\0';
     thread->cursor[0] = '\0';
     thread->native_feed = 1;
+    thread->heading[0] = '\0';
+    if (heading != NULL) {
+        strncpy(thread->heading, heading, sizeof(thread->heading) - 1);
+        thread->heading[sizeof(thread->heading) - 1] = '\0';
+    }
+    return named_feed_page(thread, client, 0, NULL);
+}
+
+wf_status platinum_named_author_native(platinum_thread *thread,
+                                       platinum_atproto_client *client,
+                                       const char *actor, const char *heading)
+{
+    if (thread == NULL || client == NULL || actor == NULL || actor[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+    if (!platinum_atproto_valid_did(actor) &&
+        !platinum_atproto_valid_handle(actor))
+        return WF_ERR_INVALID_ARG;
+    if (strlen(actor) >= sizeof(thread->path))
+        return WF_ERR_INVALID_ARG;
+
+    thread->count = 0;
+    thread->scroll_row = 0;
+    thread->focus = 0;
+    thread->truncated = 0;
+    strncpy(thread->path, actor, sizeof(thread->path) - 1);
+    thread->path[sizeof(thread->path) - 1] = '\0';
+    thread->cursor[0] = '\0';
+    thread->native_feed = 2;
     thread->heading[0] = '\0';
     if (heading != NULL) {
         strncpy(thread->heading, heading, sizeof(thread->heading) - 1);
