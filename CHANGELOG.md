@@ -10,7 +10,7 @@ pull request.
 
 ### Added
 
-- The muted-words screen reads and writes through the Mac's native session first: it loads `mutedWordsPref` from `app.bsky.actor.getPreferences` and saves changes with `putPreferences` as one read-modify-write, falling back to the bridge when there is no native session. Words keep their tag/content targets, exclude-following and expiry; a word that cannot be shown in MacRoman is left out, and removal matches the exact UTF-8 value. Host tests cover the serialiser, the round trip, add/remove and the failure paths. ([#PR](https://github.com/ewanc26/platinum/pull/PR))
+- The muted-words screen reads and writes through the Mac's native session first: it loads `mutedWordsPref` from `app.bsky.actor.getPreferences` and saves changes with `putPreferences` as one read-modify-write, falling back to the bridge when there is no native session. Words keep their tag/content targets, exclude-following and expiry; a word that cannot be shown in MacRoman is left out, and removal matches the exact UTF-8 value. Host tests cover the serialiser, the round trip, add/remove and the failure paths. ([#174](https://github.com/ewanc26/platinum/pull/174))
 
 - Profiles read through the Mac's native session first: the Profile window loads `app.bsky.actor.getProfile` with viewer follow state and the pinned post, falling back to the bridge otherwise. Follow, mute and block still go through the bridge. ([#172](https://github.com/ewanc26/platinum/pull/172))
 
