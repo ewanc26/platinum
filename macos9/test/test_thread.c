@@ -181,6 +181,48 @@ static void test_list(void)
     platinum_bridge_client_free(bridge);
 }
 
+static void test_bridge_mute(void)
+{
+    static platinum_thread thread;
+    platinum_bridge_client *bridge;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_thread_init(&thread);
+    respond(WF_OK, "{\"posts\":[{\"uri\":\"at://p/root\",\"cid\":\"c\",\"author\":{\"did\":\"did:plc:a\"},\"depth\":0}]}");
+    check(platinum_thread_load(&thread, bridge, "at://p/root") == WF_OK,
+          "thread for mute loads");
+    check(thread.is_thread == 1 && thread.muted == 0, "a thread starts unmuted");
+
+    respond(WF_OK, "{\"uri\":\"at://p/root\",\"root\":\"at://p/root\",\"on\":true}");
+    check(platinum_thread_set_mute(&thread, bridge, 1) == WF_OK,
+          "bridge thread mute succeeds");
+    check(last_method == 2 && strstr(last_url, "/v1/thread/mute") != NULL,
+          "mute posts to the thread mute route");
+    check(strstr(last_body, "\"uri\":\"at://p/root\"") != NULL &&
+              strstr(last_body, "\"on\":true") != NULL,
+          "mute body names the post and the state");
+    check(thread.muted == 1 && strcmp(thread.status, "Thread muted.") == 0,
+          "state and status change after the bridge confirms");
+
+    respond(WF_ERR_HTTP, "{}");
+    fake_http_status = 500;
+    check(platinum_thread_set_mute(&thread, bridge, 0) != WF_OK,
+          "a failed unmute is reported");
+    check(thread.muted == 1 &&
+              strcmp(thread.status, "The thread could not be unmuted.") == 0,
+          "a failure leaves the muted state alone");
+
+    respond(WF_OK, page_of(0, 2, NULL));
+    check(platinum_thread_load_list(&thread, bridge, "/v1/feed", "uri", "at://x",
+                                    "Feed") == WF_OK,
+          "a posts list loads");
+    check(thread.is_thread == 0 &&
+              platinum_thread_set_mute(&thread, bridge, 1) == WF_ERR_INVALID_ARG,
+          "a posts list has no thread to mute");
+
+    platinum_bridge_client_free(bridge);
+}
+
 static const char *native_thread_body;
 
 static void native_thread_script(int call, int method, const char *url,
@@ -214,6 +256,37 @@ static platinum_atproto_client *native_thread_client(void)
         return NULL;
     }
     return client;
+}
+
+static int native_mute_calls;
+
+static void native_bad_root_script(int call, int method, const char *url,
+                                   const char *body)
+{
+    (void)call;
+    (void)url;
+    (void)body;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    fake_body = method == 1
+        ? "{\"posts\":[{\"uri\":\"at://did:plc:a/app.bsky.feed.post/root\","
+          "\"record\":{\"reply\":{\"root\":{\"uri\":\"not-an-at-uri\"}}}}]}"
+        : "{}";
+}
+
+static void native_mute_script(int call, int method, const char *url,
+                               const char *body)
+{
+    (void)call;
+    (void)url;
+    (void)body;
+    ++native_mute_calls;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    fake_body = method == 1
+        ? "{\"posts\":[{\"uri\":\"at://did:plc:a/app.bsky.feed.post/root\","
+          "\"record\":{\"reply\":{\"root\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/top\"}}}}]}"
+        : "{}";
 }
 
 static void test_native_thread(void)
@@ -257,6 +330,26 @@ static void test_native_thread(void)
         check(thread.focus == 1, "focus is the depth-0 post");
     }
     check(thread.truncated == 0, "nothing cut");
+
+    native_mute_calls = 0;
+    fake_script = native_mute_script;
+    check(platinum_thread_set_mute_native(&thread, client, 1) == WF_OK,
+          "native thread mute succeeds");
+    check(native_mute_calls == 2,
+          "native mute resolves the post before muting");
+    check(strcmp(last_nsid, "app.bsky.graph.muteThread") == 0,
+          "native mute calls muteThread");
+    check(strstr(last_body,
+                 "\"root\":\"at://did:plc:a/app.bsky.feed.post/top\"") != NULL,
+          "native mute uses the root from the post record");
+    check(thread.muted == 1 && strcmp(thread.status, "Thread muted.") == 0,
+          "native state changes only after the service accepts");
+
+    thread.muted = 0;
+    fake_script = native_bad_root_script;
+    check(platinum_thread_set_mute_native(&thread, client, 1) != WF_OK &&
+              thread.muted == 0,
+          "an unreadable root is refused and does not mute the reply");
     fake_script = NULL;
 
     native_thread_body = "{\"thread\":{\"$type\":\"app.bsky.feed.defs#blockedPost\"}}";
@@ -281,6 +374,7 @@ int main(void)
     test_list();
     test_load();
     test_bound();
+    test_bridge_mute();
     test_native_thread();
     fake_script = NULL;
     if (failures != 0) {

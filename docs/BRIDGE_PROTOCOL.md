@@ -274,6 +274,15 @@ not an `app.bsky.feed.post` AT URI; `404 post_not_found` when the post is gone.
 { "posts": [ { "uri": "at://...", "depth": -1, "text": "..." } ], "truncated": false }
 ```
 
+`POST /v1/thread/mute` with `{"uri":"at://...","on":true}` mutes or unmutes
+the thread the post belongs to. `uri` may name any post in the thread; the
+bridge reads that post's record and uses its thread root (`reply.root.uri`, or
+the post itself when it is top-level), so the Mac never walks the thread. It
+returns `{"uri":"...","root":"at://...","on":true}`. A uri that is not an
+`app.bsky.feed.post` AT URI or a missing boolean `on` is `400
+invalid_post_ref`; a post that no longer exists is `404 post_not_found` and
+nothing is written. Muting a thread is private and leaves no record.
+
 ### Search, feeds and lists
 
 `GET /v1/search/actors?q=` returns the account list shape; `GET
