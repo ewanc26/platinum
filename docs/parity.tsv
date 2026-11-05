@@ -36,8 +36,8 @@ link-cards|Link-card previews|yes|yes|issue|#32
 compose-images|Attach images to a post|yes|yes|issue|#33
 search-actors|Actor search|yes|yes|implemented|macos9/application_views.c::/v1/search/actors
 search-posts|Post search|yes|yes|implemented|macos9/application_views.c::/v1/search/posts
-feeds|Custom feeds|yes|yes|implemented|macos9/application_views.c::/v1/feeds
-lists|Lists|yes|yes|implemented|macos9/application_views.c::/v1/lists
+feeds|Custom feeds|yes|yes|implemented|macos9/named_native.c::platinum_named_feeds_native
+lists|Lists|yes|yes|implemented|macos9/named_native.c::platinum_named_lists_native
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_feed.c::/v1/block
 muted-words|Muted words|no|yes|implemented|macos9/application_views.c::/v1/muted-words
 engagement-lists|Who liked or reposted|yes|no|implemented|bridge/src/domain/api.ts::async engagement(

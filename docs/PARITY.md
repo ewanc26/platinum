@@ -45,8 +45,8 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Attach images to a post | yes | yes | [#33](https://github.com/ewanc26/platinum/issues/33) |
 | Actor search | yes | yes | implemented (`macos9/application_views.c`) |
 | Post search | yes | yes | implemented (`macos9/application_views.c`) |
-| Custom feeds | yes | yes | implemented (`macos9/application_views.c`) |
-| Lists | yes | yes | implemented (`macos9/application_views.c`) |
+| Custom feeds | yes | yes | implemented (`macos9/named_native.c`) |
+| Lists | yes | yes | implemented (`macos9/named_native.c`) |
 | Mute and block | yes | yes | implemented (`macos9/profile_feed.c`) |
 | Muted words | no | yes | implemented (`macos9/application_views.c`) |
 | Who liked or reposted | yes | no | implemented (`bridge/src/domain/api.ts`) |

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "named_native.h"
 #include "people.h"
 #include "words_native.h"
 #include "wolfram_stub.h"
@@ -346,11 +347,216 @@ static void test_words_native(void)
     platinum_atproto_client_free(client);
 }
 
+static const char *named_prefs_body;
+static const char *named_generators_body;
+static const char *named_generators_body2;
+
+static void named_feeds_script(int call, int method, const char *url,
+                               const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    if (call == 1)
+        fake_body = named_prefs_body;
+    else if (call == 2)
+        fake_body = named_generators_body;
+    else
+        fake_body = named_generators_body2;
+}
+
+static void test_named_native(void)
+{
+    static platinum_people people;
+    static char nine_prefs[4096];
+    static char page_one[2048];
+    static char page_two[512];
+    static char item[192];
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    int i;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_people_init(&people);
+
+    /* Saved feeds: the preference, then one getFeedGenerators for the names. */
+    named_prefs_body =
+        "{\"preferences\":[{\"$type\":\"app.bsky.actor.defs#savedFeedsPrefV2\","
+        "\"items\":["
+        "{\"type\":\"timeline\",\"value\":\"following\",\"pinned\":true},"
+        "{\"type\":\"list\","
+        "\"value\":\"at://did:plc:a/app.bsky.graph.list/l\"},"
+        "{\"type\":\"feed\","
+        "\"value\":\"at://did:plc:a/app.bsky.feed.generator/g1\","
+        "\"pinned\":true},"
+        "{\"type\":\"feed\","
+        "\"value\":\"at://did:plc:a/app.bsky.feed.generator/g2\"}"
+        "]}]}";
+    named_generators_body =
+        "{\"feeds\":["
+        "{\"uri\":\"at://did:plc:a/app.bsky.feed.generator/g1\","
+        "\"displayName\":\"Great feed\"},"
+        "{\"uri\":\"at://did:plc:a/app.bsky.feed.generator/g2\","
+        "\"displayName\":\"Other feed\"}]}";
+    named_generators_body2 = NULL;
+    fake_script = named_feeds_script;
+    fake_call_count = 0;
+    check(platinum_named_feeds_native(&people, client,
+                                      "Saved feeds (click one)") == WF_OK,
+          "saved feeds load natively");
+    check(fake_call_count == 2, "prefs then generators");
+    check(strcmp(last_nsid, "app.bsky.feed.getFeedGenerators") == 0,
+          "names come from getFeedGenerators");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "feeds") == 0 &&
+              strcmp(last_param_values[0],
+                     "at://did:plc:a/app.bsky.feed.generator/g1") == 0 &&
+              strcmp(last_param_values[1],
+                     "at://did:plc:a/app.bsky.feed.generator/g2") == 0,
+          "the saved URIs are the repeated feeds parameter");
+    check(people.kind == PLATINUM_PEOPLE_FEEDS && people.count == 2 &&
+              strcmp(people.items[0].name, "Great feed") == 0 &&
+              strcmp(people.items[0].uri,
+                     "at://did:plc:a/app.bsky.feed.generator/g1") == 0 &&
+              strcmp(people.items[1].name, "Other feed") == 0,
+          "rows carry the display name and exact URI, in saved order");
+    check(strcmp(people.heading, "Saved feeds (click one)") == 0,
+          "the heading is kept");
+    check(!platinum_people_has_more(&people), "saved feeds do not page");
+    check(people.loading == 0, "the load finished");
+
+    /* Nine feeds take two calls: one query carries at most eight params. */
+    strcpy(nine_prefs,
+           "{\"preferences\":[{\"$type\":"
+           "\"app.bsky.actor.defs#savedFeedsPrefV2\",\"items\":[");
+    for (i = 0; i < 9; i++) {
+        sprintf(item,
+                "%s{\"type\":\"feed\",\"value\":"
+                "\"at://did:plc:a/app.bsky.feed.generator/f%d\"}",
+                i ? "," : "", i);
+        strcat(nine_prefs, item);
+    }
+    strcat(nine_prefs, "]}]}");
+    strcpy(page_one, "{\"feeds\":[");
+    for (i = 0; i < 8; i++) {
+        sprintf(item,
+                "%s{\"uri\":\"at://did:plc:a/app.bsky.feed.generator/f%d\","
+                "\"displayName\":\"Feed %d\"}",
+                i ? "," : "", i, i);
+        strcat(page_one, item);
+    }
+    strcat(page_one, "]}");
+    strcpy(page_two,
+           "{\"feeds\":[{\"uri\":"
+           "\"at://did:plc:a/app.bsky.feed.generator/f8\","
+           "\"displayName\":\"Feed 8\"}]}");
+
+    named_prefs_body = nine_prefs;
+    named_generators_body = page_one;
+    named_generators_body2 = page_two;
+    fake_call_count = 0;
+    check(platinum_named_feeds_native(&people, client, "Saved feeds") == WF_OK,
+          "nine saved feeds load natively");
+    check(fake_call_count == 3 && last_param_count == 1,
+          "the names are asked for in batches of eight");
+    check(people.count == 9 &&
+              strcmp(people.items[0].name, "Feed 0") == 0 &&
+              strcmp(people.items[8].name, "Feed 8") == 0,
+          "every saved feed is named, in order");
+
+    named_prefs_body = "{\"preferences\":[]}";
+    fake_call_count = 0;
+    check(platinum_named_feeds_native(&people, client, "x") == WF_OK &&
+              people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "no saved feeds says so");
+    check(fake_call_count == 1, "no generator call without feeds");
+
+    named_prefs_body = "{\"preferences\":{}}";
+    check(platinum_named_feeds_native(&people, client, "x") == WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed preferences body is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_feeds_native(&people, client, "x") == WF_ERR_NETWORK &&
+              strcmp(people.status,
+                     "The saved feeds could not be loaded.") == 0,
+          "a failed saved-feeds load is reported");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_named_feeds_native(&people, blank, "x") == WF_ERR_AUTH &&
+              strcmp(people.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure");
+    platinum_atproto_client_free(blank);
+
+    /* My Lists: one getLists for the signed-in DID. */
+    fake_script = NULL;
+    respond(WF_OK, 200,
+            "{\"lists\":["
+            "{\"uri\":\"at://did:plc:me/app.bsky.graph.list/1\","
+            "\"name\":\"Friends\"},"
+            "{\"uri\":\"at://did:plc:me/app.bsky.graph.list/2\","
+            "\"name\":\"Reading\"},"
+            "{\"name\":\"no uri\"}]}");
+    check(platinum_named_lists_native(&people, client,
+                                      "My lists (click one)") == WF_OK,
+          "lists load natively");
+    check(strcmp(last_nsid, "app.bsky.graph.getLists") == 0,
+          "getLists is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "actor") == 0 &&
+              strcmp(last_param_values[0], "did:plc:me") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "50") == 0,
+          "the signed-in DID and the bridge's limit are asked for");
+    check(people.kind == PLATINUM_PEOPLE_LISTS && people.count == 2 &&
+              strcmp(people.items[0].name, "Friends") == 0 &&
+              strcmp(people.items[0].uri,
+                     "at://did:plc:me/app.bsky.graph.list/1") == 0 &&
+              strcmp(people.items[1].name, "Reading") == 0,
+          "list rows carry name and exact URI; a row without one is skipped");
+    check(!platinum_people_has_more(&people), "lists do not page");
+
+    respond(WF_OK, 200, "{\"lists\":[]}");
+    check(platinum_named_lists_native(&people, client, "x") == WF_OK &&
+              people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "no lists says so");
+
+    respond(WF_OK, 200, "{\"lists\":{}}");
+    check(platinum_named_lists_native(&people, client, "x") == WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed lists body is a parse error");
+
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_lists_native(&people, client, "x") == WF_ERR_NETWORK &&
+              strcmp(people.status, "The lists could not be loaded.") == 0,
+          "a failed lists load is reported");
+
+    check(platinum_named_feeds_native(&people, NULL, "x") ==
+              WF_ERR_INVALID_ARG, "a NULL client is refused");
+    check(platinum_named_lists_native(NULL, client, "x") ==
+              WF_ERR_INVALID_ARG, "a NULL list is refused");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
     test_words_native();
     test_named();
+    test_named_native();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);
