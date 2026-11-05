@@ -861,6 +861,103 @@ static void test_named_contents(void)
     platinum_atproto_client_free(client);
 }
 
+static void test_author_contents(void)
+{
+    static platinum_thread thread;
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    unsigned short dropped;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_thread_init(&thread);
+    feed_prefs = "{\"preferences\":[]}";
+    feed_muted_prefs = NULL;
+    feed_pages[0] = make_feed_page(feed_bodies[0], 0, 20, "a1");
+    feed_pages[1] = make_feed_page(feed_bodies[1], 20, 20, "a2");
+    feed_pages[2] = make_feed_page(feed_bodies[2], 40, 20, NULL);
+    fake_script = feed_contents_script;
+    fake_call_count = 0;
+    check(platinum_named_author_native(&thread, client, "did:plc:a",
+                                       "Posts by this author") == WF_OK,
+          "an author's posts load natively");
+    check(strcmp(last_nsid, "app.bsky.feed.getAuthorFeed") == 0,
+          "getAuthorFeed is the call");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[0], "actor") == 0 &&
+              strcmp(last_param_values[0], "did:plc:a") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0 &&
+              strcmp(last_param_names[2], "filter") == 0 &&
+              strcmp(last_param_values[2], "posts_no_replies") == 0,
+          "the actor, page size and no-replies filter are asked for");
+    check(thread.native_feed == 2 && thread.count == 20 &&
+              strcmp(thread.items[0].post.author, "A") == 0 &&
+              strcmp(thread.items[0].post.line1, "post 0") == 0 &&
+              thread.items[0].depth == 0 &&
+              strcmp(thread.heading, "Posts by this author") == 0,
+          "author posts fill the list with no depths");
+    check(platinum_thread_has_more(&thread), "an author cursor means more");
+
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 0 && thread.count == 40 &&
+              strcmp(thread.items[39].post.line1, "post 39") == 0,
+          "the next author page is appended");
+    check(last_param_count == 4 &&
+              strcmp(last_param_names[2], "filter") == 0 &&
+              strcmp(last_param_names[3], "cursor") == 0 &&
+              strcmp(last_param_values[3], "a1") == 0,
+          "the author cursor is sent after the filter");
+
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 20 && thread.count == 40 &&
+              strcmp(thread.items[0].post.line1, "post 20") == 0,
+          "the author cap drops rows from the front");
+    check(!platinum_thread_has_more(&thread), "no author cursor ends the list");
+
+    feed_pages[0] = "{\"feed\":[]}";
+    fake_call_count = 0;
+    check(platinum_named_author_native(&thread, client, "a.test", "x") ==
+              WF_OK &&
+              thread.count == 0 &&
+              strcmp(thread.status, "No posts to show.") == 0,
+          "an empty author page says so and accepts a handle");
+    check(strcmp(last_param_values[0], "a.test") == 0,
+          "the handle is the actor");
+
+    feed_pages[0] = "{\"feed\":{}}";
+    fake_call_count = 0;
+    check(platinum_named_author_native(&thread, client, "did:plc:a", "x") ==
+              WF_ERR_PARSE &&
+              strcmp(thread.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed author page is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_author_native(&thread, client, "did:plc:a", "x") ==
+              WF_ERR_NETWORK &&
+              strcmp(thread.status, "The feed could not be loaded.") == 0,
+          "a failed author page is reported");
+    check(platinum_named_author_native(&thread, client, "not an actor", "x") ==
+              WF_ERR_INVALID_ARG, "an author must be a DID or handle");
+    check(platinum_named_author_native(NULL, client, "did:plc:a", "x") ==
+              WF_ERR_INVALID_ARG, "a NULL thread is refused");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_named_author_native(&thread, blank, "did:plc:a", "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(thread.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on an author feed");
+    platinum_atproto_client_free(blank);
+
+    platinum_atproto_client_free(client);
+}
+
 static char follow_bodies[3][16384];
 static const char *follow_pages[3];
 
@@ -1019,6 +1116,7 @@ int main(void)
     test_named();
     test_named_native();
     test_named_contents();
+    test_author_contents();
     test_follows_native();
     test_list();
     if (failures != 0) {
