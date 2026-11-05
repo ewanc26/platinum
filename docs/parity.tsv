@@ -26,7 +26,7 @@ profile-self|Own profile|yes|yes|implemented|macos9/profile_feed.c::platinum_pro
 profile-other|Other people's profiles|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_load
 follow|Follow and unfollow|yes|yes|implemented|macos9/profile_feed.c::platinum_profile_set_follow
 followers-following|Followers and following lists|yes|yes|implemented|macos9/people_feed.c::platinum_people_follows_native
-profile-tabs|Profile posts tab|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_load_list
+profile-tabs|Profile posts tab|yes|yes|implemented|macos9/named_native.c::platinum_named_author_native
 pinned|Pinned post|yes|yes|implemented|macos9/profile_feed.c::has_pinned
 avatars|Avatars|yes|yes|issue|#32
 post-images|Post images|yes|yes|issue|#32

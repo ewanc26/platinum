@@ -38,6 +38,12 @@ wf_status platinum_named_feed_native(platinum_thread *thread,
                                      platinum_atproto_client *client,
                                      const char *uri, const char *heading);
 
+/* Open an account's own posts through app.bsky.feed.getAuthorFeed. The actor
+ * is a DID or handle; the bridge's posts_no_replies filter is kept. */
+wf_status platinum_named_author_native(platinum_thread *thread,
+                                       platinum_atproto_client *client,
+                                       const char *actor, const char *heading);
+
 /* The next page of that feed. WF_ERR_INVALID_ARG when there is no more. */
 wf_status platinum_named_feed_more_native(platinum_thread *thread,
                                           platinum_atproto_client *client,
