@@ -31,6 +31,7 @@ static void named_begin(platinum_people *people, int kind, const char *heading)
     people->kind = kind;
     people->native_list = 0;
     people->native_follows = 0;
+    people->native_engagement = 0;
     people->path[0] = '\0';
     people->cursor[0] = '\0';
     people->count = 0;
