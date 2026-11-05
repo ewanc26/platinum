@@ -55,6 +55,8 @@ macos9/atproto_url.c               atproto   # https-only service base, XRPC URL
 macos9/atproto_url.h               atproto
 macos9/muted_words.c               atproto   # C89 port of Wolfram's muted-word rules; Wolfram's header needs C99, so it cannot be included here (docs/research/2026-10-31-siblings.md)
 macos9/muted_words.h               atproto
+macos9/words_native.c              atproto   # getPreferences read-modify-write for the muted-words screen; no Toolbox, so it links on a host
+macos9/words_native.h              atproto
 macos9/application.c               platform  # event loop, dispatch and drawing
 macos9/application.h               platform
 macos9/application_auth.c          platform  # signing in with a pairing code or an app password, signing out

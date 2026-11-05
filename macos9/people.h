@@ -2,6 +2,7 @@
 #define PLATINUM_PEOPLE_H
 
 #include "bridge_client.h"
+#include "muted_words.h"
 #include "scrollbar.h"
 #include "state_panel.h"
 
@@ -78,6 +79,14 @@ wf_status platinum_people_load(platinum_people *people,
                                const char *key,
                                const char *value,
                                const char *heading);
+
+/* Fill the muted-words list from the native model. No paging: the list is at
+ * most PLATINUM_MUTED_MAX words and the window shows up to its row cap, the
+ * same limit the bridge path had. A word that cannot be shown in MacRoman is
+ * left out, exactly like the bridge parse. */
+wf_status platinum_people_set_words(platinum_people *people,
+                                    const platinum_muted_list *words,
+                                    const char *heading);
 
 /*
  * Like platinum_people_load, for a list of accounts, saved feeds or the

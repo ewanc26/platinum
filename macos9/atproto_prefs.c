@@ -4,6 +4,12 @@
 
 #include "json_min.h"
 
+/* Worst case: PLATINUM_MUTED_MAX words, each with a fully escaped value and
+ * expiresAt (every byte as \uXXXX), targets, keys and punctuation. */
+#define PREFS_BODY_MAX 36864
+
+static char prefs_body[PREFS_BODY_MAX];
+
 static int prefs_is_muted_words(const char *type)
 {
     return type != NULL &&
@@ -147,6 +153,130 @@ wf_status platinum_prefs_muted_load(platinum_atproto_client *client,
     }
     status = platinum_prefs_muted_parse(
         response.body != NULL ? response.body : "", list, now);
+    wf_response_free(&response);
+    return status;
+}
+
+static wf_status prefs_append(char *body, size_t capacity, size_t *length,
+                              const char *text)
+{
+    size_t add;
+
+    if (body == NULL || text == NULL)
+        return WF_ERR_INVALID_ARG;
+    add = strlen(text);
+    if (*length + add + 1 > capacity)
+        return WF_ERR_ALLOC;
+    strcpy(body + *length, text);
+    *length += add;
+    return WF_OK;
+}
+
+static wf_status prefs_append_escaped(char *body, size_t capacity,
+                                      size_t *length, const char *text)
+{
+    char escaped[PLATINUM_MUTED_VALUE_MAX * 6 + 16];
+
+    if (platinum_json_escape(escaped, sizeof(escaped), text) != WF_OK)
+        return WF_ERR_ALLOC;
+    return prefs_append(body, capacity, length, escaped);
+}
+
+wf_status platinum_prefs_muted_write(const platinum_muted_list *list,
+                                     char *body, size_t capacity)
+{
+    size_t length = 0;
+    const platinum_muted_entry *word;
+    wf_status status;
+    int first = 1;
+    int i;
+
+    if (list == NULL || body == NULL || capacity == 0)
+        return WF_ERR_INVALID_ARG;
+
+    status = prefs_append(body, capacity, &length,
+        "{\"preferences\":[{\"$type\":\"app.bsky.actor.defs#mutedWordsPref\","
+        "\"items\":[");
+    if (status != WF_OK)
+        return status;
+
+    for (i = 0; i < list->count && i < PLATINUM_MUTED_MAX; i++) {
+        word = &list->words[i];
+        if (word->value[0] == '\0')
+            continue;
+        status = prefs_append(body, capacity, &length, first ? "" : ",");
+        if (status != WF_OK)
+            return status;
+        first = 0;
+
+        status = prefs_append(body, capacity, &length, "{\"value\":\"");
+        if (status == WF_OK)
+            status = prefs_append_escaped(body, capacity, &length,
+                                          word->value);
+        if (status == WF_OK)
+            status = prefs_append(body, capacity, &length, "\",\"targets\":[");
+        if (status != WF_OK)
+            return status;
+
+        /* A word with neither target is content-only, the lexicon default. */
+        if (word->content || !word->tag) {
+            status = prefs_append(body, capacity, &length, "\"content\"");
+            if (status != WF_OK)
+                return status;
+        }
+        if (word->tag) {
+            status = prefs_append(body, capacity, &length,
+                                  word->content ? ",\"tag\"" : "\"tag\"");
+            if (status != WF_OK)
+                return status;
+        }
+        status = prefs_append(body, capacity, &length, "]");
+        if (status != WF_OK)
+            return status;
+
+        if (word->exclude_following) {
+            status = prefs_append(body, capacity, &length,
+                                  ",\"actorTarget\":\"exclude-following\"");
+            if (status != WF_OK)
+                return status;
+        }
+        if (word->expires_at[0] != '\0') {
+            status = prefs_append(body, capacity, &length, ",\"expiresAt\":\"");
+            if (status == WF_OK)
+                status = prefs_append_escaped(body, capacity, &length,
+                                              word->expires_at);
+            if (status == WF_OK)
+                status = prefs_append(body, capacity, &length, "\"");
+            if (status != WF_OK)
+                return status;
+        }
+        status = prefs_append(body, capacity, &length, "}");
+        if (status != WF_OK)
+            return status;
+    }
+
+    status = prefs_append(body, capacity, &length, "]}]}");
+    if (status != WF_OK)
+        return status;
+    return WF_OK;
+}
+
+wf_status platinum_prefs_muted_save(platinum_atproto_client *client,
+                                    const platinum_muted_list *list)
+{
+    wf_response response;
+    wf_status status;
+
+    if (client == NULL || list == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    status = platinum_prefs_muted_write(list, prefs_body, sizeof(prefs_body));
+    if (status != WF_OK)
+        return status;
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_atproto_client_post(
+        client, "app.bsky.actor.putPreferences", prefs_body, &response);
     wf_response_free(&response);
     return status;
 }

@@ -47,6 +47,27 @@ wf_status platinum_prefs_muted_load(platinum_atproto_client *client,
                                     platinum_muted_list *list,
                                     long now);
 
+/*
+ * Serialise `list` into one putPreferences body: a single mutedWordsPref item
+ * whose items array is the whole list. putPreferences replaces the item with
+ * the same $type and leaves every other preference alone, so this is the
+ * whole read-modify-write write side: load, change the list, save. A word
+ * with neither target is written as content-only, the lexicon default. Words
+ * keep their actorTarget and expiresAt. WF_ERR_ALLOC when the body does not
+ * fit in `capacity`.
+ */
+wf_status platinum_prefs_muted_write(const platinum_muted_list *list,
+                                     char *body, size_t capacity);
+
+/*
+ * putPreferences with `list` through the session client. The body is built in
+ * a static buffer sized for a full list with every character escaped, so no
+ * Toolbox allocation is needed. Same single refresh-and-retry rule as every
+ * other client call.
+ */
+wf_status platinum_prefs_muted_save(platinum_atproto_client *client,
+                                    const platinum_muted_list *list);
+
 #ifdef __cplusplus
 }
 #endif
