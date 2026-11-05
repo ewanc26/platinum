@@ -35,6 +35,7 @@
 #include "draft.h"
 #include "scrollbar.h"
 #include "json_min.h"
+#include "named_native.h"
 #include "screen_state.h"
 #include "words_native.h"
 #include "wolfram/macos9_tls.h"

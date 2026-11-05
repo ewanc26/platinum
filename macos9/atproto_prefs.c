@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "atproto_url.h"
 #include "json_min.h"
 
 /* Worst case: PLATINUM_MUTED_MAX words, each with a fully escaped value and
@@ -126,6 +127,156 @@ wf_status platinum_prefs_muted_parse(const char *body,
             if (list->count >= PLATINUM_MUTED_MAX)
                 return WF_OK;
         }
+    }
+    return WF_OK;
+}
+
+/* ---- saved custom feeds ------------------------------------------------ */
+
+/* A saved feed is a feed generator record, not the timeline or a list. */
+static int prefs_is_feed_uri(const char *uri)
+{
+    if (uri == NULL || !platinum_atproto_valid_at_uri(uri))
+        return 0;
+    return strstr(uri, "/app.bsky.feed.generator/") != NULL;
+}
+
+static int prefs_has_feed(const platinum_saved_feeds *feeds, const char *uri)
+{
+    long index;
+
+    for (index = 0; index < (long)feeds->count; index++)
+        if (strcmp(feeds->uris[index], uri) == 0)
+            return 1;
+    return 0;
+}
+
+static void prefs_add_feed(platinum_saved_feeds *feeds, const char *uri,
+                           int unique)
+{
+    if (feeds->count >= PLATINUM_SAVED_FEED_MAX)
+        return;
+    if (unique && prefs_has_feed(feeds, uri))
+        return;
+    strcpy(feeds->uris[feeds->count], uri);
+    feeds->count++;
+}
+
+/* savedFeedsPrefV2: items are {type, value, pinned}; only feeds are shown. */
+static void prefs_read_feed_items(platinum_saved_feeds *feeds,
+                                  platinum_json items)
+{
+    platinum_json item;
+    char type[16];
+    char uri[PLATINUM_SAVED_FEED_URI_MAX + 1];
+    long count;
+    long index;
+
+    if (platinum_json_count(items, &count) != WF_OK)
+        return;
+    for (index = 0; index < count && feeds->count < PLATINUM_SAVED_FEED_MAX;
+         index++) {
+        if (platinum_json_element(items, index, &item) != WF_OK)
+            continue;
+        type[0] = '\0';
+        uri[0] = '\0';
+        if (platinum_json_string(item, "type", type, sizeof(type)) != WF_OK ||
+            strcmp(type, "feed") != 0)
+            continue;
+        if (platinum_json_string(item, "value", uri, sizeof(uri)) != WF_OK)
+            continue;
+        if (prefs_is_feed_uri(uri))
+            prefs_add_feed(feeds, uri, 0);
+    }
+}
+
+/* The older savedFeedsPref stores bare AT URI strings in `saved` and `pinned`,
+ * and those arrays also name lists, so each entry is checked for the feed
+ * generator collection. */
+static void prefs_read_feed_array(platinum_saved_feeds *feeds,
+                                  platinum_json entry, const char *name,
+                                  int unique)
+{
+    platinum_json array;
+    platinum_json item;
+    char uri[PLATINUM_SAVED_FEED_URI_MAX + 1];
+    long count;
+    long index;
+
+    if (platinum_json_member(entry, name, &array) != WF_OK)
+        return;
+    if (platinum_json_count(array, &count) != WF_OK)
+        return;
+    for (index = 0; index < count && feeds->count < PLATINUM_SAVED_FEED_MAX;
+         index++) {
+        if (platinum_json_element(array, index, &item) != WF_OK)
+            continue;
+        uri[0] = '\0';
+        if (platinum_json_value_string(item, uri, sizeof(uri)) != WF_OK)
+            continue;
+        if (prefs_is_feed_uri(uri))
+            prefs_add_feed(feeds, uri, unique);
+    }
+}
+
+wf_status platinum_prefs_saved_feeds_parse(const char *body,
+                                           platinum_saved_feeds *feeds)
+{
+    platinum_json root;
+    platinum_json preferences;
+    platinum_json entry;
+    char type[128];
+    long pref_count;
+    long index;
+    int found_v2;
+
+    if (feeds == NULL)
+        return WF_ERR_INVALID_ARG;
+    feeds->count = 0;
+    if (body == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    if (platinum_json_open(&root, body) != WF_OK)
+        return WF_ERR_PARSE;
+    if (platinum_json_member(root, "preferences", &preferences) != WF_OK)
+        return WF_ERR_PARSE;
+    if (platinum_json_count(preferences, &pref_count) != WF_OK)
+        return WF_ERR_PARSE;
+    if (pref_count > 64)
+        pref_count = 64;
+
+    /* V2 wins when it exists, even when it holds no feeds: that is the current
+     * preference, and an account that emptied it should not see an old one. */
+    found_v2 = 0;
+    for (index = 0; index < pref_count; index++) {
+        platinum_json items;
+
+        if (platinum_json_element(preferences, index, &entry) != WF_OK)
+            continue;
+        type[0] = '\0';
+        if (platinum_json_string(entry, "$type", type, sizeof(type)) != WF_OK)
+            continue;
+        if (strcmp(type, "app.bsky.actor.defs#savedFeedsPrefV2") != 0)
+            continue;
+        if (platinum_json_member(entry, "items", &items) == WF_OK)
+            prefs_read_feed_items(feeds, items);
+        found_v2 = 1;
+        break;
+    }
+    if (found_v2)
+        return WF_OK;
+
+    for (index = 0; index < pref_count; index++) {
+        if (platinum_json_element(preferences, index, &entry) != WF_OK)
+            continue;
+        type[0] = '\0';
+        if (platinum_json_string(entry, "$type", type, sizeof(type)) != WF_OK)
+            continue;
+        if (strcmp(type, "app.bsky.actor.defs#savedFeedsPref") != 0)
+            continue;
+        prefs_read_feed_array(feeds, entry, "saved", 1);
+        prefs_read_feed_array(feeds, entry, "pinned", 1);
+        break;
     }
     return WF_OK;
 }

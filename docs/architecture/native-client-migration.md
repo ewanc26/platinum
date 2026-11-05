@@ -60,9 +60,9 @@ goes through the bridge.
 | `GET /v1/thread` | `app.bsky.feed.getPostThread` | `thread_native.c` flatten (40 posts, 6 reply levels, 10 ancestors) + `thread_feed.c` model | `test_thread` | native end to end (bridge fallback); flattened order, focus and truncation host-tested |
 | `GET /v1/search/actors` | `app.bsky.actor.searchActors` | `application_views.c` / SQL | `test_search` | pending |
 | `GET /v1/search/posts` | `app.bsky.feed.searchPosts` | `application_views.c` | `test_search` | pending |
-| `GET /v1/feeds` | `app.bsky.actor.getPreferences` (saved feeds) | `application_views.c` | `test_prefs` (to extend) | pending |
+| `GET /v1/feeds` | `app.bsky.actor.getPreferences` + `app.bsky.feed.getFeedGenerators` | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | `test_people`, `test_atproto_prefs` | native end to end (bridge fallback); `savedFeedsPrefV2` or the older `savedFeedsPref`, at most 25, named eight at a time |
 | `GET /v1/feed` | `app.bsky.feed.getFeed` | `timeline.c` | `test_timeline` | pending |
-| `GET /v1/lists` | `app.bsky.graph.getLists` | `application_views.c` | `test_people` | pending |
+| `GET /v1/lists` | `app.bsky.graph.getLists` | `named_native.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); the signed-in DID, 50 asked for and at most 40 shown |
 | `GET /v1/list` | `app.bsky.graph.getList` | `people_feed.c` | `test_people` | pending |
 | `GET /v1/post/likes` | `app.bsky.feed.getLikes` | `people_feed.c` | `test_people` | pending |
 | `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` | `test_people` | pending |
@@ -102,7 +102,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Profile | `profile_native.c` + `profile_feed.c` | native read end to end (bridge fallback); follow/mute/block writes still on the bridge |
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback) |
 | Search (accounts and posts) | bridge | pending |
-| Saved feeds and lists | bridge | pending |
+| Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list (bridge fallback); opening a feed or a list's members still uses the bridge |
 | Compose, reply, quote | bridge | pending |
 | Conversations | bridge | pending |
 | Connection Status | bridge | pending |
@@ -167,9 +167,10 @@ lookup is deliberately not used (ADR 0003).
    method found the account. The home timeline fetches and pages through
    `timeline_native.c`. The bridge is no longer needed for either, but it is
    still configured and used by the screens below.
-3. **Screens.** Notifications, profile, thread, search, feeds, lists, compose
-   and conversations still call the bridge, each with its existing test
-   rewritten against recorded AppView fixtures.
+3. **Screens.** Notifications, profile, thread and search are native; saved
+   feeds and lists now read natively too. Compose and conversations still call
+   the bridge, each with its existing test rewritten against recorded AppView
+   fixtures.
 4. **Images and moderation.** Native image decode/draw and a native muted-word
    matcher. These are the two largest non-XRPC gaps.
 5. **OAuth.** Only after ADR 0005 is revised with an entropy decision. No DPoP

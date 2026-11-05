@@ -5,9 +5,10 @@
  * atproto_prefs.h -- native account preferences.
  *
  * Reads app.bsky.actor.getPreferences and keeps the parts the native screens
- * need. Today that is only the muted-words list: the AppView never filters
- * for the client, so the timeline applies the words itself with
- * muted_words.h, the same C89 rules the bridge used server-side.
+ * need: the muted-words list and the saved custom feeds the Feeds window
+ * shows. The AppView never filters for the client, so the timeline applies
+ * the words itself with muted_words.h, the same C89 rules the bridge used
+ * server-side.
  *
  * Fetching is best-effort: a preferences failure leaves an empty list, so the
  * page is shown unfiltered rather than not at all. Parsing is pure, so it is
@@ -37,6 +38,31 @@ extern "C" {
 wf_status platinum_prefs_muted_parse(const char *body,
                                      platinum_muted_list *list,
                                      long now);
+
+/* Saved custom feeds, in the order the preferences list them. Twenty-five is
+ * the bridge's own limit for GET /v1/feeds. */
+#define PLATINUM_SAVED_FEED_MAX 25
+#define PLATINUM_SAVED_FEED_URI_MAX 512
+
+typedef struct platinum_saved_feeds {
+    char uris[PLATINUM_SAVED_FEED_MAX][PLATINUM_SAVED_FEED_URI_MAX + 1];
+    unsigned short count;
+} platinum_saved_feeds;
+
+/*
+ * Parse a getPreferences body into the saved custom feeds.
+ *
+ * The body is `{"preferences":[...]}`. A savedFeedsPrefV2 is read when
+ * present: only its `items` whose `type` is `feed` are kept, in order. Older
+ * accounts carry savedFeedsPref instead, whose `saved` and then `pinned`
+ * arrays are read (a pinned feed already in `saved` is not repeated). An
+ * entry that is not an app.bsky.feed.generator AT URI is skipped, and at most
+ * PLATINUM_SAVED_FEED_MAX are kept. Returns WF_OK when neither preference is
+ * present (an empty list); WF_ERR_PARSE when the body is not a preferences
+ * object.
+ */
+wf_status platinum_prefs_saved_feeds_parse(const char *body,
+                                           platinum_saved_feeds *feeds);
 
 /*
  * Fetch getPreferences and parse it into `list` (with `now` for expiry).
