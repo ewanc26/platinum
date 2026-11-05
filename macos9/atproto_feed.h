@@ -105,6 +105,18 @@ wf_status platinum_atproto_author_page(platinum_atproto_client *client,
                                        const char *actor, const char *cursor,
                                        size_t limit, wf_response *out);
 
+/* One page of who liked or reposted a post: app.bsky.feed.getLikes and
+ * getRepostedBy. The shapes are `{"likes":[{"actor":profileView}],
+ * "cursor":"..."}` and `{"repostedBy":[profileView],"cursor":"..."}`. */
+wf_status platinum_atproto_likes_page(platinum_atproto_client *client,
+                                      const char *post_uri,
+                                      const char *cursor, size_t limit,
+                                      wf_response *out);
+wf_status platinum_atproto_reposts_page(platinum_atproto_client *client,
+                                        const char *post_uri,
+                                        const char *cursor, size_t limit,
+                                        wf_response *out);
+
 /*
  * Create or delete the signed-in user's like or repost for a post.
  *
