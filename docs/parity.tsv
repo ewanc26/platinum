@@ -33,8 +33,8 @@ alt-text|Image alt text|yes|yes|issue|#32
 image-viewer|Full-size image viewer|yes|yes|issue|#32
 link-cards|Link-card previews|yes|yes|issue|#32
 compose-images|Attach images to a post|yes|yes|issue|#33
-search-actors|Actor search|yes|yes|implemented|macos9/application_views.c::/v1/search/actors
-search-posts|Post search|yes|yes|implemented|macos9/application_views.c::/v1/search/posts
+search-actors|Actor search|yes|yes|implemented|macos9/people_feed.c::platinum_people_search_native
+search-posts|Post search|yes|yes|implemented|macos9/named_native.c::platinum_named_search_native
 feeds|Custom feeds|yes|yes|implemented|macos9/named_native.c::platinum_named_feeds_native
 lists|Lists|yes|yes|implemented|macos9/named_native.c::platinum_named_lists_native
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_native.c::platinum_profile_set_relation_native

@@ -260,8 +260,9 @@ void platinum_application_more_people(platinum_application *app)
             return;
         status = platinum_named_list_more_native(&app->people, client,
                                                  &dropped);
-    } else if (app->people.native_follows || app->people.native_engagement) {
-        /* `path` is a DID, handle or AT URI now, not a bridge route. */
+    } else if (app->people.native_follows || app->people.native_engagement ||
+               app->people.native_search) {
+        /* `path` is a DID, handle, query or AT URI now, not a bridge route. */
         if (client == NULL)
             return;
         status = platinum_people_more_native(&app->people, client, &dropped);
@@ -322,6 +323,31 @@ void platinum_application_run_search(platinum_application *app)
         }
     }
 
+    client = platinum_session_client(&app->session);
+    posts = app->search.mode == PLATINUM_SEARCH_POSTS;
+    if (client != NULL) {
+        platinum_search_close(&app->search);
+        if (posts) {
+            if (platinum_thread_open(&app->thread) != noErr)
+                return;
+            status = platinum_named_search_native(
+                &app->thread, client, query, "Posts matching your search");
+            platinum_application_recover_auth(app, status);
+            if (app->thread.window != NULL)
+                InvalRect(&app->thread.window->portRect);
+        } else {
+            if (platinum_people_open(&app->people) != noErr)
+                return;
+            status = platinum_people_search_native(
+                &app->people, client, query,
+                "Accounts matching your search (click one)");
+            platinum_application_recover_auth(app, status);
+            if (app->people.window != NULL)
+                InvalRect(&app->people.window->portRect);
+        }
+        return;
+    }
+
     bridge = platinum_session_bridge(&app->session);
     notice = platinum_application_bridge_notice(app);
     if (bridge == NULL || notice != NULL) {
@@ -345,7 +371,6 @@ void platinum_application_run_search(platinum_application *app)
         return;
     }
 
-    posts = app->search.mode == PLATINUM_SEARCH_POSTS;
     platinum_search_close(&app->search);
 
     if (posts) {

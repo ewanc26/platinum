@@ -1,7 +1,8 @@
 /*
  * test_people.c -- host-side tests for the account lists (followers, following,
- * likes, reposts). Real people_feed.c and bridge client over the stubbed
- * Wolfram transport. Not Classic Mac OS 9 validation.
+ * likes, reposts), account and post search, and their paging. Real people_feed.c,
+ * named_native.c and bridge client over the stubbed Wolfram transport. Not
+ * Classic Mac OS 9 validation.
  */
 
 #include <stdio.h>
@@ -1276,6 +1277,257 @@ static void test_engagement_native(void)
     platinum_atproto_client_free(client);
 }
 
+static char search_bodies[3][16384];
+static const char *search_pages[3];
+
+static const char *make_search_page(char *body, int first, int count,
+                                    const char *cursor)
+{
+    char item[512];
+    int i;
+
+    strcpy(body, "{\"posts\":[");
+    for (i = 0; i < count; i++) {
+        sprintf(item,
+                "%s{\"uri\":\"at://did:plc:a/app.bsky.feed.post/%d\","
+                "\"cid\":\"c%d\",\"author\":{\"did\":\"did:plc:a\","
+                "\"handle\":\"a.test\",\"displayName\":\"A\"},"
+                "\"record\":{\"text\":\"post %d\","
+                "\"createdAt\":\"2026-01-01T12:00:00Z\"}}",
+                i ? "," : "", first + i, first + i, first + i);
+        strcat(body, item);
+    }
+    strcat(body, "]");
+    if (cursor != NULL) {
+        strcat(body, ",\"cursor\":\"");
+        strcat(body, cursor);
+        strcat(body, "\"");
+    }
+    strcat(body, "}");
+    return body;
+}
+
+static void search_posts_script(int call, int method, const char *url,
+                                const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_status = WF_OK;
+    fake_http_status = 200;
+    if (call == 1 && feed_muted_prefs != NULL)
+        fake_body = feed_muted_prefs;
+    else if (call % 2 == 1)
+        fake_body = feed_prefs;
+    else
+        fake_body = search_pages[(call / 2) - 1];
+}
+
+static void test_search_native(void)
+{
+    static platinum_people people;
+    static platinum_thread thread;
+    platinum_atproto_client *client;
+    platinum_atproto_client *blank;
+    unsigned short dropped;
+    int calls;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_people_init(&people);
+    platinum_thread_init(&thread);
+    feed_prefs = "{\"preferences\":[]}";
+    feed_muted_prefs = NULL;
+
+    /* Account search: the same People rows and paging as a follow list. */
+    follow_pages[0] = make_follow_page(follow_bodies[0], "actors", 0, 20,
+                                       "a1");
+    follow_pages[1] = make_follow_page(follow_bodies[1], "actors", 20, 20,
+                                       "a2");
+    follow_pages[2] = make_follow_page(follow_bodies[2], "actors", 40, 20,
+                                       NULL);
+    fake_script = follows_script;
+    fake_call_count = 0;
+    check(platinum_people_search_native(&people, client, "caf\xC3\xA9",
+                                        "Accounts matching") == WF_OK,
+          "account search loads natively");
+    check(strcmp(last_nsid, "app.bsky.actor.searchActors") == 0,
+          "searchActors is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "q") == 0 &&
+              strcmp(last_param_values[0], "caf\xC3\xA9") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the UTF-8 query and page size are asked for");
+    check(people.native_search == 1 && people.native_follows == 0 &&
+              people.count == 20 &&
+              strcmp(people.items[0].name, "User 0") == 0 &&
+              strcmp(people.items[0].handle, "@u0.test") == 0 &&
+              strcmp(people.items[0].uri, "did:plc:0") == 0 &&
+              strcmp(people.heading, "Accounts matching") == 0,
+          "search results fill the People list with their DIDs");
+    check(platinum_people_has_more(&people), "a search cursor means more");
+
+    check(platinum_people_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 0 && people.count == 40 &&
+              strcmp(people.items[39].name, "User 39") == 0,
+          "the next account search page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "a1") == 0,
+          "the account search cursor is sent with the next page");
+    check(platinum_people_more_native(&people, client, &dropped) == WF_OK &&
+              dropped == 20 && people.count == 40 &&
+              strcmp(people.items[0].name, "User 20") == 0 &&
+              !platinum_people_has_more(&people),
+          "the account search cap drops rows from the front");
+
+    follow_pages[0] = "{\"actors\":[]}";
+    fake_call_count = 0;
+    check(platinum_people_search_native(&people, client, "none", "x") ==
+              WF_OK &&
+              people.count == 0 &&
+              strcmp(people.status, "Nobody to show.") == 0,
+          "an empty account search says so");
+
+    follow_pages[0] = "{\"actors\":{}}";
+    fake_call_count = 0;
+    check(platinum_people_search_native(&people, client, "bad", "x") ==
+              WF_ERR_PARSE &&
+              strcmp(people.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed account search is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_people_search_native(&people, client, "down", "x") ==
+              WF_ERR_NETWORK &&
+              strcmp(people.status, "The list could not be loaded.") == 0,
+          "a failed account search is reported");
+    calls = fake_call_count;
+    check(platinum_people_search_native(&people, client, "", "x") ==
+              WF_ERR_INVALID_ARG &&
+              fake_call_count == calls,
+          "an empty search query makes no request");
+    check(platinum_people_search_native(NULL, client, "x", "x") ==
+              WF_ERR_INVALID_ARG,
+          "a NULL people list is refused by search");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_people_search_native(&people, blank, "x", "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(people.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on search");
+    platinum_atproto_client_free(blank);
+
+    /* Post search: the Thread window's list, with muted words filtered. */
+    search_pages[0] = make_search_page(search_bodies[0], 0, 20, "s1");
+    search_pages[1] = make_search_page(search_bodies[1], 20, 20, "s2");
+    search_pages[2] = make_search_page(search_bodies[2], 40, 20, NULL);
+    fake_script = search_posts_script;
+    fake_call_count = 0;
+    check(platinum_named_search_native(&thread, client, "hello",
+                                       "Posts matching") == WF_OK,
+          "post search loads natively");
+    check(strcmp(last_nsid, "app.bsky.feed.searchPosts") == 0,
+          "searchPosts is the call");
+    check(last_param_count == 2 &&
+              strcmp(last_param_names[0], "q") == 0 &&
+              strcmp(last_param_values[0], "hello") == 0 &&
+              strcmp(last_param_names[1], "limit") == 0 &&
+              strcmp(last_param_values[1], "20") == 0,
+          "the query and page size are asked for");
+    check(thread.native_feed == 3 && thread.count == 20 &&
+              strcmp(thread.items[0].post.author, "A") == 0 &&
+              strcmp(thread.items[0].post.line1, "post 0") == 0 &&
+              thread.items[0].depth == 0 &&
+              strcmp(thread.path, "hello") == 0 &&
+              strcmp(thread.heading, "Posts matching") == 0,
+          "search posts fill the list with no depths");
+    check(platinum_thread_has_more(&thread), "a post search cursor means more");
+
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 0 && thread.count == 40 &&
+              strcmp(thread.items[39].post.line1, "post 39") == 0,
+          "the next post search page is appended");
+    check(last_param_count == 3 &&
+              strcmp(last_param_names[2], "cursor") == 0 &&
+              strcmp(last_param_values[2], "s1") == 0,
+          "the post search cursor is sent with the next page");
+    check(platinum_named_feed_more_native(&thread, client, &dropped) == WF_OK &&
+              dropped == 20 && thread.count == 40 &&
+              strcmp(thread.items[0].post.line1, "post 20") == 0 &&
+              !platinum_thread_has_more(&thread),
+          "the post search cap drops rows from the front");
+
+    feed_muted_prefs =
+        "{\"preferences\":[{\"$type\":"
+        "\"app.bsky.actor.defs#mutedWordsPref\",\"items\":["
+        "{\"value\":\"spoiler\",\"targets\":[\"content\"]}]}]}";
+    search_pages[0] =
+        "{\"posts\":["
+        "{\"uri\":\"at://did:plc:a/app.bsky.feed.post/1\","
+        "\"cid\":\"c1\",\"author\":{\"did\":\"did:plc:a\","
+        "\"handle\":\"a.test\"},\"record\":{\"text\":\"a spoiler here\","
+        "\"createdAt\":\"2026-01-01T12:00:00Z\"}},"
+        "{\"uri\":\"at://did:plc:a/app.bsky.feed.post/2\","
+        "\"cid\":\"c2\",\"author\":{\"did\":\"did:plc:a\","
+        "\"handle\":\"a.test\"},\"record\":{\"text\":\"fine\","
+        "\"createdAt\":\"2026-01-01T12:00:00Z\"}}]}";
+    fake_call_count = 0;
+    check(platinum_named_search_native(&thread, client, "filtered",
+                                       "Filtered") == WF_OK &&
+              thread.count == 1 &&
+              strcmp(thread.items[0].post.line1, "fine") == 0,
+          "a muted-word match is left out of native post search");
+    feed_muted_prefs = NULL;
+
+    search_pages[0] = "{\"posts\":[]}";
+    fake_call_count = 0;
+    check(platinum_named_search_native(&thread, client, "none", "x") ==
+              WF_OK &&
+              thread.count == 0 &&
+              strcmp(thread.status, "No posts to show.") == 0,
+          "an empty post search says so");
+
+    search_pages[0] = "{\"posts\":{}}";
+    fake_call_count = 0;
+    check(platinum_named_search_native(&thread, client, "bad", "x") ==
+              WF_ERR_PARSE &&
+              strcmp(thread.status,
+                     "The server returned an invalid list.") == 0,
+          "a malformed post search is a parse error");
+
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_named_search_native(&thread, client, "down", "x") ==
+              WF_ERR_NETWORK &&
+              strcmp(thread.status, "The posts could not be loaded.") == 0,
+          "a failed post search is reported");
+    calls = fake_call_count;
+    check(platinum_named_search_native(&thread, client, "", "x") ==
+              WF_ERR_INVALID_ARG &&
+              fake_call_count == calls,
+          "an empty post search query makes no request");
+    check(platinum_named_search_native(NULL, client, "x", "x") ==
+              WF_ERR_INVALID_ARG,
+          "a NULL thread is refused by search");
+
+    blank = platinum_atproto_client_new("https://pds.example");
+    check(blank != NULL &&
+              platinum_named_search_native(&thread, blank, "x", "x") ==
+                  WF_ERR_AUTH &&
+              strcmp(thread.status, "Session expired. Sign in again.") == 0,
+          "a client with no session is an auth failure on post search");
+    platinum_atproto_client_free(blank);
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
@@ -1286,6 +1538,7 @@ int main(void)
     test_author_contents();
     test_follows_native();
     test_engagement_native();
+    test_search_native();
     test_list();
     if (failures != 0) {
         printf("test_people: %d of %d checks failed\n", failures, checks);
