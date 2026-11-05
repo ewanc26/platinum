@@ -36,6 +36,7 @@
 #include "scrollbar.h"
 #include "json_min.h"
 #include "screen_state.h"
+#include "words_native.h"
 #include "wolfram/macos9_tls.h"
 
 #define kFileMenuID 128

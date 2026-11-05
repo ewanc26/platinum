@@ -68,8 +68,8 @@ goes through the bridge.
 | `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` | `test_people` | pending |
 | `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `application_post.c` + a post mapper | `test_compose` (to extend) | pending |
 | `POST /v1/post/delete` | `com.atproto.repo.deleteRecord` | `application_post.c` | `test_compose` | pending |
-| `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | `atproto_prefs.c` + `muted_words.c` (matcher) + `timeline_native.c` filter | `test_atproto_prefs`, `test_muted_words`, `test_timeline` | native timeline filters content and tag facets (best-effort; prefs failure shows unfiltered); the muted-words screen still reads through the bridge |
-| `POST /v1/muted-words` | `app.bsky.actor.putPreferences` | same | `test_muted_words` (to extend) | pending |
+| `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | `atproto_prefs.c` + `muted_words.c` (matcher) + `timeline_native.c` filter + `words_native.c` screen | `test_atproto_prefs`, `test_muted_words`, `test_timeline`, `test_people` | native end to end: the timeline filters content and tag facets (best-effort; prefs failure shows unfiltered) and the muted-words screen reads and writes through the session first (bridge fallback) |
+| `POST /v1/muted-words` | `app.bsky.actor.putPreferences` | `atproto_prefs.c` + `words_native.c` | `test_atproto_prefs`, `test_people` | native read-modify-write of `mutedWordsPref`, content-only default, exact-value removal |
 | `GET /v1/conversations` | `chat.bsky.convo.listConvos` via `atproto-proxy: did:web:api.bsky.chat#bsky_chat` | `conversations_feed.c` | `test_conversations` (to rewrite) | pending |
 | `GET /v1/conversation` | `chat.bsky.convo.getMessages` | `conversations_feed.c` | `test_conversations` | pending |
 | `POST /v1/conversation/message` | `chat.bsky.convo.sendMessage` | `conversations_feed.c` | `test_conversations` | pending |
@@ -106,7 +106,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Compose, reply, quote | bridge | pending |
 | Conversations | bridge | pending |
 | Connection Status | bridge | pending |
-| Muted words | bridge | pending |
+| Muted words | `words_native.c` + `atproto_prefs.c` | native end to end (bridge fallback) |
 
 A screen that still needs the bridge says so in its own status line: "This
 screen still uses the bridge. Pair one under File > Pair Account." With no
@@ -205,8 +205,9 @@ lookup is deliberately not used (ADR 0003).
    content and tag targets, "exclude following", expiry at a caller-supplied
    clock), `atproto_prefs.c` reads `mutedWordsPref` from getPreferences, and
    the native timeline skips matching posts (text plus tag facets, following
-   from author.viewer). A preferences failure shows the page unfiltered. The
-   muted-words screen itself still reads through the bridge.
+   from author.viewer). A preferences failure shows the page unfiltered.
+   `words_native.c` does the screen's read-modify-write against putPreferences,
+   so the muted-words screen reads and writes natively first (bridge fallback).
 3. **Thread flattening.** `getPostThread` returns a tree; `thread_native.c`
    produces the bounded flat list in C with the same 40-post, 6-level and
    10-ancestor limits, and the Thread window reads it first (bridge fallback).

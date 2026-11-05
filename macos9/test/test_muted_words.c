@@ -154,6 +154,28 @@ int main(void)
     platinum_muted_clear(&list);
     check(list.count == 0, "clear empties the list");
 
+    /* Removal: the first exact match goes, the rest shift down. */
+    platinum_muted_clear(&list);
+    platinum_muted_add(&list, "one", 1, 0, 0, NULL);
+    platinum_muted_add(&list, "two", 1, 0, 0, NULL);
+    platinum_muted_add(&list, "one", 0, 1, 0, NULL);
+    check(platinum_muted_remove(&list, "one") == 1, "an exact value is removed");
+    check(list.count == 2 && strcmp(list.words[0].value, "two") == 0 &&
+              strcmp(list.words[1].value, "one") == 0,
+          "only the first match goes and the rest shift");
+    check(platinum_muted_remove(&list, "ONE") == 0,
+          "removal is exact, not case-insensitive");
+    check(platinum_muted_remove(&list, "three") == 0,
+          "a word that is not there is not removed");
+    check(platinum_muted_remove(&list, "") == 0, "an empty value is refused");
+    check(platinum_muted_remove(NULL, "one") == 0, "a NULL list is refused");
+    check(platinum_muted_remove(&list, "two") == 1 &&
+              platinum_muted_remove(&list, "one") == 1 && list.count == 0,
+          "the last words go too");
+    check(platinum_muted_add(&list, "fresh", 1, 0, 0, NULL) == 1 &&
+              strcmp(list.words[0].value, "fresh") == 0,
+          "the freed slots are reusable");
+
     if (failures != 0) {
         printf("test_muted_words: %d of %d checks failed\n", failures, checks);
         return 1;

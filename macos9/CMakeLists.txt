@@ -98,6 +98,7 @@ set(PLATINUM_SOURCES
     timeline.c
     timeline_native.c
     ui.c
+    words_native.c
 )
 
 # Wolfram's public headers (wolfram/xrpc.h, wolfram/macos9_tls.h) are needed

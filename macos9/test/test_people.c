@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "people.h"
+#include "words_native.h"
 #include "wolfram_stub.h"
 
 static int failures;
@@ -177,9 +178,178 @@ static void test_words(void)
     platinum_bridge_client_free(bridge);
 }
 
+static const char *native_get_body;
+static const char *native_put_body;
+
+static void words_native_script(int call, int method, const char *url,
+                                const char *body)
+{
+    (void)method;
+    (void)url;
+    (void)body;
+    fake_http_status = 200;
+    fake_status = WF_OK;
+    fake_body = call == 1 ? native_get_body : native_put_body;
+}
+
+static platinum_atproto_client *words_client(void)
+{
+    platinum_atproto_session session;
+    platinum_atproto_client *client;
+
+    client = platinum_atproto_client_new("https://pds.example");
+    if (client == NULL)
+        return NULL;
+    memset(&session, 0, sizeof(session));
+    strcpy(session.access_jwt, "access");
+    strcpy(session.refresh_jwt, "refresh");
+    strcpy(session.did, "did:plc:me");
+    strcpy(session.handle, "me.test");
+    strcpy(session.pds_url, "https://pds.example");
+    if (platinum_atproto_client_set_session(client, &session) != WF_OK) {
+        platinum_atproto_client_free(client);
+        return NULL;
+    }
+    return client;
+}
+
+/* A getPreferences body with `count` content words. */
+static const char *make_native_prefs(int count)
+{
+    static char body[4096];
+    char item[64];
+    int i;
+
+    strcpy(body, "{\"preferences\":[{\"$type\":"
+                 "\"app.bsky.actor.defs#mutedWordsPref\",\"items\":[");
+    for (i = 0; i < count; i++) {
+        sprintf(item, "%s{\"value\":\"w%d\",\"targets\":[\"content\"]}",
+                i ? "," : "", i);
+        strcat(body, item);
+    }
+    strcat(body, "]}]}");
+    return body;
+}
+
+static void test_words_native(void)
+{
+    static platinum_people people;
+    platinum_muted_list list;
+    platinum_atproto_client *client;
+    char value[16];
+    int i;
+
+    client = words_client();
+    if (client == NULL) {
+        check(0, "the test client could be built");
+        return;
+    }
+    platinum_people_init(&people);
+
+    /* The pure fill. */
+    platinum_muted_clear(&list);
+    platinum_muted_add(&list, "spoilers", 1, 0, 0, NULL);
+    platinum_muted_add(&list, "two words", 1, 0, 0, NULL);
+    platinum_muted_add(&list, "\xE2\x98\x95", 1, 0, 0, NULL); /* not MacRoman */
+    check(platinum_people_set_words(&people, &list, "Muted words") == WF_OK,
+          "the native list fills the window");
+    check(people.kind == PLATINUM_PEOPLE_WORDS && people.count == 2,
+          "a word that cannot be shown is left out");
+    check(strcmp(people.items[0].name, "spoilers") == 0 &&
+              strcmp(people.items[0].uri, "spoilers") == 0,
+          "a row shows its word and keeps it exactly");
+    check(strcmp(people.items[1].uri, "two words") == 0,
+          "the exact UTF-8 is what a click removes");
+    check(!platinum_people_has_more(&people), "the native list is not paged");
+    check(platinum_people_set_words(&people, NULL, "x") == WF_ERR_INVALID_ARG,
+          "a NULL list is refused");
+
+    platinum_muted_clear(&list);
+    for (i = 0; i < PLATINUM_MUTED_MAX; i++) {
+        sprintf(value, "w%d", i);
+        platinum_muted_add(&list, value, 1, 0, 0, NULL);
+    }
+    platinum_people_set_words(&people, &list, "Muted words");
+    check(list.count == PLATINUM_MUTED_MAX &&
+              people.count == PLATINUM_PEOPLE_MAX,
+          "the window shows at most its row cap");
+
+    platinum_muted_clear(&list);
+    platinum_people_set_words(&people, &list, "Muted words");
+    check(people.count == 0 &&
+              strcmp(people.status, "No muted words.") == 0,
+          "an empty native list says so");
+
+    /* The screen over the transport. */
+    native_get_body =
+        "{\"preferences\":[{\"$type\":"
+        "\"app.bsky.actor.defs#mutedWordsPref\",\"items\":["
+        "{\"value\":\"spoilers\",\"targets\":[\"content\"]}]}]}";
+    native_put_body = "{}";
+    fake_script = words_native_script;
+    fake_call_count = 0;
+    check(platinum_words_show_native(&people, client) == WF_OK,
+          "the words screen loads natively");
+    check(strcmp(last_nsid, "app.bsky.actor.getPreferences") == 0,
+          "show reads getPreferences");
+    check(people.count == 1 && strcmp(people.items[0].name, "spoilers") == 0,
+          "the list lands in the window");
+    check(strstr(people.heading, "Remove Muted Word") != NULL,
+          "the heading explains removal");
+    check(people.loading == 0, "the load finished");
+
+    /* Add: read, change, write the whole list back. */
+    fake_call_count = 0;
+    check(platinum_words_add_native(client, "fresh") == WF_OK,
+          "a word is added natively");
+    check(fake_call_count == 2, "add reads then writes");
+    check(strcmp(last_nsid, "app.bsky.actor.putPreferences") == 0,
+          "add ends at putPreferences");
+    check(strstr(last_body, "\"value\":\"spoilers\"") != NULL &&
+              strstr(last_body, "\"value\":\"fresh\"") != NULL,
+          "add writes the whole list");
+
+    /* A full list is refused without a write. */
+    native_get_body = make_native_prefs(PLATINUM_MUTED_MAX);
+    fake_call_count = 0;
+    check(platinum_words_add_native(client, "fresh") == WF_ERR_STATE,
+          "a full list is refused");
+    check(fake_call_count == 1, "no write happens when the list is full");
+
+    /* Remove: read, drop the word, write the rest back. */
+    native_get_body =
+        "{\"preferences\":[{\"$type\":"
+        "\"app.bsky.actor.defs#mutedWordsPref\",\"items\":["
+        "{\"value\":\"spoilers\",\"targets\":[\"content\"]},"
+        "{\"value\":\"fresh\",\"targets\":[\"content\"]}]}]}";
+    fake_call_count = 0;
+    check(platinum_words_remove_native(client, "spoilers") == WF_OK,
+          "a word is removed natively");
+    check(fake_call_count == 2, "remove reads then writes");
+    check(strstr(last_body, "spoilers") == NULL &&
+              strstr(last_body, "\"value\":\"fresh\"") != NULL,
+          "remove writes the list without the word");
+
+    fake_call_count = 0;
+    check(platinum_words_remove_native(client, "absent") == WF_ERR_NOT_FOUND,
+          "an absent word is not found");
+    check(fake_call_count == 1, "no write happens when nothing is removed");
+
+    /* A failed read is reported, not swallowed. */
+    fake_script = NULL;
+    respond(WF_ERR_NETWORK, 0, "");
+    check(platinum_words_show_native(&people, client) == WF_ERR_NETWORK,
+          "a failed load is returned");
+    check(strcmp(people.status, "The words could not be loaded.") == 0,
+          "the status says so");
+
+    platinum_atproto_client_free(client);
+}
+
 int main(void)
 {
     test_words();
+    test_words_native();
     test_named();
     test_list();
     if (failures != 0) {

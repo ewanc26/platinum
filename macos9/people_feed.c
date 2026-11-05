@@ -61,10 +61,19 @@ static int people_parse(platinum_person *person, platinum_json item, int kind)
     if (kind == PLATINUM_PEOPLE_WORDS) {
         /* A muted word is shown as MacRoman and kept exactly as UTF-8. A word
          * that cannot be shown cannot be picked, so it is left out. */
-        people_copy(person->name, sizeof(person->name), item, "value");
-        if (person->name[0] == '\0' ||
-            platinum_json_string(item, "value", person->uri, sizeof(person->uri))
-                != WF_OK) {
+        char value[PLATINUM_TEXT_UTF8_CAPACITY];
+        long lossy;
+
+        person->name[0] = '\0';
+        if (platinum_json_string_truncating(item, "value", value,
+                                            sizeof(value)) != WF_OK)
+            return 0;
+        if (platinum_text_utf8_to_macroman(value, person->name,
+                                           sizeof(person->name), &lossy) < 0 ||
+            lossy != 0 || person->name[0] == '\0')
+            return 0;
+        if (platinum_json_string(item, "value", person->uri,
+                                 sizeof(person->uri)) != WF_OK) {
             person->uri[0] = '\0';
             return 0;
         }
@@ -250,6 +259,53 @@ wf_status platinum_people_load(platinum_people *people,
         return WF_ERR_INVALID_ARG;
     return platinum_people_load_kind(people, bridge, PLATINUM_PEOPLE_ACCOUNTS,
                                      route, key, value, heading);
+}
+
+wf_status platinum_people_set_words(platinum_people *people,
+                                    const platinum_muted_list *words,
+                                    const char *heading)
+{
+    char name[PLATINUM_PEOPLE_NAME_MAX];
+    const platinum_muted_entry *word;
+    long count;
+    long index;
+    long lossy;
+
+    if (people == NULL || words == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    people->kind = PLATINUM_PEOPLE_WORDS;
+    people->heading[0] = '\0';
+    if (heading != NULL) {
+        strncpy(people->heading, heading, sizeof(people->heading) - 1);
+        people->heading[sizeof(people->heading) - 1] = '\0';
+    }
+    people->count = 0;
+    people->scroll_row = 0;
+    people->selected = -1;
+    people->cursor[0] = '\0';
+    people->path[0] = '\0';
+
+    count = words->count;
+    if (count > PLATINUM_PEOPLE_MAX)
+        count = PLATINUM_PEOPLE_MAX;
+    for (index = 0; index < count; index++) {
+        word = &words->words[index];
+        /* A word that cannot be shown cannot be picked, so it is left out. */
+        if (platinum_text_utf8_to_macroman(word->value, name, sizeof(name),
+                                           &lossy) < 0 ||
+            lossy != 0 || name[0] == '\0')
+            continue;
+        memset(&people->items[people->count], 0,
+               sizeof(people->items[people->count]));
+        strcpy(people->items[people->count].name, name);
+        strcpy(people->items[people->count].uri, word->value);
+        people->count++;
+    }
+
+    people->loading = 0;
+    people_status(people, people->count == 0 ? "No muted words." : NULL);
+    return WF_OK;
 }
 
 const platinum_person *platinum_people_selection(const platinum_people *people)
