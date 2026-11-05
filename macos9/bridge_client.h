@@ -105,8 +105,8 @@ wf_status platinum_bridge_delete_post(platinum_bridge_client *client,
                                       const char *uri);
 
 /* 1 if the AT URI `uri` names a record in the repo of `did` (an exact
- * comparison of the authority part), else 0. Used only to decide whether to
- * offer Delete; the bridge makes the real check. Pure. */
+ * comparison of the authority part), else 0. Used to decide whether to offer
+ * Delete; the bridge and the native delete both check again. Pure. */
 int platinum_post_uri_is_in_repo(const char *uri, const char *did);
 
 #define PLATINUM_MUTED_WORD_BYTES 400

@@ -49,7 +49,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Mute and block | yes | yes | implemented (`macos9/profile_native.c`) |
 | Muted words | no | yes | implemented (`macos9/application_views.c`) |
 | Who liked or reposted | yes | no | implemented (`macos9/people_feed.c`) |
-| Delete your own post | yes | no | implemented (`macos9/bridge_client.c`) |
+| Delete your own post | yes | no | implemented (`macos9/atproto_feed.c`) |
 | Direct messages | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
 | Post a thread (multi-post compose) | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |
 | Video poster and external-media embeds | no | no | [#98](https://github.com/ewanc26/platinum/issues/98) |

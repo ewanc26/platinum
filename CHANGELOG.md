@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Deleting your own post uses the Mac's session first: the exact `app.bsky.feed.post` record is removed with `com.atproto.repo.deleteRecord`, falling back to the bridge only when there is no native client. The two-step confirmation remains, and a post in another repo is refused before any request. Host tests cover the request, ownership checks, malformed input, expired sessions and network failure. ([#177](https://github.com/ewanc26/platinum/pull/177))
+
 - Account and post search are read by the Mac itself: `app.bsky.actor.searchActors` fills the People window and `app.bsky.feed.searchPosts` fills the posts list through the native session, falling back to the bridge otherwise. Both keep the 20-row pages, 40-row cap and cursor paging, and post results apply muted words best-effort the way feeds do. Host tests cover both queries, paging, the cap, filtering, malformed answers and failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
 
 - Follow, mute and block are written by the Mac itself: the Profile window creates and deletes `app.bsky.graph.follow` and `app.bsky.graph.block` records through `com.atproto.repo.createRecord` and `deleteRecord`, and calls `app.bsky.actor.mute` and `unmute`, falling back to the bridge when there is no native session. The exact follow and block record URIs from the AppView (or the create answer) are kept, so an undo deletes only that record; the block confirmation still asks twice. Host tests cover create, undo, record-URI retention, malformed answers and failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))

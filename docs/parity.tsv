@@ -40,7 +40,7 @@ lists|Lists|yes|yes|implemented|macos9/named_native.c::platinum_named_lists_nati
 mute-block|Mute and block|yes|yes|implemented|macos9/profile_native.c::platinum_profile_set_relation_native
 muted-words|Muted words|no|yes|implemented|macos9/application_views.c::/v1/muted-words
 engagement-lists|Who liked or reposted|yes|no|implemented|macos9/people_feed.c::platinum_people_likes_native
-delete-post|Delete your own post|yes|no|implemented|macos9/bridge_client.c::/v1/post/delete
+delete-post|Delete your own post|yes|no|implemented|macos9/atproto_feed.c::platinum_atproto_delete_post
 direct-messages|Direct messages|no|no|issue|#98
 post-thread|Post a thread (multi-post compose)|no|no|issue|#98
 external-embeds|Video poster and external-media embeds|no|no|issue|#98
