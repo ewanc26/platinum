@@ -124,6 +124,8 @@ wf_status platinum_thread_load_native(platinum_thread *thread,
     thread->scroll_row = 0;
     thread->focus = 0;
     thread->truncated = 0;
+    thread->is_thread = 1;
+    thread->muted = 0;
     thread->path[0] = '\0';
     thread->cursor[0] = '\0';
     strcpy(thread->heading, "Thread");
@@ -216,4 +218,130 @@ wf_status platinum_thread_load_native(platinum_thread *thread,
     thread_native_status(thread, truncated ? "Some replies are not shown."
                                            : NULL);
     return WF_OK;
+}
+
+/*
+ * Find the root of the thread `uri` belongs to. The post's own record names
+ * it when the post is a reply; a top-level post is its own root. Returns the
+ * transport or parse failure rather than guessing, so a failed lookup never
+ * mutes the wrong thread.
+ */
+static wf_status thread_native_root(platinum_atproto_client *client,
+                                    const char *uri, char *root, size_t cap)
+{
+    const char *names[1];
+    const char *values[1];
+    wf_response response;
+    platinum_json document;
+    platinum_json posts;
+    platinum_json first;
+    platinum_json record;
+    platinum_json reply;
+    platinum_json named;
+    long count;
+    wf_status status;
+
+    if (client == NULL || uri == NULL || root == NULL || cap == 0)
+        return WF_ERR_INVALID_ARG;
+    count = 0;
+    strncpy(root, uri, cap - 1);
+    root[cap - 1] = '\0';
+
+    names[0] = "uris";
+    values[0] = uri;
+    memset(&response, 0, sizeof(response));
+    status = platinum_atproto_client_get(client, "app.bsky.feed.getPosts",
+                                         names, values, 1, &response);
+    if (status != WF_OK) {
+        wf_response_free(&response);
+        return status;
+    }
+
+    if (platinum_json_open(&document,
+                           response.body != NULL ? response.body : "")
+            != WF_OK ||
+        platinum_json_member(document, "posts", &posts) != WF_OK ||
+        platinum_json_count(posts, &count) != WF_OK) {
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+    if (count < 1) {
+        wf_response_free(&response);
+        return WF_ERR_NOT_FOUND;
+    }
+    if (platinum_json_element(posts, 0, &first) != WF_OK ||
+        platinum_json_member(first, "record", &record) != WF_OK) {
+        wf_response_free(&response);
+        return WF_ERR_PARSE;
+    }
+
+    /* A missing reply member means the post starts the thread. A reply that
+     * names a root the Mac cannot read is refused rather than treated as
+     * top-level: muting the reply would mute the wrong thread. */
+    if (platinum_json_member(record, "reply", &reply) == WF_OK &&
+        platinum_json_member(reply, "root", &named) == WF_OK) {
+        if (platinum_json_string(named, "uri", root, cap) != WF_OK ||
+            !platinum_atproto_valid_at_uri(root)) {
+            wf_response_free(&response);
+            return WF_ERR_PARSE;
+        }
+    }
+    wf_response_free(&response);
+    return WF_OK;
+}
+
+wf_status platinum_thread_set_mute_native(platinum_thread *thread,
+                                          platinum_atproto_client *client,
+                                          int on)
+{
+    /* Static, not on the stack: a Classic Mac stack is small and the escaped
+     * body can be six times the uri. Nothing here is re-entrant. */
+    static char root[PLATINUM_THREAD_URI_MAX + 1];
+    static char escaped[PLATINUM_THREAD_URI_MAX * 6 + 1];
+    static char body[PLATINUM_THREAD_URI_MAX * 6 + 32];
+    wf_response response;
+    wf_status status;
+
+    if (thread == NULL || client == NULL || thread->count == 0 ||
+        !thread->is_thread || thread->focus < 0 ||
+        thread->focus >= (short)thread->count)
+        return WF_ERR_INVALID_ARG;
+
+    status = thread_native_root(client, thread->items[thread->focus].post.uri,
+                                root, sizeof(root));
+    if (status != WF_OK) {
+        if (status == WF_ERR_AUTH)
+            thread_native_status(thread, "Session expired. Sign in again.");
+        else if (status == WF_ERR_NOT_FOUND)
+            thread_native_status(thread, "That post no longer exists.");
+        else
+            thread_native_status(thread,
+                                 on ? "The thread could not be muted."
+                                    : "The thread could not be unmuted.");
+        return status;
+    }
+
+    if (platinum_json_escape(escaped, sizeof(escaped), root) != WF_OK)
+        return WF_ERR_INVALID_ARG;
+    strcpy(body, "{\"root\":\"");
+    strcat(body, escaped);
+    strcat(body, "\"}");
+
+    memset(&response, 0, sizeof(response));
+    status = platinum_atproto_client_post(
+        client, on ? "app.bsky.graph.muteThread"
+                   : "app.bsky.graph.unmuteThread",
+        body, &response);
+    wf_response_free(&response);
+
+    if (status == WF_OK) {
+        thread->muted = on;
+        thread_native_status(thread, on ? "Thread muted." : "Thread unmuted.");
+    } else if (status == WF_ERR_AUTH) {
+        thread_native_status(thread, "Session expired. Sign in again.");
+    } else {
+        thread_native_status(thread, on ? "The thread could not be muted."
+                                        : "The thread could not be unmuted.");
+    }
+    return status;
 }

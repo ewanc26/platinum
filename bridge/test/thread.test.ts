@@ -3,6 +3,46 @@ import test from 'node:test'
 import type { Agent } from '@atproto/api'
 import { DomainApi, flattenThread, MAX_THREAD_POSTS, validReplyGate } from '../src/domain/api.js'
 
+const replyUri = 'at://did:plc:a/app.bsky.feed.post/reply'
+const rootUri = 'at://did:plc:a/app.bsky.feed.post/root'
+
+function muteAgent(record: unknown, exists = true) {
+  const calls: string[] = []
+  const agent = {
+    getPosts: async () => ({ data: { posts: exists ? [{ uri: replyUri, record }] : [] } }),
+    app: { bsky: { graph: {
+      muteThread: async ({ root }: { root: string }) => { calls.push(`mute ${root}`) },
+      unmuteThread: async ({ root }: { root: string }) => { calls.push(`unmute ${root}`) },
+    } } },
+  }
+  return { agent: agent as unknown as Agent, calls }
+}
+
+test('thread mute uses the root a reply record names', async () => {
+  const a = muteAgent({ reply: { root: { uri: rootUri } } })
+  assert.deepEqual(await new DomainApi().muteThread(a.agent, replyUri, true), { uri: replyUri, root: rootUri, on: true })
+  assert.deepEqual(a.calls, [`mute ${rootUri}`])
+})
+
+test('a top-level post is its own thread root, and unmute is idempotent', async () => {
+  const a = muteAgent({ text: 'no reply here' })
+  assert.deepEqual(await new DomainApi().muteThread(a.agent, replyUri, false), { uri: replyUri, root: replyUri, on: false })
+  assert.deepEqual(a.calls, [`unmute ${replyUri}`])
+})
+
+test('a missing post is not muted and writes nothing', async () => {
+  const a = muteAgent({}, false)
+  assert.equal(await new DomainApi().muteThread(a.agent, replyUri, true), undefined)
+  assert.deepEqual(a.calls, [])
+})
+
+test('a reply with an unreadable root is refused instead of muting the reply', async () => {
+  const a = muteAgent({ reply: { root: { uri: 'https://not-an-at-uri' } } })
+  assert.equal(await new DomainApi().muteThread(a.agent, replyUri, true), undefined)
+  assert.deepEqual(a.calls, [])
+})
+
+
 const pv = (id: string) => ({
   uri: `at://did:plc:a/app.bsky.feed.post/${id}`,
   cid: `cid${id}`,

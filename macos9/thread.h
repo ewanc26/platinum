@@ -19,6 +19,7 @@ extern "C" {
 #define PLATINUM_THREAD_MIN_DEPTH (-10)
 #define PLATINUM_THREAD_MAX_DEPTH 6
 #define PLATINUM_THREAD_STATUS_MAX 127
+#define PLATINUM_THREAD_URI_MAX 512
 
 typedef struct platinum_thread_post {
     platinum_post_preview post;
@@ -33,6 +34,8 @@ typedef struct platinum_thread {
     short scroll_row;
     short focus;     /* index of the depth-0 post, or 0 */
     int truncated;   /* replies were left out to stay within the bound */
+    int is_thread;   /* 1 for a thread, 0 for a plain list of posts */
+    int muted;       /* the thread's last mute state, set only on success */
     /* When this shows a plain list of posts (an author's posts, a feed, search
      * results) rather than a thread, the request without its cursor, and the
      * cursor for the next page. */
@@ -90,6 +93,25 @@ wf_status platinum_thread_load_more(platinum_thread *thread,
                                     platinum_bridge_client *bridge,
                                     unsigned short *dropped);
 int platinum_thread_has_more(const platinum_thread *thread);
+
+/*
+ * Mute (on) or unmute the loaded thread through the bridge's
+ * POST /v1/thread/mute: the post at `focus` names the thread and the bridge
+ * resolves its root. `muted` changes and the status line says which happened
+ * only after the bridge confirms it; a failure leaves both alone.
+ */
+wf_status platinum_thread_set_mute(platinum_thread *thread,
+                                   platinum_bridge_client *bridge, int on);
+
+/*
+ * The native form: read the post at `focus` with app.bsky.feed.getPosts to
+ * find its thread root (its own uri when top-level), then call
+ * app.bsky.graph.muteThread or unmuteThread with that root. Same state rule as
+ * the bridge form: nothing changes until the service accepts it.
+ */
+wf_status platinum_thread_set_mute_native(platinum_thread *thread,
+                                          platinum_atproto_client *client,
+                                          int on);
 /* Set the status line and redraw it. */
 void platinum_thread_set_status(platinum_thread *thread, const char *status);
 

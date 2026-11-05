@@ -630,6 +630,42 @@ void platinum_application_show_thread(platinum_application *app)
         InvalRect(&app->thread.window->portRect);
 }
 
+/* Mute or unmute the thread in the Thread window. The native session first;
+ * the bridge is the fallback for a window loaded through it. The window's state
+ * and the status line change only after the service confirms. */
+void platinum_application_mute_thread(platinum_application *app)
+{
+    platinum_atproto_client *client;
+    platinum_bridge_client *bridge;
+    wf_status status;
+    int on;
+
+    if (app == NULL || app->thread.window == NULL)
+        return;
+    if (!app->thread.is_thread || app->thread.count == 0 ||
+        app->thread.focus < 0 ||
+        app->thread.focus >= (short)app->thread.count) {
+        platinum_thread_set_status(&app->thread, "Open a thread first.");
+        return;
+    }
+
+    client = platinum_session_client(&app->session);
+    bridge = client != NULL ? NULL : platinum_session_bridge(&app->session);
+    if (client == NULL && bridge == NULL) {
+        platinum_thread_set_status(
+            &app->thread,
+            platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_SIGN_IN));
+        return;
+    }
+
+    on = !app->thread.muted;
+    status = client != NULL
+                 ? platinum_thread_set_mute_native(&app->thread, client, on)
+                 : platinum_thread_set_mute(&app->thread, bridge, on);
+    platinum_application_recover_auth(app, status);
+    platinum_application_invalidate(app);
+}
+
 /* Help > Connection Status. */
 void platinum_application_open_diag(platinum_application *app)
 {

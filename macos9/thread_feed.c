@@ -55,6 +55,8 @@ wf_status platinum_thread_load(platinum_thread *thread,
     thread->scroll_row = 0;
     thread->focus = 0;
     thread->truncated = 0;
+    thread->is_thread = 1;
+    thread->muted = 0;
     thread->path[0] = '\0';
     thread->cursor[0] = '\0';
     strcpy(thread->heading, "Thread");
@@ -211,6 +213,8 @@ static wf_status thread_fetch_list(platinum_thread *thread,
     strcpy(thread->cursor, cursor);
     thread->truncated = 0;
     thread->focus = 0;
+    thread->is_thread = 0;
+    thread->muted = 0;
     thread->loading = 0;
     thread_status(thread, thread->count == 0 ? "No posts to show." : NULL);
     return WF_OK;
@@ -263,4 +267,28 @@ wf_status platinum_thread_load_more(platinum_thread *thread,
     if (thread == NULL || bridge == NULL || !platinum_thread_has_more(thread))
         return WF_ERR_INVALID_ARG;
     return thread_fetch_list(thread, bridge, 1, dropped);
+}
+
+wf_status platinum_thread_set_mute(platinum_thread *thread,
+                                   platinum_bridge_client *bridge, int on)
+{
+    wf_status status;
+
+    if (thread == NULL || bridge == NULL || thread->count == 0 ||
+        !thread->is_thread || thread->focus < 0 ||
+        thread->focus >= (short)thread->count)
+        return WF_ERR_INVALID_ARG;
+
+    status = platinum_bridge_set_thread_mute(
+        bridge, thread->items[thread->focus].post.uri, on);
+    if (status == WF_OK) {
+        thread->muted = on;
+        thread_status(thread, on ? "Thread muted." : "Thread unmuted.");
+    } else if (status == WF_ERR_AUTH) {
+        thread_status(thread, "Session expired. Pair the account again.");
+    } else {
+        thread_status(thread, on ? "The thread could not be muted."
+                                 : "The thread could not be unmuted.");
+    }
+    return status;
 }

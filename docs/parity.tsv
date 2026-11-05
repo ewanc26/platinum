@@ -15,6 +15,7 @@ notifications|Notifications|yes|yes|implemented|macos9/notifications_feed.c::pla
 notifications-paging|Notifications paging|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_load_older
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_load
+thread-mute|Mute and unmute a thread|no|no|implemented|macos9/thread_native.c::platinum_thread_set_mute_native
 post|Post text|yes|yes|implemented|macos9/application_post.c::platinum_application_submit_post
 reply|Reply|yes|yes|implemented|macos9/compose_model.c::platinum_compose_set_reply
 quote|Quote post|yes|yes|implemented|macos9/application_post.c::platinum_compose_set_quote

@@ -465,6 +465,25 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return json(res, 200, thread)
   }
 
+  if (req.method === 'POST' && url.pathname === '/v1/thread/mute') {
+    let input: { uri?: unknown; on?: unknown }
+    try {
+      input = JSON.parse(await readBody(req, config.maxBodyBytes)) as typeof input
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        throw new BridgeError('invalid_json', 413, 'The request body is too large.')
+      }
+      return json(res, 400, errorBody('invalid_json', 'The request body is not valid JSON.'))
+    }
+    const ref = validPostRef(input.uri, 'x')
+    if (!ref || typeof input.on !== 'boolean') {
+      return json(res, 400, errorBody('invalid_post_ref', 'A post uri and a boolean "on" are required.'))
+    }
+    const result = await domain.muteThread(agent, ref.uri, input.on)
+    if (!result) return json(res, 404, errorBody('post_not_found', 'The post no longer exists.'))
+    return json(res, 200, result)
+  }
+
   if (req.method === 'POST' && url.pathname === '/v1/post') {
     let input: { text?: string; replyTo?: { uri?: unknown; cid?: unknown }; quote?: { uri?: unknown; cid?: unknown }; replyGate?: unknown }
 
