@@ -1,4 +1,6 @@
-# AGENTS.md — Platinum
+# AGENTS.md
+
+Guidance for AI coding agents working in **platinum**.
 
 Platinum is a native Bluesky / AT Protocol client for Classic Mac OS 9. It is deliberately split into a small native client and a modern bridge service.
 
