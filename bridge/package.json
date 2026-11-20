@@ -16,7 +16,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@atproto/api": "^0.23.0",
+    "@atproto/api": "^0.32.0",
     "@atproto/oauth-client-node": "^0.5.4",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0"
