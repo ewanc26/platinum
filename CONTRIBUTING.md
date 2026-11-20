@@ -1,63 +1,22 @@
-# Contributing
+# Contributing to Platinum
 
-Platinum sits in a five-repository stack: Wolfram (the C/C++ AT Protocol SDK)
-underneath, then Metalbear (PDS), Cobalt (Wii U), Indigo (3DS) and this one. Shared
-protocol logic belongs in Wolfram. Changes land there first and this repository
-adopts them afterwards. [AGENTS.md](AGENTS.md) has the engineering rules; this
-file is the flow.
+Platinum is a Bluesky client for Classic Mac OS 9: a C89 application that wants to look like it belongs in a System Folder, with a small Node bridge doing the parts a 1990s operating system can't. Thanks for wanting to help!
 
-## The flow
+The bridge (no modern TLS, OAuth or DID resolution on Mac OS 9) is **on its way out**: the Mac is getting its own AT Protocol client over Wolfram's verified Open Transport and macTLS stack. See [`docs/architecture/native-client-migration.md`](docs/architecture/native-client-migration.md), which maps every route to its native replacement.
 
-1. Open or find an issue. A gap against Cobalt or Indigo is a row in
-   [docs/PARITY.md](docs/PARITY.md) (edit `docs/parity.tsv`, then run
-   `tools/check-parity.sh --write`).
-2. Branch from `main`. Never commit to `main`.
-3. Write small commits with conventional subjects: `feat(macos9): ...`,
-   `fix(bridge): ...`, `docs: ...`, `ci: ...`.
-4. Open a pull request using the template. The title is a conventional commit
-   too, because it becomes the squash subject.
-5. Wait for the `CI gate` check to go green. If it is red, read the job log,
-   reproduce it locally, fix the cause and push again. Skipping or deleting a
-   test is not a fix.
-6. Merge only a green pull request, by **rebase**. Every commit lands on `main`
-   as written, so each one is a conventional commit that builds and passes on
-   its own; write review fixes as real `fix(scope): ...` commits. Do not merge
-   `main` into a branch and do not force-push. If a branch falls behind or
-   conflicts, cut a fresh branch from `main`, cherry-pick, open a new PR that
-   links the old one, and close the old one. A red `main` is fixed before anything else.
+## Getting started
 
-`tools/check-flow.sh` is what the `Flow and drift` job runs, so you can run the
-same checks before pushing:
+Build the C89 side per the [README](README.md) (CodeWarrior-era C, Open Transport) and the Node bridge separately. CI runs host tests where possible.
 
-```sh
-tools/check-flow.sh drift
-tools/check-flow.sh commits origin/main..HEAD
-```
+## Notes for this project
 
-## Releases
+- **C89 discipline**: no C99+ conveniences no matter how tempting. This code has to belong in the Platinum-look era, and the compiler enforces it anyway.
+- Check the migration doc before bridge work: a bridge feature may already be scheduled for native replacement, and new bridge dependencies extend the thing being removed.
+- Native AT Protocol work goes through Wolfram (`macos9/atproto_*.c` modules are Wolfram's Open Transport + mactls stack); don't hand-roll TLS or DID resolution.
+- UI work should match Mac OS 9 interface conventions genuinely, not approximate them.
+- Conventional commits; focused PRs; explain what you verified (bridge-only changes are testable on any host; Mac-side changes need a real or emulated Mac OS 9 environment).
+- AI-assisted PRs welcome; stand behind every line and run what you can.
 
-Releases are paused until I've run Platinum on Mac OS 9 (#62). While the `RELEASES_PAUSED` file exists, `scripts/release.sh` only does `--dry-run`, which CI runs on every pull request. Add a line to the Unreleased section of `CHANGELOG.md` in any PR that changes behaviour.
+## Licence
 
-
-Tag `vX.Y.Z` only after bumping `bridge/package.json` and adding a section to
-[CHANGELOG.md](CHANGELOG.md). The `release-check` workflow rejects a tag that
-disagrees with either. It publishes nothing.
-
-## What is enforced
-
-| Rule | Enforced by |
-| --- | --- |
-| Branch name, conventional PR title and commits, PR body sections, no merge commits | `flow / conventions` (Wolfram's reusable workflow) |
-| README header and logo match the stack's house style | `flow / style` |
-| PR template and the AGENTS.md flow block match Wolfram's | `flow / drift` |
-| Rebase merging only | repository setting; see the `needs-owner` issue |
-| Every source has an owner in `tools/ownership.txt`; no AT Protocol strings on the Mac side | `Flow and drift` job |
-| Parity matrix matches the code, and cited issues are open | `Flow and drift` job |
-| Every Mac source is compiled in CI; docs match the pinned Wolfram | `Flow and drift` job |
-| Bridge type check, tests, build; Mac C89 compile and tests | `bridge`, `Mac OS 9 sources (C89)` |
-| Tag matches version and changelog | `release-check` workflow |
-| Nothing merges unless the above pass | `CI gate` job, which branch protection should require |
-
-Branch protection on `main` is a repository setting that these workflows cannot
-set. Until the owner requires `CI gate` there, the rule is by convention: see
-the `needs-owner` issue.
+See [LICENSE](LICENSE). Contributions accepted under the same terms.
