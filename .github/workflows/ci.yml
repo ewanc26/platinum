@@ -16,14 +16,14 @@ jobs:
     name: Flow and drift
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: tools/check-flow.sh drift
       # Wolfram's update and pairing vectors, which the bridge's ports must run unchanged.
       # The pin is a commit, bumped deliberately, like the transport ref below.
       # Labels, metadata, conventions and style are checked by flow.yml.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: bfb50126b2943741fc5bccc931aa20baa54e445a
@@ -54,7 +54,7 @@ jobs:
       run:
         working-directory: bridge
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -72,7 +72,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config \
             libcurl4-openssl-dev libssl-dev libsecp256k1-dev
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: bfb50126b2943741fc5bccc931aa20baa54e445a
@@ -100,13 +100,13 @@ jobs:
     name: Mac OS 9 sources (C89)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Only Wolfram's public headers are needed, so the dependency is the
       # released transport rather than a build of it. Bumping this ref is a
       # deliberate version change and has to update AGENTS.md and the README in
       # the same commit.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: v0.36.2
@@ -426,7 +426,7 @@ jobs:
     name: Release dry run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -442,7 +442,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config \
             libcurl4-openssl-dev libssl-dev libsecp256k1-dev
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: bfb50126b2943741fc5bccc931aa20baa54e445a
@@ -475,10 +475,10 @@ jobs:
       # of a release; this only proves it builds for both CPUs.
       PLATINUM_BUILD_FIXTURE: "ON"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The same pinned Wolfram headers as the C89 job.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: v0.36.2
@@ -513,7 +513,7 @@ jobs:
     env:
       WOLFRAM_ROOT: ${{ github.workspace }}/wolfram
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install the C toolchain and the bridge's libraries
         run: |
@@ -523,7 +523,7 @@ jobs:
             libcurl4-openssl-dev libssl-dev libsecp256k1-dev \
             libcjson-dev libmicrohttpd-dev
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: ewanc26/wolfram
           ref: 7d81119781bac700957bb02ec807b2c1a2c8198f
