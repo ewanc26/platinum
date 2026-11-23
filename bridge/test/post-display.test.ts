@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { wolfram } from '../src/wolfram.js'
 
 // Wolfram's post_display vectors (test/vectors/post_display.json), verbatim;
-// CI diffs them against Wolfram's at the commit pinned in the CI drift job.
+// CI diffs them against Wolfram's at the release pinned in the CI drift job.
 // The same vectors run through Wolfram's own binding tests and its C suite.
 const v = JSON.parse(readFileSync(new URL('./vectors/post_display.json', import.meta.url), 'utf8')) as {
   display: { name: string; record_text?: string; embed_text?: string; expect: unknown }[]

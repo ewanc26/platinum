@@ -30,7 +30,7 @@ Target:  Classic Mac OS 9  --HTTPS + XRPC------------------------------->  PDS /
 Early, and I'd rather say so plainly.
 
 - **The bridge works.** It does OAuth pairing, issues and revokes tokens, and serves a profile, a timeline, notifications and posting. App-password sign-in exists but is off unless you turn it on, and the Mac client has a window for it. The bridge has tests and they run in CI.
-- **The native bridge is being built.** `native/` is a C bridge on [Wolfram](https://github.com/ewanc26/wolfram) that is meant to replace the Node service, and every route family is implemented. Its own CI job builds Wolfram from a pinned commit and runs the C tests and the Wolfram-backed routes against a mock PDS; nothing has run against a live PDS or on a Mac.
+- **The native bridge is being built.** `native/` is a C bridge on [Wolfram](https://github.com/ewanc26/wolfram) that is meant to replace the Node service, and every route family is implemented. Its own CI job builds Wolfram from a pinned release tag and runs the C tests and the Wolfram-backed routes against a mock PDS; nothing has run against a live PDS or on a Mac.
 - **The Mac client is written but unproven.** It has a window, menus, a timeline, threads, profiles, people lists, search, notifications, compose (with replies, quotes and reply limits) and preferences. CI compiles every source as strict C89 against declaration-only stand-ins for the Mac SDK, and runs the pairing and JSON tests. That checks dialect and types. It is not a CodeWarrior build, and nothing in this repository records it running on a real Mac or an emulator.
 - **Much is missing.** The timeline and notifications now use the native session, including likes and reposts. Replies, quotes, profile actions, search, conversations and compose still use the bridge. Images and native post publishing are not finished. [docs/PARITY.md](docs/PARITY.md) lists every gap against Cobalt and Indigo with an issue for each, and CI checks that table against the code so it can't claim more than exists.
 
@@ -38,7 +38,7 @@ Early, and I'd rather say so plainly.
 
 There is no packaged release of the Mac application yet. The bridge can be run from this repository (see below) or from a release archive, and it can update itself from this repository's releases when you ask it to: [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) says how, what the checksum does and doesn't protect against, and why the Mac client can't update itself yet.
 
-Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The bridge runs its update contract (manifest parsing, version comparison, SHA-256, signature verification), the parsers of the hosted OAuth node's pairing contract and the record/embed half of post shaping (Wolfram's post display model: post text, createdAt, validated facets, image list, embed kind, external card, video and quote fields) in [Wolfram](https://github.com/ewanc26/wolfram)'s C through Wolfram's Node addon, built at the commit pinned in `ci.yml` (`bfb5012`). The Mac client is aimed at CodeWarrior-era tools, Wolfram 0.26.0 or newer (CI builds its transport against 0.36.2) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
+Requirements for the bridge: Node.js 22 or newer, and a public HTTPS address if you want OAuth outside your own machine. The bridge runs its update contract (manifest parsing, version comparison, SHA-256, signature verification), the parsers of the hosted OAuth node's pairing contract and the record/embed half of post shaping (Wolfram's post display model: post text, createdAt, validated facets, image list, embed kind, external card, video and quote fields) in [Wolfram](https://github.com/ewanc26/wolfram)'s C through Wolfram's Node addon, built from the release tag pinned in `ci.yml` (`v0.45.0`). The Mac client is aimed at CodeWarrior-era tools, Wolfram 0.26.0 or newer (CI builds its transport against v0.45.0) with its Open Transport transport, and [macTLS](https://github.com/mplsllc/macTLS). The build is not finished; see below.
 
 ## Use
 
@@ -73,7 +73,7 @@ Bridge:
 cd bridge
 npm run check
 # The tests need Wolfram's Node addon; build it from a Wolfram checkout
-# (the commit pinned in .github/workflows/ci.yml) into bridge/build/ first.
+# (the release tag pinned in .github/workflows/ci.yml) into bridge/build/ first.
 tools/build-addon.sh ../wolfram
 npm test
 npm run build
