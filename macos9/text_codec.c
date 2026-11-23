@@ -204,6 +204,7 @@ long platinum_text_utf8_to_macroman(const char *input,
     long consumed;
     long offset;
     long ignored;
+    int placeholder_open;
     unsigned long codepoint;
     unsigned char value;
 
@@ -217,6 +218,7 @@ long platinum_text_utf8_to_macroman(const char *input,
     index = 0;
     offset = 0;
     ignored = 0;
+    placeholder_open = 0;
 
     while (index < input_length) {
         if (!codec_decode_utf8((const unsigned char *)(input + index),
@@ -226,8 +228,15 @@ long platinum_text_utf8_to_macroman(const char *input,
             return -1;
 
         if (!codec_macroman_byte(codepoint, &value)) {
-            value = '?';
             ++ignored;
+            if (placeholder_open) {
+                index += consumed;
+                continue;
+            }
+            value = (unsigned char)PLATINUM_TEXT_PLACEHOLDER;
+            placeholder_open = 1;
+        } else {
+            placeholder_open = 0;
         }
 
         if (offset + 1 >= capacity)

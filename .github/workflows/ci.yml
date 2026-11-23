@@ -213,6 +213,7 @@ jobs:
             macos9/test/test_screen_state.c \
             macos9/test/test_state_panel.c \
             macos9/test/test_secret.c \
+            macos9/test/test_text_codec.c \
             macos9/test/test_textfield.c \
             macos9/test/test_thread.c \
             macos9/test/test_timeline.c \
@@ -364,6 +365,10 @@ jobs:
             -o /tmp/test_search \
             macos9/search_query.c macos9/text_codec.c macos9/test/test_search.c
           /tmp/test_search
+          clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
+            -o /tmp/test_text_codec \
+            macos9/text_codec.c macos9/test/test_text_codec.c
+          /tmp/test_text_codec
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_compose \
             macos9/compose_model.c macos9/bridge_client.c macos9/json_min.c \

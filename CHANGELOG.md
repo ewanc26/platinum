@@ -10,6 +10,8 @@ pull request.
 
 ### Added
 
+- Text the Mac cannot show now draws as one deliberate placeholder instead of a `?` per code point: a run of characters outside MacRoman, including emoji, flags and Japanese, collapses to `PLATINUM_TEXT_PLACEHOLDER` so a post stays legible and never draws as garbage. The wire stays UTF-8 and the route is recorded in `docs/LANGUAGE_BOUNDARIES.md`; host tests cover the mapping, the collapsing, the bounds and malformed input. ([#188](https://github.com/ewanc26/platinum/issues/188))
+
 - Deleting your own post uses the Mac's session first: the exact `app.bsky.feed.post` record is removed with `com.atproto.repo.deleteRecord`, falling back to the bridge only when there is no native client. The two-step confirmation remains, and a post in another repo is refused before any request. Host tests cover the request, ownership checks, malformed input, expired sessions and network failure. ([#177](https://github.com/ewanc26/platinum/pull/177))
 
 - Account and post search are read by the Mac itself: `app.bsky.actor.searchActors` fills the People window and `app.bsky.feed.searchPosts` fills the posts list through the native session, falling back to the bridge otherwise. Both keep the 20-row pages, 40-row cap and cursor paging, and post results apply muted words best-effort the way feeds do. Host tests cover both queries, paging, the cap, filtering, malformed answers and failure paths. ([#177](https://github.com/ewanc26/platinum/pull/177))
