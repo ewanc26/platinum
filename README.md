@@ -126,3 +126,5 @@ CI's C89 job is the same check you can run locally against a Wolfram checkout; t
 ## Licence
 
 AGPL-3.0. See [LICENSE](LICENSE).
+
+Copyright (C) 2026 Ewan Croft (ewanc26).
