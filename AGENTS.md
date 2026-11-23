@@ -740,6 +740,17 @@ Read every member of a response before storing any of it. Assigning fields as
 they are parsed, then inspecting those fields after the pairing struct has been
 freed and zeroed, reports every malformed response as an allocation failure.
 
+### Text outside MacRoman
+
+The wire is UTF-8. `macos9/text_codec.c` converts it to MacRoman for the
+Toolbox text stack, and a run of code points MacRoman cannot represent collapses
+to one `PLATINUM_TEXT_PLACEHOLDER` (`?`): an emoji ZWJ sequence, a flag and a
+CJK word are each one placeholder, not one per code point. That is deliberate,
+not a gap to fill by emitting a `?` per code point or dropping the text. The
+conversion is display-only; a composed post is converted to UTF-8 before it is
+sent. The recorded route, and why Text Encoding Conversion Manager and a bundled
+font are deferred, are in `docs/LANGUAGE_BOUNDARIES.md`.
+
 ### Hardware validation
 
 When real Mac OS 9 hardware is available, validate:
@@ -1028,11 +1039,14 @@ The current branch contains the first working bridge architecture and Mac-side b
 - Wolfram Mac OS 9/Open Transport transport;
 - macTLS integration;
 - bridge protocol documentation;
-- bridge CI.
+- bridge CI;
+- a deliberate single-placeholder fallback for text outside the MacRoman
+  repertoire, with the route recorded in `docs/LANGUAGE_BOUNDARIES.md`.
 
 ### In progress
 
-- richer Unicode/emoji editing beyond the MacRoman character repertoire;
+- converting text outside MacRoman into an installed script, beyond the
+  deliberate placeholder;
 - user-facing error handling;
 - real hardware validation.
 
