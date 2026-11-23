@@ -12,11 +12,11 @@ changes the Mac-to-bridge protocol in [BRIDGE_PROTOCOL.md](BRIDGE_PROTOCOL.md).
 - Contract: Wolfram `docs/oauth-pairing.md`, `docs/oauth-node.md`, and
   `include/wolfram/oauth_pairing.h`.
 - Shared vectors: `bridge/test/vectors/oauth_pairing.json`. CI diffs them
-  against Wolfram commit `bfb50126b2943741fc5bccc931aa20baa54e445a`
-  (`.github/workflows/ci.yml`). They are byte-identical to that commit.
+  against Wolfram release `v0.45.0` (`.github/workflows/ci.yml`). They are
+  byte-identical to that release.
 - C reference read for this port: `src/session/oauth/pairing.c` at the pinned
-  commit. The node side (`src/node/oauth_node.c`) must be re-read at the
-  pinned commit before the switch-over; older reads at `5edc0d9` predate the
+  release. The node side (`src/node/oauth_node.c`) must be re-read at the
+  pinned release before the switch-over; older reads at `5edc0d9` predate the
   addon migration and are stale.
 
 ## Behaviour aligned to the C driver

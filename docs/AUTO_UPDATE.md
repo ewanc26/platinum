@@ -64,7 +64,7 @@ with Cobalt and Indigo, so they are specified in
 [wolfram#106](https://github.com/ewanc26/wolfram/issues/106) and live in
 Wolfram's `update.h`. The bridge runs them in that C through Wolfram's Node
 addon (`node/wolfram_core.c`), built by `tools/build-addon.sh` from the
-Wolfram commit pinned in `.github/workflows/ci.yml`; that binding is what
+Wolfram release pinned in `.github/workflows/ci.yml`; that binding is what
 replaced the TypeScript port of `wolfram/update.h`. The contract stays
 testable from both sides:
 `bridge/test/vectors/` copies Wolfram's vectors verbatim (CI diffs them) and

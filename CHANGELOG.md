@@ -186,6 +186,10 @@ Releases are paused until I've run Platinum on Mac OS 9 ([#62](https://github.co
 - A release dry run on every pull request, with real releases blocked while they're paused. [#63](https://github.com/ewanc26/platinum/pull/63)
 - Labels and repository metadata as code, checked against Wolfram's. [#65](https://github.com/ewanc26/platinum/pull/65)
 
+### Repository
+
+- The bridge, native bridge and Mac OS 9 CI jobs build Wolfram from the released v0.45.0 tag instead of three stale refs. The bridge's canonical vectors are unchanged, and its tests, native host tests and native route tests pass against the tag. ([#189](https://github.com/ewanc26/platinum/issues/189))
+
 ## [0.3.1]
 
 Changelog-baseline: 0.3.1 — the version bridge/package.json carried when releases were first gated; never tagged because releases are paused (#62).

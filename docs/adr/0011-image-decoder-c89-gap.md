@@ -9,7 +9,7 @@ ADR 0009 blocked native images on the absence of a C89-compatible decoder with
 a suitable licence. The sibling study found that the decoder exists: Wolfram
 ships `wf_image_decode_rgba` (`include/wolfram/image.h`, vendored stb_image plus
 a box filter), and Indigo and Cobalt both decode images in constrained clients.
-Platinum's pinned Wolfram, v0.36.2, already contains it.
+Platinum's pinned Wolfram, v0.45.0, already contains it.
 
 That does not make it usable in Platinum's Mac target. Compiling
 `wolfram/src/image.c` with the target's flags fails:

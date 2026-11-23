@@ -144,8 +144,8 @@ lookup is deliberately not used (ADR 0003).
 - **Mac target:** Retro68 (`gcc` for 68k and PowerPC), CMake 3.16+, strict C89
   (`-std=c90`, no extensions), `tools/build-macos9.sh [68k|ppc|both]`. The
   Retro68 image is `ghcr.io/autc04/retro68`.
-- **Headers:** Wolfram's public headers, pinned by CI at `v0.36.2` (the current
-  Wolfram release is v0.44.2; the pin is unchanged in this migration).
+- **Headers:** Wolfram's public headers, pinned by CI at `v0.45.0`, the current
+  release.
 - **Transport:** Wolfram's `wolfram-macos9-transport` static library
   (`xrpc_mac9.c`, `macos9_tls.c`) over Open Transport and macTLS. Native
   networking is PowerPC-only (ADR 0010): the 68k build still compiles and
@@ -240,8 +240,8 @@ lookup is deliberately not used (ADR 0003).
    there is no plaintext fallback.
 8. **Live integration tests.** No test account or PDS credentials are available
    here. The suite is opt-in by design and has not run against a live PDS.
-9. **Wolfram pin.** CI compiles against v0.36.2 while the newest release is
-   v0.44.2. Moving the pin is a separate, deliberate change.
+9. **Wolfram pin.** CI compiles against v0.45.0, the current release. Moving the
+   pin is a deliberate change recorded in `AGENTS.md` section 5.
 10. **Bridge deletion criteria.** Parity is per screen, not per endpoint. The
     bridge stays until every screen in `docs/PARITY.md` has native tests and no
     bridge-only route is reachable from the UI.
