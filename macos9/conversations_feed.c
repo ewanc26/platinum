@@ -82,6 +82,44 @@ static void conversations_time(char *destination,
     }
 }
 
+/*
+ * Copy a handle member into `destination` as "@handle". The bridge sends the
+ * handle with its @ already on it (docs/BRIDGE_PROTOCOL.md), so the @ is only
+ * added when the value does not carry one; adding it unconditionally showed
+ * every handle as "@@handle".
+ */
+static void conversations_copy_handle(char *destination,
+                                      long capacity,
+                                      platinum_json object,
+                                      const char *name)
+{
+    char raw[PLATINUM_CONVERSATION_HANDLE_MAX + 2];
+    long length;
+
+    if (destination == NULL || capacity <= 1)
+        return;
+
+    destination[0] = '\0';
+    conversations_copy(raw, sizeof(raw), object, name);
+    if (raw[0] == '\0')
+        return;
+
+    if (raw[0] == '@') {
+        length = (long)strlen(raw);
+        if (length > capacity - 1)
+            length = capacity - 1;
+        memcpy(destination, raw, (size_t)length);
+        destination[length] = '\0';
+    } else {
+        length = (long)strlen(raw);
+        if (length > capacity - 2)
+            length = capacity - 2;
+        destination[0] = '@';
+        memcpy(destination + 1, raw, (size_t)length);
+        destination[length + 1] = '\0';
+    }
+}
+
 static void conversations_status(platinum_conversations *conversations,
                                  const char *status)
 {
@@ -137,13 +175,8 @@ static int conversation_parse(platinum_conversation *conversation,
     }
 
     /* An @handle with no handle behind it would read as a bare "@". */
-    conversation->handle[0] = '\0';
-    conversations_copy(conversation->handle + 1,
-                       sizeof(conversation->handle) - 1, value, "handle");
-    if (conversation->handle[1] != '\0')
-        conversation->handle[0] = '@';
-    else
-        conversation->handle[0] = '\0';
+    conversations_copy_handle(conversation->handle,
+                              sizeof(conversation->handle), value, "handle");
 
     conversations_copy(conversation->preview,
                        sizeof(conversation->preview), value, "preview");
@@ -170,6 +203,11 @@ static int message_parse(platinum_message *message, platinum_json value)
 
     conversations_copy_exact(message->id, sizeof(message->id), value, "id");
     conversations_copy(message->text, sizeof(message->text), value, "text");
+    conversations_copy(message->sender_name, sizeof(message->sender_name),
+                       value, "senderName");
+    conversations_copy_handle(message->sender_handle,
+                              sizeof(message->sender_handle), value,
+                              "senderHandle");
     conversations_time(message->time, sizeof(message->time), value, "sentAt");
 
     message->mine = 0;

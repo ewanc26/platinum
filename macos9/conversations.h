@@ -37,6 +37,8 @@ extern "C" {
 #define PLATINUM_MESSAGE_ID_MAX 128
 #define PLATINUM_MESSAGE_TEXT_MAX 400
 #define PLATINUM_MESSAGE_TIME_MAX 8
+#define PLATINUM_MESSAGE_SENDER_NAME_MAX 64
+#define PLATINUM_MESSAGE_SENDER_HANDLE_MAX 64
 
 /* The bridge refuses text over 1000 characters; a message is typed to that
  * limit and no further. */
@@ -57,6 +59,12 @@ typedef struct platinum_message {
     char text[PLATINUM_MESSAGE_TEXT_MAX];
     /* 1 for the signed-in account's own message, as the bridge said. */
     int mine;
+    /* Who sent it, as the bridge named them: a display name, and an
+     * "@handle" including the @. Either may be empty when the bridge gave
+     * neither. A group needs these: `mine` alone cannot tell its several
+     * other participants apart. */
+    char sender_name[PLATINUM_MESSAGE_SENDER_NAME_MAX];
+    char sender_handle[PLATINUM_MESSAGE_SENDER_HANDLE_MAX];
     /* Clock time of sentAt, or the raw value when it is not that shape. */
     char time[PLATINUM_MESSAGE_TIME_MAX];
 } platinum_message;

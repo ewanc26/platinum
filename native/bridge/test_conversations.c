@@ -59,6 +59,27 @@ fake_messages(void *ctx, const char *convo_id, int limit, const char *cursor,
     platinum_conversation_message *rows;
     (void) ctx; (void) limit; (void) cursor;
 
+    if (strcmp(convo_id, "convo-group") == 0) {
+        rows = calloc(3, sizeof *rows);
+        if (rows == NULL) return PLATINUM_CONVERSATIONS_ERROR;
+        strcpy(rows[0].id, "g3");
+        strcpy(rows[0].text, "Saturday works");
+        strcpy(rows[0].sender_name, "Cat");
+        strcpy(rows[0].sender_handle, "@cat.test");
+        strcpy(rows[0].sent_at, "2026-10-02T11:00:00.000Z");
+        strcpy(rows[1].id, "g2");
+        strcpy(rows[1].text, "See you Saturday?");
+        strcpy(rows[1].sender_name, "Bob");
+        strcpy(rows[1].sender_handle, "@bob.test");
+        strcpy(rows[1].sent_at, "2026-10-02T10:00:00.000Z");
+        strcpy(rows[2].id, "g1");
+        strcpy(rows[2].text, "Hello both");
+        rows[2].mine = 1;
+        strcpy(rows[2].sent_at, "2026-10-01T10:00:00.000Z");
+        out->items = rows;
+        out->count = 3;
+        return PLATINUM_CONVERSATIONS_OK;
+    }
     if (strcmp(convo_id, "convo-direct") != 0) return PLATINUM_CONVERSATIONS_ERROR;
     rows = calloc(2, sizeof *rows);
     if (rows == NULL) return PLATINUM_CONVERSATIONS_ERROR;
@@ -68,6 +89,8 @@ fake_messages(void *ctx, const char *convo_id, int limit, const char *cursor,
     strcpy(rows[0].sent_at, "2026-10-02T10:00:00.000Z");
     strcpy(rows[1].id, "m1");
     strcpy(rows[1].text, "theirs");
+    strcpy(rows[1].sender_name, "Bob");
+    strcpy(rows[1].sender_handle, "@bob.test");
     strcpy(rows[1].sent_at, "2026-10-01T10:00:00.000Z");
     out->items = rows;
     out->count = 2;
@@ -157,6 +180,20 @@ test_conversation(void)
     CHECK(strstr(body, "\"id\":\"m2\"") != NULL);
     CHECK(strstr(body, "\"mine\":true") != NULL);
     CHECK(strstr(body, "\"sentAt\":\"2026-10-02T10:00:00.000Z\"") != NULL);
+    /* A message names its sender; a group depends on it. */
+    CHECK(strstr(body, "\"senderName\":\"Bob\"") != NULL);
+    CHECK(strstr(body, "\"senderHandle\":\"@bob.test\"") != NULL);
+
+    /* A group conversation opens, and its two other participants stay distinct. */
+    CHECK(platinum_route_conversation(NULL, fake_messages, "convo-group", NULL, NULL,
+                                       body, sizeof body) == 200);
+    CHECK(strstr(body, "\"senderName\":\"Cat\"") != NULL);
+    CHECK(strstr(body, "\"senderHandle\":\"@cat.test\"") != NULL);
+    CHECK(strstr(body, "\"senderName\":\"Bob\"") != NULL);
+    /* Sending into the group is the same route with the group's id. */
+    CHECK(platinum_route_conversation_message(NULL, fake_send, "convo-group", "on my way",
+                                              body, sizeof body) == 200);
+    CHECK(strstr(body, "\"text\":\"on my way\"") != NULL);
 
     CHECK(platinum_route_conversation(NULL, fake_messages, NULL, NULL, NULL, body, sizeof body) == 400);
     CHECK(strstr(body, "invalid_conversation") != NULL);

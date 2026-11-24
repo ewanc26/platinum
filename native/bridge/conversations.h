@@ -46,6 +46,12 @@ typedef struct platinum_conversation_message {
     char id[PLATINUM_CONVO_ID_MAX];
     char text[PLATINUM_CONVO_MESSAGE_MAX];
     int mine;
+    /* Who sent it: a display name and a handle with a leading @, as the Node
+     * bridge sends them. Empty when the backend gave neither; a group needs
+     * them, because `mine` alone makes every other participant the same
+     * anonymous sender. */
+    char sender_name[PLATINUM_CONVO_NAME_MAX];
+    char sender_handle[PLATINUM_CONVO_HANDLE_MAX];
     char sent_at[PLATINUM_CONVO_SENT_AT_MAX];
 } platinum_conversation_message;
 

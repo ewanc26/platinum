@@ -130,12 +130,50 @@ platinum_conversations_fetch_live(void *ctx, int limit, const char *cursor,
     return PLATINUM_CONVERSATIONS_OK;
 }
 
+/* Fills a message row's sender name and handle from the conversation's
+ * member list. Wolfram's message shape carries only the sender's DID, so
+ * without this a group message cannot say which participant sent it. A
+ * sender who is not among the members (or a member with no profile fields)
+ * falls back to the DID itself, which at least tells participants apart. */
+static void
+fill_sender(platinum_conversation_message *row, const char *sender,
+            const wf_chat_convo *convo)
+{
+    size_t i;
+
+    if (sender == NULL) return;
+    if (convo != NULL) {
+        for (i = 0; i < convo->member_count; i++) {
+            const wf_agent_profile_view *member = &convo->members[i];
+            char handle[PLATINUM_CONVO_HANDLE_MAX];
+
+            if (member->did == NULL || strcmp(member->did, sender) != 0) continue;
+            if (member->display_name != NULL && member->display_name[0] != '\0') {
+                clip_bytes(member->display_name, row->sender_name, sizeof row->sender_name);
+            }
+            if (member->handle != NULL && member->handle[0] != '\0') {
+                snprintf(handle, sizeof handle, "@%s", member->handle);
+                clip_bytes(handle, row->sender_handle, sizeof row->sender_handle);
+                if (row->sender_name[0] == '\0') {
+                    clip_bytes(member->handle, row->sender_name, sizeof row->sender_name);
+                }
+            }
+            break;
+        }
+    }
+    if (row->sender_name[0] == '\0') {
+        clip_bytes(sender, row->sender_name, sizeof row->sender_name);
+    }
+}
+
 platinum_conversations_result
 platinum_messages_fetch_live(void *ctx, const char *convo_id, int limit,
                              const char *cursor, platinum_conversation_messages *out)
 {
     wf_agent *agent = (wf_agent *) ctx;
     wf_chat_message_list page;
+    wf_chat_convo convo;
+    int have_convo;
     const char *viewer;
     size_t count;
     size_t i;
@@ -148,6 +186,11 @@ platinum_messages_fetch_live(void *ctx, const char *convo_id, int limit,
         return PLATINUM_CONVERSATIONS_ERROR;
     }
 
+    /* The members name the senders; a failure here is not fatal, because
+     * fill_sender falls back to the sender DID. */
+    memset(&convo, 0, sizeof convo);
+    have_convo = wf_agent_chat_get_convo(agent, convo_id, &convo) == WF_OK;
+
     viewer = wf_agent_get_did(agent);
     count = page.message_count < PLATINUM_CONVERSATIONS_ROWS_MAX
                 ? page.message_count
@@ -155,6 +198,7 @@ platinum_messages_fetch_live(void *ctx, const char *convo_id, int limit,
     if (count > 0) {
         out->items = calloc(count, sizeof *out->items);
         if (out->items == NULL) {
+            if (have_convo) wf_chat_convo_free(&convo);
             wf_chat_message_list_free(&page);
             return PLATINUM_CONVERSATIONS_ERROR;
         }
@@ -171,6 +215,7 @@ platinum_messages_fetch_live(void *ctx, const char *convo_id, int limit,
             clip_bytes(src->text, row->text, sizeof row->text);
             clip_bytes(src->sent_at, row->sent_at, sizeof row->sent_at);
             row->mine = viewer != NULL && strcmp(src->sender, viewer) == 0 ? 1 : 0;
+            fill_sender(row, src->sender, have_convo ? &convo : NULL);
             out->count++;
         }
     }
@@ -181,6 +226,7 @@ platinum_messages_fetch_live(void *ctx, const char *convo_id, int limit,
         out->has_cursor = 1;
     }
 
+    if (have_convo) wf_chat_convo_free(&convo);
     wf_chat_message_list_free(&page);
     return PLATINUM_CONVERSATIONS_OK;
 }
@@ -207,6 +253,7 @@ platinum_send_message_live(void *ctx, const char *convo_id, const char *text,
     clip_bytes(sent.text != NULL ? sent.text : text, out->text, sizeof out->text);
     clip_bytes(sent.sent_at, out->sent_at, sizeof out->sent_at);
     out->mine = 1;
+    fill_sender(out, sent.sender, NULL);
     wf_chat_message_reset(&sent);
     return PLATINUM_CONVERSATIONS_OK;
 }

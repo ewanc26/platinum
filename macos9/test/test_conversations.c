@@ -42,7 +42,7 @@ static const char *conversations_page(int first, int n, const char *cursor)
     for (i = 0; i < n; ++i) {
         sprintf(item,
                 "%s{\"id\":\"convo-%d\",\"name\":\"Person %d\","
-                "\"handle\":\"person%d.example\",\"group\":false,"
+                "\"handle\":\"@person%d.example\",\"group\":false,"
                 "\"preview\":\"See you Saturday.\",\"unread\":%d}",
                 i == 0 ? "" : ",", first + i, first + i, first + i,
                 i == 0 ? 2 : 0);
@@ -65,6 +65,7 @@ static const char *messages_page(const char *cursor)
            "{\"id\":\"m2\",\"text\":\"See you Saturday\",\"mine\":true,"
            "\"sentAt\":\"2026-10-01T09:05:00.000Z\"},"
            "{\"id\":\"m1\",\"text\":\"Hello\",\"mine\":false,"
+           "\"senderName\":\"Bob\",\"senderHandle\":\"@bob.example\","
            "\"sentAt\":\"2026-10-01T09:00:00.000Z\"}"
            "]");
     if (cursor != NULL) {
@@ -91,7 +92,8 @@ static void test_list_and_paging(void)
     check(c.count == 20 && platinum_conversations_has_older(&c),
           "20 rows and a cursor");
     check(strcmp(c.items[0].name, "Person 0") == 0, "name read");
-    check(strcmp(c.items[0].handle, "@person0.example") == 0, "handle gains its @");
+    check(strcmp(c.items[0].handle, "@person0.example") == 0,
+          "handle read as the bridge sent it, with one @");
     check(c.items[0].unread == 2 && c.items[1].unread == 0, "unread count read");
     check(c.items[0].group == 0, "group flag read");
     check(strcmp(c.items[0].preview, "See you Saturday.") == 0, "preview read");
@@ -157,6 +159,10 @@ static void test_open_and_send(void)
     check(strcmp(c.messages[0].time, "09:05") == 0, "clock time read");
     check(strcmp(c.messages[1].text, "Hello") == 0 && !c.messages[1].mine,
           "older message is not mine");
+    check(strcmp(c.messages[1].sender_name, "Bob") == 0,
+          "the other sender is named");
+    check(strcmp(c.messages[1].sender_handle, "@bob.example") == 0,
+          "the other sender's handle read with one @");
     check(platinum_conversations_has_older_messages(&c), "older page available");
 
     respond(WF_OK, messages_page(NULL));
@@ -216,10 +222,66 @@ static void test_open_and_send(void)
     platinum_bridge_client_free(bridge);
 }
 
+static void test_group(void)
+{
+    static platinum_conversations c;
+    platinum_bridge_client *bridge;
+
+    bridge = platinum_bridge_client_new("https://bridge.example");
+    platinum_conversations_init(&c);
+
+    /* A group row as both bridges send it: named "Group", no handle. */
+    respond(WF_OK,
+            "{\"conversations\":["
+            "{\"id\":\"convo-group\",\"name\":\"Group\",\"group\":true,"
+            "\"preview\":\"Weekend plans\",\"unread\":3}"
+            "]}");
+    check(platinum_conversations_refresh(&c, bridge) == WF_OK, "group list loads");
+    check(c.count == 1 && c.items[0].group == 1, "group flag read");
+    check(strcmp(c.items[0].name, "Group") == 0, "group named as one");
+    check(c.items[0].handle[0] == '\0', "group has no handle");
+
+    /* Its messages, from two different other participants. */
+    respond(WF_OK,
+            "{\"messages\":["
+            "{\"id\":\"g3\",\"text\":\"Saturday works\",\"mine\":false,"
+            "\"senderName\":\"Cat\",\"senderHandle\":\"@cat.example\","
+            "\"sentAt\":\"2026-10-01T11:00:00.000Z\"},"
+            "{\"id\":\"g2\",\"text\":\"See you Saturday?\",\"mine\":false,"
+            "\"senderName\":\"Bob\",\"senderHandle\":\"@bob.example\","
+            "\"sentAt\":\"2026-10-01T10:00:00.000Z\"},"
+            "{\"id\":\"g1\",\"text\":\"Hello both\",\"mine\":true,"
+            "\"sentAt\":\"2026-10-01T09:00:00.000Z\"}"
+            "]}");
+    check(platinum_conversations_open_selected(&c, bridge, 0) == WF_OK,
+          "the group opens");
+    check(strstr(last_url, "/v1/conversation?id=convo-group&limit=20") != NULL,
+          "group opened by id");
+    check(c.message_count == 3, "group messages load");
+    check(strcmp(c.messages[0].sender_name, "Cat") == 0 &&
+              strcmp(c.messages[1].sender_name, "Bob") == 0,
+          "group participants stay distinct");
+    check(strcmp(c.messages[0].sender_handle, "@cat.example") == 0,
+          "group sender handle read with one @");
+
+    respond(WF_OK, "{\"id\":\"g4\",\"text\":\"on my way\",\"mine\":true,"
+                   "\"sentAt\":\"2026-10-01T12:00:00.000Z\"}");
+    check(platinum_conversations_send(&c, bridge, "on my way") == WF_OK,
+          "sending into the group works");
+    check(strcmp(last_body,
+                 "{\"convoId\":\"convo-group\",\"text\":\"on my way\"}") == 0,
+          "the send names the group conversation");
+    check(strcmp(c.messages[0].text, "on my way") == 0,
+          "the stored group message goes to the top");
+
+    platinum_bridge_client_free(bridge);
+}
+
 int main(void)
 {
     test_list_and_paging();
     test_open_and_send();
+    test_group();
     if (failures != 0) {
         printf("test_conversations: %d of %d checks failed\n", failures, checks);
         return 1;

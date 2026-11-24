@@ -95,21 +95,31 @@ export function normalizeConversation(
   }
 }
 
+type MessageSender = { did: string; handle?: string; displayName?: string }
+
 /** A message view with text and a sender. A deleted message has neither, and is skipped. */
-export function isMessageView(value: unknown): value is { id: string; text: string; sender: { did: string }; sentAt: string } {
+export function isMessageView(value: unknown): value is { id: string; text: string; sender: MessageSender; sentAt: string } {
   if (typeof value !== 'object' || value === null) return false
   const message = value as { text?: unknown; sender?: { did?: unknown } }
   return typeof message.text === 'string' && typeof message.sender?.did === 'string'
 }
 
 export function normalizeMessage(
-  message: { id: string; text: string; sender: { did: string }; sentAt: string },
+  message: { id: string; text: string; sender: MessageSender; sentAt: string },
   viewerDid: string,
 ): ConversationMessage {
+  const senderName = message.sender.displayName
+    ? clipped(message.sender.displayName, MAX_DISPLAY_NAME_LENGTH)
+    : undefined
+  const senderHandle = message.sender.handle
+    ? `@${clipped(message.sender.handle, MAX_HANDLE_LENGTH)}`
+    : undefined
   return {
     id: clipped(message.id, MAX_CONVO_ID_LENGTH),
     text: clipped(message.text, MAX_MESSAGE_LENGTH),
     mine: message.sender.did === viewerDid,
+    ...(senderName ? { senderName } : {}),
+    ...(senderHandle ? { senderHandle } : {}),
     sentAt: clipped(message.sentAt, 64),
   }
 }

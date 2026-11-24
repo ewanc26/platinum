@@ -147,6 +147,68 @@ test('a reply is text with something in it, no longer than 1000 characters', () 
   assert.equal(validReplyText('é'.repeat(1001)), undefined)
 })
 
+test('a group conversation opens with its senders named, and a reply sends to the group', async () => {
+  const cat = { did: 'did:plc:cat', handle: 'cat.example', displayName: 'Cat' }
+  const sent: unknown[] = []
+  const chat = {
+    chat: {
+      bsky: {
+        convo: {
+          listConvos: async () => ({
+            data: {
+              convos: [
+                { id: 'convo-group', members: [{ did: viewer }, bob, cat], unreadCount: 3 },
+              ],
+            },
+          }),
+          getMessages: async (params: { convoId: string }) => {
+            assert.equal(params.convoId, 'convo-group')
+            return {
+              data: {
+                messages: [
+                  { id: 'm3', text: 'Saturday works', sender: cat, sentAt: '2026-10-01T11:00:00.000Z' },
+                  { id: 'm2', text: 'See you Saturday?', sender: bob, sentAt: '2026-10-01T10:00:00.000Z' },
+                  { id: 'm1', text: 'Hello both', sender: { did: viewer }, sentAt: '2026-10-01T09:00:00.000Z' },
+                ],
+              },
+            }
+          },
+          sendMessage: async (input: unknown) => {
+            sent.push(input)
+            return {
+              data: { id: 'm4', text: 'on my way', sender: { did: viewer }, sentAt: '2026-10-02T08:00:00.000Z' },
+            }
+          },
+        },
+      },
+    },
+  }
+  const agent = { accountDid: viewer, withProxy: () => chat } as unknown as Agent
+  const api = new DomainApi()
+
+  const list = await api.conversations(agent, 20)
+  assert.equal(list.conversations.length, 1)
+  assert.equal(list.conversations[0].id, 'convo-group')
+  assert.equal(list.conversations[0].group, true)
+
+  const page = await api.conversationMessages(agent, 'convo-group', 20)
+  assert.equal(page.messages.length, 3)
+  /* Two different other participants must not collapse into one sender. */
+  assert.equal(page.messages[0].senderName, 'Cat')
+  assert.equal(page.messages[0].senderHandle, '@cat.example')
+  assert.equal(page.messages[0].mine, false)
+  assert.equal(page.messages[1].senderName, 'Bob')
+  assert.equal(page.messages[1].senderHandle, '@bob.example')
+  assert.equal(page.messages[2].mine, true)
+  assert.equal(page.messages[2].senderName, undefined)
+  assert.equal(page.messages[2].senderHandle, undefined)
+
+  const stored = await api.sendConversationMessage(agent, 'convo-group', 'on my way')
+  assert.deepEqual(sent, [{ convoId: 'convo-group', message: { text: 'on my way' } }])
+  assert.equal(stored.mine, true)
+  assert.equal(stored.text, 'on my way')
+})
+
 test('sending a reply goes through the chat proxy and comes back as the stored message', async () => {
   const sent: unknown[] = []
   const chat = {
