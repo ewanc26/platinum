@@ -245,15 +245,21 @@ list.
 ```json
 {
   "messages": [
-    { "id": "...", "text": "Hello", "mine": true, "sentAt": "2026-10-01T09:00:00.000Z" }
+    { "id": "...", "text": "Hello", "mine": false, "senderName": "Bob", "senderHandle": "@bob.example", "sentAt": "2026-10-01T09:00:00.000Z" }
   ],
   "cursor": "..."
 }
 ```
 
-`mine` is true for the signed-in account's own messages. Deleted messages are
-left out. `id` is bounded to the characters the chat service uses; anything else
-is `400 invalid_conversation`.
+`mine` is true for the signed-in account's own messages. `senderName` and
+`senderHandle` name who sent a message — the sender's display name and their
+handle with its `@` — and are left out when the chat service gave neither. A
+one-to-one conversation has only one possible other sender, but a group has
+several, and without these fields every other participant in a group reads as
+the same anonymous sender. Handles in this protocol always carry their `@`;
+a client must not add another one. Deleted messages are left out. `id` is
+bounded to the characters the chat service uses; anything else is
+`400 invalid_conversation`.
 
 `POST /v1/conversation/message` with `{"convoId":"...","text":"..."}` sends a
 message and returns the stored message in the shape above. Text is 1 to 1000

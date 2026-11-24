@@ -137,11 +137,19 @@ export interface Conversations {
   cursor?: string
 }
 
-/** One message in a conversation. `mine` is true for the signed-in account's own. */
+/**
+ * One message in a conversation. `mine` is true for the signed-in account's
+ * own. `senderName` and `senderHandle` name who sent it: in a one-to-one
+ * conversation that is always the other person, but a group has several, and
+ * without them every other participant reads as the same anonymous sender.
+ * Both are left out when the chat service gave neither a name nor a handle.
+ */
 export interface ConversationMessage {
   id: string
   text: string
   mine: boolean
+  senderName?: string
+  senderHandle?: string
   sentAt: string
 }
 

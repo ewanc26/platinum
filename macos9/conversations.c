@@ -315,7 +315,22 @@ static void conversations_draw_messages(platinum_conversations *conversations)
         message = &conversations->messages[index];
         top = 62 + (row * MESSAGE_ROW_HEIGHT);
 
-        platinum_draw_text(message->mine ? "You" : "Them", 268, top);
+        {
+            /* The sender's name, cut to the column before the message text:
+             * "You" for the account's own, the sender the bridge named
+             * otherwise, and "Them" only when it named nobody. In a group
+             * this is what tells the participants apart. */
+            char label[13];
+            const char *who;
+
+            who = message->mine ? "You"
+                  : message->sender_name[0] != '\0' ? message->sender_name
+                  : message->sender_handle[0] != '\0' ? message->sender_handle
+                                                      : "Them";
+            strncpy(label, who, sizeof(label) - 1);
+            label[sizeof(label) - 1] = '\0';
+            platinum_draw_text(label, 268, top);
+        }
         platinum_draw_text(message->text, 320, top);
         platinum_draw_text(message->time, 560, top);
     }

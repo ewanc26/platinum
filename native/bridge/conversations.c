@@ -189,6 +189,8 @@ platinum_route_conversation(void *ctx, platinum_messages_fetch_fn fetch,
         cJSON_AddStringToObject(row, "id", m->id);
         cJSON_AddStringToObject(row, "text", m->text);
         cJSON_AddBoolToObject(row, "mine", m->mine ? 1 : 0);
+        add_optional(row, "senderName", m->sender_name);
+        add_optional(row, "senderHandle", m->sender_handle);
         cJSON_AddStringToObject(row, "sentAt", m->sent_at);
         cJSON_AddItemToArray(arr, row);
     }
@@ -263,6 +265,8 @@ platinum_route_conversation_message(void *ctx, platinum_send_message_fn send,
     cJSON_AddStringToObject(root, "id", message.id);
     cJSON_AddStringToObject(root, "text", message.text);
     cJSON_AddBoolToObject(root, "mine", message.mine ? 1 : 0);
+    add_optional(root, "senderName", message.sender_name);
+    add_optional(root, "senderHandle", message.sender_handle);
     cJSON_AddStringToObject(root, "sentAt", message.sent_at);
     return finish(root, body, cap, 200);
 }
