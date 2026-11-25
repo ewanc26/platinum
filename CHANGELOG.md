@@ -10,7 +10,7 @@ pull request.
 
 ### Changed
 
-- The bridge builds with `@atproto/api` 0.32, TypeScript 7 and Node 26 type definitions. ([#182](https://github.com/ewanc26/platinum/pull/182), [#183](https://github.com/ewanc26/platinum/pull/183), [#184](https://github.com/ewanc26/platinum/pull/184))
+- The bridge builds with `@atproto/api` 0.32, TypeScript 7 and Node 26 type definitions. ([#182](https://github.com/ewanc26/platinum/pull/182), [#183](https://github.com/ewanc26/platinum/pull/183), [#184](https://github.com/ewanc26/platinum/pull/184), [#201](https://github.com/ewanc26/platinum/pull/201))
 
 ## [0.4.0]
 
