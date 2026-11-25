@@ -46,6 +46,8 @@ wf_status platinum_session_sign_in_app_password(platinum_session *session,
 wf_status platinum_session_sign_in_native(platinum_session *session,
                                           const char *handle,
                                           const char *password);
+/* End the bridge and native sessions. The local sign-out always completes; a
+ * status other than WF_OK means a server may not have heard of it. */
 wf_status platinum_session_sign_out(platinum_session *session);
 
 int platinum_session_is_paired(const platinum_session *session);

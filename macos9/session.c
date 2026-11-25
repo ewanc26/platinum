@@ -210,6 +210,13 @@ wf_status platinum_session_sign_out(platinum_session *session)
         wf_response_free(&response);
     }
 
+    if (session->client != NULL) {
+        wf_status native_status =
+            platinum_atproto_client_sign_out(session->client);
+        if (revoke_status == WF_OK)
+            revoke_status = native_status;
+    }
+
     clear_status = platinum_config_clear();
 
     platinum_bridge_client_free(session->bridge);

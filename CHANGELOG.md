@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Security
+
+- Signing out of a native session now ends it on the PDS: the Mac calls `com.atproto.server.deleteSession` with the refresh token before wiping it. The local sign-out still completes if the call fails, and Preferences says the server may not have heard. ([#197](https://github.com/ewanc26/platinum/issues/197))
+
 ### Changed
 
 - The bridge builds with `@atproto/api` 0.32, TypeScript 7 and Node 26 type definitions. ([#182](https://github.com/ewanc26/platinum/pull/182), [#183](https://github.com/ewanc26/platinum/pull/183), [#184](https://github.com/ewanc26/platinum/pull/184), [#201](https://github.com/ewanc26/platinum/pull/201))

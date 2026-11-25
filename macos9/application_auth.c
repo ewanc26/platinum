@@ -36,7 +36,7 @@ void platinum_application_sign_out(
     if (status != WF_OK) {
         platinum_preferences_set_status(
             &app->preferences,
-            "Signed out locally; bridge revocation may have failed.");
+            "Signed out locally; server sign-out may have failed.");
         platinum_application_invalidate(app);
         return;
     }
@@ -64,8 +64,8 @@ void platinum_application_recover_auth(platinum_application *app,
     /* The session was refused, so it is gone or revoked. Drop it so the UI
      * shows the signed-out state, clear what it was showing, and give the user
      * somewhere to go next instead of failing silently on every subsequent
-     * refresh. Revocation is not attempted: the credential is already unusable,
-     * and there is nothing left to revoke server-side. */
+     * refresh. Sign-out still offers the server whatever credential is left, and
+     * ignores the answer: this session has already been refused. */
     native = platinum_session_client(&app->session) != NULL;
     (void)platinum_session_sign_out(&app->session);
     platinum_profile_close(&app->profile);
