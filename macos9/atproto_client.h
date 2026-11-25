@@ -87,6 +87,14 @@ wf_status platinum_atproto_client_connect(
 wf_status platinum_atproto_client_refresh(platinum_atproto_client *client);
 
 /*
+ * POST com.atproto.server.deleteSession with the refresh token, so the service
+ * stops accepting it. The local session is cleared whatever the answer, and a
+ * rejected request is never refreshed and retried. WF_OK without a request
+ * when there is no refresh token.
+ */
+wf_status platinum_atproto_client_sign_out(platinum_atproto_client *client);
+
+/*
  * Authenticated GET. `names`/`values` are query parameters; count may be zero.
  * On WF_OK `out` owns the response and must be freed with wf_response_free.
  * On auth failure the client refreshes once and retries exactly once.

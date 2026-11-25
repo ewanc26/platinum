@@ -196,6 +196,33 @@ wf_status platinum_atproto_client_refresh(platinum_atproto_client *client)
     return status;
 }
 
+wf_status platinum_atproto_client_sign_out(platinum_atproto_client *client)
+{
+    wf_response response;
+    wf_status status;
+
+    if (client == NULL)
+        return WF_ERR_INVALID_ARG;
+
+    status = WF_OK;
+    if (client->session.refresh_jwt[0] != '\0') {
+        memset(&response, 0, sizeof(response));
+        /* A refresh here would mint the very credential being given up. */
+        client->refreshing = 1;
+        wf_xrpc_client_set_auth(client->xrpc, client->session.refresh_jwt);
+        status = wf_xrpc_procedure(client->xrpc,
+                                   "com.atproto.server.deleteSession", NULL,
+                                   &response);
+        status = client_map(status, &response);
+        wf_response_free(&response);
+        client->refreshing = 0;
+    }
+
+    platinum_atproto_session_clear(&client->session);
+    wf_xrpc_client_set_auth(client->xrpc, NULL);
+    return status;
+}
+
 wf_status platinum_atproto_client_get(platinum_atproto_client *client,
                                       const char *nsid,
                                       const char *const *names,
