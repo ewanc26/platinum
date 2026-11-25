@@ -29,10 +29,10 @@ jobs:
   verify:
     name: verify the release
     needs: version
-    uses: ewanc26/wolfram/.github/workflows/release-check-reusable.yml@v0.44.1
+    uses: ewanc26/wolfram/.github/workflows/release-check-reusable.yml@v0.45.0
     with:
       tag: ${{ github.ref_name }}
       version: ${{ needs.version.outputs.version }}
-      canon_ref: v0.44.1
+      canon_ref: v0.45.0
       required_checks: CI gate
       wait_seconds: 900
