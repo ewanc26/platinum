@@ -862,7 +862,7 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
   `Changelog: none — <reason>` in its body.
 - Releases (once unpaused): tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
   `CHANGELOG.md` section. `release-check` reads that version and calls Wolfram's
-  reusable release check pinned to v0.44.1; it rejects a mismatch, a tag off
+  reusable release check pinned to v0.45.0; it rejects a mismatch, a tag off
   `main`, a missing changelog section or a red `CI gate`. Publish nothing from CI.
 - Feature status lives in `docs/parity.tsv`; `docs/PARITY.md` is generated from it
   with `tools/check-parity.sh --write`. A feature is `implemented` only with a
