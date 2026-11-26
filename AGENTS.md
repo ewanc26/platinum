@@ -852,15 +852,16 @@ merge-commit checks are Wolfram's (`flow / conventions`, `.github/workflows/flow
 - The Wolfram ref pinned in `ci.yml` appears in README.md and this file. Bump
   all three together.
 - A new job in `ci.yml` that should block merge goes in `gate.needs`.
-- Releases are paused (`RELEASES_PAUSED`, #62). Never tag, never run
-  `scripts/release.sh` without `--dry-run`, and never delete `RELEASES_PAUSED`;
-  that is the owner's call. No workflow may publish on its own: `release-check`
-  only verifies a pushed tag. Every PR with a user-visible change adds an
+- No release has been published: 0.3.1 and 0.4.0 are `Changelog-baseline`
+  versions with no tag. Cutting a release is the owner's call. Never tag and
+  never run `scripts/release.sh` without `--dry-run` unless the owner asks. No
+  workflow may publish on its own: `release-check` only verifies a pushed tag.
+  Every PR with a user-visible change adds an
   entry under Unreleased in `CHANGELOG.md` (Added, Changed, Fixed, Removed,
   Security; Repository for contributor-only changes), in the owner's voice,
   linking the PR. A PR with nothing user-visible says
   `Changelog: none — <reason>` in its body.
-- Releases (once unpaused): tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
+- Releases: tag `vX.Y.Z` after bumping `bridge/package.json` and adding a
   `CHANGELOG.md` section. `release-check` reads that version and calls Wolfram's
   reusable release check pinned to v0.45.0; it rejects a mismatch, a tag off
   `main`, a missing changelog section or a red `CI gate`. Publish nothing from CI.
