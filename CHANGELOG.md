@@ -18,6 +18,8 @@ pull request.
 
 ## [0.4.0]
 
+Changelog-baseline: 0.4.0 — the version was bumped in #195 but never tagged or published.
+
 ### Added
 
 - Text the Mac cannot show now draws as one deliberate placeholder instead of a `?` per code point: a run of characters outside MacRoman, including emoji, flags and Japanese, collapses to `PLATINUM_TEXT_PLACEHOLDER` so a post stays legible and never draws as garbage. The wire stays UTF-8 and the route is recorded in `docs/LANGUAGE_BOUNDARIES.md`; host tests cover the mapping, the collapsing, the bounds and malformed input. ([#188](https://github.com/ewanc26/platinum/issues/188))
