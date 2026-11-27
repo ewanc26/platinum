@@ -831,22 +831,29 @@ void platinum_application_open_help(platinum_application *app, short kind)
     SelectWindow(app->help.window);
 }
 
-/* Take a fresh snapshot: ask the bridge for /health and read what is known.
- * Never puts a token anywhere; only whether one is held. */
+/* Take a fresh snapshot: ask the paired bridge for /health and the native
+ * session's service for describeServer, and read what is known. The sign-in
+ * panel shows only when neither is there to ask. Never puts a token anywhere;
+ * only whether one is held. */
 void platinum_application_check_diag(platinum_application *app)
 {
     const platinum_config *config;
+    platinum_bridge_client *bridge;
+    platinum_atproto_client *client;
 
     if (app == NULL || app->diagwin.window == NULL)
         return;
+    bridge = platinum_session_bridge(&app->session);
+    client = platinum_session_client(&app->session);
     platinum_diagwin_set_status(&app->diagwin,
-                                platinum_application_bridge_notice(app));
+                                bridge == NULL && client == NULL
+                                    ? platinum_application_bridge_notice(app)
+                                    : NULL);
     config = platinum_session_config(&app->session);
-    (void)platinum_diag_check(&app->diagwin.diag,
-                              platinum_session_bridge(&app->session),
+    (void)platinum_diag_check(&app->diagwin.diag, bridge,
                               config != NULL ? config->bridge_url : NULL,
                               platinum_session_is_paired(&app->session),
-                              app->last_error, (long)FreeMem());
+                              client, app->last_error, (long)FreeMem());
     InvalRect(&app->diagwin.window->portRect);
 }
 

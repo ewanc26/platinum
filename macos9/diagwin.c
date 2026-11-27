@@ -84,7 +84,7 @@ OSErr platinum_diagwin_open(platinum_diagwin *diagwin)
         SelectWindow(diagwin->window);
         return noErr;
     }
-    SetRect(&bounds, 90, 80, 600, 290);
+    SetRect(&bounds, 90, 80, 600, 330);
     if (platinum_window_open(&diagwin->window, &bounds, kTitle) != noErr)
         return memFullErr;
     SetPort((GrafPtr)diagwin->window);

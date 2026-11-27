@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Added
+
+- Connection Status now checks the service you signed in to natively, not only the bridge: it asks that server's `describeServer` and shows its DID or why it failed, alongside the bridge's health when a bridge is paired. Signed in without a bridge, the window shows its lines instead of asking you to pair one. ([#199](https://github.com/ewanc26/platinum/issues/199))
+
 ### Security
 
 - Signing out of a native session now ends it on the PDS: the Mac calls `com.atproto.server.deleteSession` with the refresh token before wiping it. The local sign-out still completes if the call fails, and Preferences says the server may not have heard. ([#197](https://github.com/ewanc26/platinum/issues/197))
