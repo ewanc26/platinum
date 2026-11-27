@@ -568,9 +568,10 @@ jobs:
         env:
           CJSON_PREFIX: /usr
         run: |
-          make test_server test_conversations
+          make test_server test_conversations test_write_live
           ./test_server
           ./test_conversations
+          ./test_write_live
 
   # The one check branch protection should require. Requiring the individual
   # jobs would let a renamed or added job silently drop out of the gate; this

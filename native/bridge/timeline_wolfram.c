@@ -185,10 +185,10 @@ platinum_fill_post_live(platinum_timeline_post *post, const wf_agent_post_view *
     return 0;
 }
 
-/* Fills `out` from a parsed feed page, applying muted words. The caller frees
- * the page; a post the display model cannot read is skipped, not fatal. */
-static platinum_timeline_result
-fill_from_feed(wf_agent *agent, const wf_agent_feed_list *page, platinum_timeline *out)
+/* A post the display model cannot read is skipped, not fatal. */
+platinum_timeline_result
+platinum_timeline_fill_live(wf_agent *agent, const wf_agent_feed_list *page,
+                            platinum_timeline *out)
 {
     wf_muted_list muted;
     size_t i;
@@ -242,7 +242,7 @@ platinum_timeline_fetch_live(void *ctx, int limit, const char *cursor,
         return PLATINUM_TIMELINE_ERROR;
     }
 
-    result = fill_from_feed(agent, &page, out);
+    result = platinum_timeline_fill_live(agent, &page, out);
     wf_agent_feed_list_free(&page);
     return result;
 }
@@ -263,7 +263,7 @@ platinum_author_feed_fetch_live(void *ctx, const char *actor, int limit,
         return PLATINUM_TIMELINE_ERROR;
     }
 
-    result = fill_from_feed(agent, &page, out);
+    result = platinum_timeline_fill_live(agent, &page, out);
     wf_agent_feed_list_free(&page);
     return result;
 }

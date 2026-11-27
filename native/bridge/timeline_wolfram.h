@@ -28,6 +28,14 @@ platinum_timeline_result platinum_author_feed_fetch_live(void *ctx, const char *
                                                          int limit, const char *cursor,
                                                          platinum_timeline *out);
 
+/* Fills `out` from a parsed feed page (getTimeline, getAuthorFeed or getFeed: one
+ * feedViewPost shape), applying muted words. The page is borrowed; the caller frees
+ * it, and the posts with platinum_timeline_free. */
+struct wf_agent_feed_list;
+platinum_timeline_result platinum_timeline_fill_live(wf_agent *agent,
+                                                     const struct wf_agent_feed_list *page,
+                                                     platinum_timeline *out);
+
 /* Fills one bridge post model from a parsed postView, applying the same text,
  * image and card mapping as a timeline page. The view is borrowed, not owned.
  * Shared with the thread flattener. Returns 0, or -1 when the display model
