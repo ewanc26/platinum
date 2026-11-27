@@ -11,6 +11,7 @@ pull request.
 ### Added
 
 - Posting, replying and quoting now go through the Mac's own signed-in session, so they work without a paired bridge. The post is written straight to your PDS with its links, mentions and hashtags marked, a reply keeps its thread root, a quote uses the AppView's copy of the post, and a reply gate is set under the post's own record key. The bridge still posts when nobody is signed in natively. ([#198](https://github.com/ewanc26/platinum/issues/198))
+- Connection Status now checks the service you signed in to natively, not only the bridge: it asks that server's `describeServer` and shows its DID or why it failed, alongside the bridge's health when a bridge is paired. Signed in without a bridge, the window shows its lines instead of asking you to pair one. ([#199](https://github.com/ewanc26/platinum/issues/199))
 
 ### Security
 

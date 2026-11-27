@@ -105,6 +105,16 @@ wf_status platinum_atproto_client_get(platinum_atproto_client *client,
                                       const char *const *values,
                                       size_t count, wf_response *out);
 
+/*
+ * GET com.atproto.server.describeServer on the session's own service, for the
+ * Connection Status window. It goes through the session like every other call,
+ * so an expired access token is refreshed once on the way. The response shape
+ * is `{"did":"did:...","availableUserDomains":[...],...}`; on WF_OK `out` owns
+ * it and must be freed with wf_response_free.
+ */
+wf_status platinum_atproto_client_describe_server(platinum_atproto_client *client,
+                                                  wf_response *out);
+
 /* Authenticated POST with a JSON body. Same single refresh-and-retry rule.
  * The body must be well-formed JSON; it is checked before anything is sent. */
 wf_status platinum_atproto_client_post(platinum_atproto_client *client,
