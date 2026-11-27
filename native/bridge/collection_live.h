@@ -1,7 +1,8 @@
 /*
- * The live collection fetches behind the actor-graph, engagement and author-feed
- * routes: Wolfram's getFollows, getFollowers, getAuthorFeed, getLikes and
- * getRepostedBy, adapted to the route callbacks in collection_routes.h.
+ * The live collection fetches behind the actor-graph, engagement, author-feed, feed
+ * and list routes: Wolfram's getFollows, getFollowers, getAuthorFeed, getLikes,
+ * getRepostedBy, getFeed and getList, adapted to the route callbacks in
+ * collection_routes.h.
  */
 #ifndef PLATINUM_NATIVE_COLLECTION_LIVE_H
 #define PLATINUM_NATIVE_COLLECTION_LIVE_H
@@ -21,5 +22,14 @@ platinum_collection_result platinum_collection_engagement_live(void *ctx, int ki
                                                                const char *key, int count,
                                                                const char *cursor,
                                                                char *body, size_t cap);
+
+/* platinum_collection_fn for /v1/feed (kind 0) and /v1/list (1). ctx is a
+ * wf_agent *; key is the validated feed generator or list URI. A feed is a page of
+ * posts with muted words applied, as the timeline is; a list is its members as
+ * actor rows. A 400 from the AppView is NOT_FOUND, as api.ts maps it. */
+platinum_collection_result platinum_collection_named_live(void *ctx, int kind,
+                                                          const char *key, int count,
+                                                          const char *cursor,
+                                                          char *body, size_t cap);
 
 #endif

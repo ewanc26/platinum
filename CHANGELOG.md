@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Fixed
+
+- The native bridge now likes, reposts, follows, mutes, blocks, deletes posts and opens a saved feed or list through Wolfram instead of answering `500 bridge_error`. Each write reads the viewer state first and is a no-op when the state already matches, as the Node bridge does. Mock-PDS tests cover every route and run in CI. ([#196](https://github.com/ewanc26/platinum/issues/196))
+
 ### Security
 
 - Signing out of a native session now ends it on the PDS: the Mac calls `com.atproto.server.deleteSession` with the refresh token before wiping it. The local sign-out still completes if the call fails, and Preferences says the server may not have heard. ([#197](https://github.com/ewanc26/platinum/issues/197))
