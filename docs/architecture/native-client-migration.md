@@ -44,7 +44,7 @@ goes through the bridge.
 | `POST /v1/pair` (browser OAuth) | none: OAuth is phase 2, blocked on entropy | — | — | removed with the bridge; see ADR 0005 |
 | `POST /v1/login/app-password` | `com.atproto.server.createSession` | `atproto_client.c` | `test_atproto_client` | request/response, refresh-retry, bootstrap-then-sign-in and the handle-only sign-in window are done; the bridge route is no longer called by the UI |
 | `POST /v1/revoke` | `com.atproto.server.deleteSession` | `atproto_client.c` + `session.c` | `test_session` | native sign-out deletes the PDS session; bridge revocation stays while a pairing exists |
-| `GET /health` | `com.atproto.server.describeServer` | `diag.c` | `test_diag` (to rewrite) | pending |
+| `GET /health` | `com.atproto.server.describeServer` | `diag.c` + `atproto_client.c` | `test_diag` | native: with a native session the Connection Status window asks the session's own service and shows its DID; a paired bridge's `/health` is still checked alongside it, and with neither nothing is sent |
 | `GET /v1/profile` | `app.bsky.actor.getProfile` | `profile_native.c` read (`profile_feed.c` model) | `test_profile` | native read end to end (bridge fallback); follow/mute/block writes migrated |
 | `GET /v1/follows` | `app.bsky.graph.getFollows` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/followers` | `app.bsky.graph.getFollowers` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
@@ -75,7 +75,7 @@ goes through the bridge.
 | `GET /v1/conversation` | `chat.bsky.convo.getMessages` | `conversations_feed.c` | `test_conversations` | pending |
 | `POST /v1/conversation/message` | `chat.bsky.convo.sendMessage` | `conversations_feed.c` | `test_conversations` | pending |
 | `GET /v1/image` (PLIM rendering) | none: fetch the CDN image and decode it on the Mac | `image_blob.c` / a decoder | `test_image_blob` | pending; Wolfram's decoder exists but is not C89-clean, so the bridge route stays (ADR 0011) |
-| `GET /health`, `/client-metadata.json`, `/login` | none: diagnostics use the session, OAuth metadata goes with phase 2 | `diag.c` | `test_diag` | pending |
+| `GET /health`, `/client-metadata.json`, `/login` | none: diagnostics use the session, OAuth metadata goes with phase 2 | `diag.c` | `test_diag` | diagnostics done (describeServer through the session, bridge `/health` only while a bridge is paired); OAuth metadata and `/login` pending with phase 2 |
 
 Bridge functions with no endpoint:
 

@@ -252,6 +252,14 @@ wf_status platinum_atproto_client_get(platinum_atproto_client *client,
                       out);
 }
 
+wf_status platinum_atproto_client_describe_server(platinum_atproto_client *client,
+                                                  wf_response *out)
+{
+    return platinum_atproto_client_get(client,
+                                       "com.atproto.server.describeServer",
+                                       NULL, NULL, 0, out);
+}
+
 wf_status platinum_atproto_client_post(platinum_atproto_client *client,
                                        const char *nsid, const char *json_body,
                                        wf_response *out)
