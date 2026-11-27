@@ -599,9 +599,10 @@ From `native/bridge/`, against a Wolfram checkout and its host build:
 
 ```sh
 make test                                  # the C89 parts and the adapters
-make test_server test_conversations        # the Wolfram-backed routes
+make test_server test_conversations test_write_live   # the Wolfram-backed routes
 ./test_server
 ./test_conversations
+./test_write_live
 ```
 
 The Makefile defaults `WOLFRAM_ROOT` to the sibling `../wolfram` and

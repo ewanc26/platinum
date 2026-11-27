@@ -38,7 +38,7 @@ test: $(TESTS) test_profile_wolfram
 	@for t in $(TESTS) test_profile_wolfram; do ./$$t || exit 1; done
 
 clean:
-	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_image_source_wolfram test_timeline_live test_notifications_live test_server test_conversations test_image_cdn test_auth platinum-bridge
+	rm -f *.o $(TESTS) test_profile_wolfram test_profile_live test_publish_live test_write_live test_image_source_wolfram test_timeline_live test_notifications_live test_server test_conversations test_image_cdn test_auth platinum-bridge
 
 .PHONY: all test clean
 
@@ -58,6 +58,12 @@ test_profile_live: test_profile_live.c profile_live.c profile_route.c profile_wo
 test_publish_live: test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_publish_live.c publish_live.c post_routes.c profile.c validate.c mock_pds.o $(LIVE_LIBS) -o $@
 
+# like, repost, follow, mute, block, post delete, and the feed and list pages.
+WRITE_LIVE_SRCS = write_live.c write_routes.c content_routes.c collection_live.c collection_routes.c timeline_wolfram.c timeline_route.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c
+
+test_write_live: test_write_live.c $(WRITE_LIVE_SRCS) mock_pds.o
+	$(CC) $(LIVE_CFLAGS) test_write_live.c $(WRITE_LIVE_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
+
 test_image_source_wolfram: test_image_source_wolfram.c image_source_wolfram.c image_route.c plim.o
 	$(CC) $(LIVE_CFLAGS) test_image_source_wolfram.c image_source_wolfram.c $(LIVE_LIBS) -o $@
 
@@ -67,7 +73,7 @@ test_timeline_live: test_timeline_live.c timeline_wolfram.c timeline_route.c sea
 test_notifications_live: test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_notifications_live.c notifications_wolfram.c notifications_route.c account_routes.c search_routes.c validate.c profile.c image_route.c ../plim/plim.c mock_pds.o $(LIVE_LIBS) -o $@
 
-SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c named_routes.c named_live.c muted_live.c thread_route.c thread_live.c content_routes.c search_routes.c search_live.c write_routes.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
+SERVER_SRCS = server.c server_http.c profile.c profile_route.c profile_live.c profile_wolfram.c validate.c post_routes.c publish_live.c routes.c ../plim/plim.c image_route.c image_cdn.c image_source_wolfram.c account_routes.c collection_routes.c collection_live.c named_routes.c named_live.c muted_live.c thread_route.c thread_live.c content_routes.c search_routes.c search_live.c write_routes.c write_live.c timeline_route.c timeline_wolfram.c conversations.c conversations_wolfram.c notifications_route.c notifications_wolfram.c auth.c token.c sha256.c fsstore.c policy.c token_persist.c
 
 test_server: test_server.c $(SERVER_SRCS) mock_pds.o
 	$(CC) $(LIVE_CFLAGS) test_server.c $(SERVER_SRCS) mock_pds.o $(LIVE_LIBS) -o $@
@@ -89,9 +95,10 @@ test_image_cdn: test_image_cdn.c image_cdn.c image_route.c image_source_wolfram.
 	$(CC) $(LIVE_CFLAGS) test_image_cdn.c image_cdn.c image_route.c image_source_wolfram.c ../plim/plim.c $(LIVE_LIBS) -o $@
 
 # test_image_cdn makes a throwaway test certificate with openssl, in TMPDIR.
-live: test_profile_live test_publish_live test_image_source_wolfram test_timeline_live test_notifications_live test_server test_conversations test_image_cdn test_auth
+live: test_profile_live test_publish_live test_write_live test_image_source_wolfram test_timeline_live test_notifications_live test_server test_conversations test_image_cdn test_auth
 	./test_profile_live
 	./test_publish_live
+	./test_write_live
 	./test_image_source_wolfram
 	./test_timeline_live
 	./test_notifications_live

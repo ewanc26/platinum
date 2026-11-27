@@ -33,6 +33,7 @@
 #include "thread_route.h"
 #include "timeline_route.h"
 #include "timeline_wolfram.h"
+#include "write_live.h"
 #include "write_routes.h"
 
 int
@@ -159,45 +160,6 @@ handle_post(void *agent, const char *body, size_t body_len, char *out, size_t ca
     st = platinum_route_post(agent, platinum_publish_live, &req, out, cap);
     cJSON_Delete(root);
     return st;
-}
-
-/*
- * Stub callbacks for route families that have handler logic (input validation, status
- * codes) but no live Wolfram call wired yet.  Each returns the error enum value so the
- * handler produces a well-formed 500 body rather than a raw 501.
- */
-
-static platinum_collection_result
-stub_collection(void *ctx, int kind, const char *key, int count, const char *cursor,
-                char *body, size_t cap)
-{
-    (void) ctx; (void) kind; (void) key; (void) count; (void) cursor; (void) cap;
-    if (body != NULL && cap > 0) body[0] = '\0';
-    return PLATINUM_COLLECTION_ERROR;
-}
-
-static platinum_write_result
-stub_toggle(void *ctx, int kind, const char *uri, const char *cid, int on,
-            int *out_on, long *out_count)
-{
-    (void) ctx; (void) kind; (void) uri; (void) cid; (void) on;
-    if (out_on) *out_on = 0;
-    if (out_count) *out_count = 0;
-    return PLATINUM_WRITE_ERROR;
-}
-
-static platinum_write_result
-stub_subject(void *ctx, int kind, const char *did, int on)
-{
-    (void) ctx; (void) kind; (void) did; (void) on;
-    return PLATINUM_WRITE_ERROR;
-}
-
-static platinum_content_result
-stub_delete(void *ctx, const char *uri)
-{
-    (void) ctx; (void) uri;
-    return PLATINUM_CONTENT_ERROR;
 }
 
 /*
@@ -506,7 +468,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         const char *uri    = query_value(target, "uri",    uri_buf,    sizeof uri_buf);
         const char *cursor = query_value(target, "cursor", cursor_buf, sizeof cursor_buf);
         const char *limit  = query_value(target, "limit",  limit_buf,  sizeof limit_buf);
-        return platinum_route_collection(agent, stub_collection, is_feed,
+        return platinum_route_collection(agent, platinum_collection_named_live, is_feed,
                                          uri, limit, cursor, out, cap);
     }
 
@@ -538,7 +500,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         st = parse_toggle_body(body, body_len, ctx->max_body_bytes, out, cap,
                                &root, &uri, &cid, &on_valid, &on);
         if (st != 0) return st;
-        st = platinum_route_toggle(agent, stub_toggle, kind, uri, cid, on_valid, on, out, cap);
+        st = platinum_route_toggle(agent, platinum_toggle_live, kind, uri, cid, on_valid, on, out, cap);
         cJSON_Delete(root);
         return st;
     }
@@ -579,7 +541,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
         st = parse_subject_body(body, body_len, ctx->max_body_bytes, out, cap,
                                 &root, &did, &on_valid, &on);
         if (st != 0) return st;
-        st = platinum_route_subject(agent, stub_subject, kind, did, on_valid, on, out, cap);
+        st = platinum_route_subject(agent, platinum_subject_live, kind, did, on_valid, on, out, cap);
         cJSON_Delete(root);
         return st;
     }
@@ -627,7 +589,7 @@ dispatch_inner(const platinum_server_ctx *ctx, const char *method,
                               "{\"error\":\"invalid_json\",\"message\":\"The request body is not valid JSON.\"}") == 0 ? 400 : 500;
         }
         uri = json_string(root, "uri");
-        st = platinum_route_post_delete(agent, stub_delete, uri, out, cap);
+        st = platinum_route_post_delete(agent, platinum_delete_live, uri, out, cap);
         cJSON_Delete(root);
         return st;
     }

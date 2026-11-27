@@ -37,9 +37,21 @@ replies). Live against Wolfram: profile fetch, post publishing, the image source
 over the CDN, the home timeline, the notification list and seen mark, the conversation
 list, one conversation's messages, sending a message, actor search, the actor graph
 (follows and followers), post likes and reposts, the author feed, and the saved feed and
-list names, and the whole thread around a post, the muted-word list and its edits,
-and post search. Every route the Mac calls is now served by a live Wolfram call;
-the bridge no longer has a stubbed route family.
+list names, the posts of a saved feed and the members of a list, the whole thread
+around a post, the muted-word list and its edits, post search, like and repost, follow,
+mute and block, and post delete. Every route the Mac calls is now served by a live
+Wolfram call; the bridge no longer has a stubbed route family.
+
+The writes keep api.ts's decisions. Like, repost, follow, mute and block read the
+viewer state first (getPosts for a post, getProfile for an account) and write only
+when the state asked for differs, so a repeated request is a no-op and the Mac never
+holds a record URI. Undoing a like, repost, follow or block deletes the viewer's own
+record; mute and unmute are `muteActor` and `unmuteActor` and leave no record. A
+like or repost count moves by one with the write, never below zero. Post delete refuses a post
+in another repository before any request. A saved feed is a page of posts with
+muted words applied, as the timeline is; a list is its members as actor rows. The
+account lookup behind follow, mute and block, and the feed and list fetches, map an
+AppView 400 to 404, as api.ts does; any other failure is `500 bridge_error`.
 
 The timeline route keeps server.ts's decisions: the limit is 1 to 50 with 20 the
 default, the cursor is passed through, and muted words are applied before the page is
