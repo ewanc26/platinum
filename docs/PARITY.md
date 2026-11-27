@@ -25,7 +25,7 @@ loop, 640x480, no decoding on the Mac) rather than ported from the consoles.
 | Mark notifications seen | yes | yes | implemented (`macos9/notifications_feed.c`) |
 | Thread view | yes | yes | implemented (`macos9/thread_feed.c`) |
 | Mute and unmute a thread | no | no | implemented (`macos9/thread_native.c`) |
-| Post text | yes | yes | implemented (`macos9/application_post.c`) |
+| Post text | yes | yes | implemented (`macos9/atproto_post.c`) |
 | Text outside MacRoman (emoji, CJK) | yes | yes | implemented (`macos9/text_codec.h`) |
 | Reply | yes | yes | implemented (`macos9/compose_model.c`) |
 | Quote post | yes | yes | implemented (`macos9/application_post.c`) |

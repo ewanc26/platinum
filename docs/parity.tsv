@@ -16,7 +16,7 @@ notifications-paging|Notifications paging|yes|yes|implemented|macos9/notificatio
 notifications-seen|Mark notifications seen|yes|yes|implemented|macos9/notifications_feed.c::platinum_notifications_mark_seen
 thread|Thread view|yes|yes|implemented|macos9/thread_feed.c::platinum_thread_load
 thread-mute|Mute and unmute a thread|no|no|implemented|macos9/thread_native.c::platinum_thread_set_mute_native
-post|Post text|yes|yes|implemented|macos9/application_post.c::platinum_application_submit_post
+post|Post text|yes|yes|implemented|macos9/atproto_post.c::platinum_atproto_publish
 unicode-fallback|Text outside MacRoman (emoji, CJK)|yes|yes|implemented|macos9/text_codec.h::PLATINUM_TEXT_PLACEHOLDER
 reply|Reply|yes|yes|implemented|macos9/compose_model.c::platinum_compose_set_reply
 quote|Quote post|yes|yes|implemented|macos9/application_post.c::platinum_compose_set_quote
