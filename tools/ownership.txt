@@ -47,6 +47,8 @@ macos9/atproto_feed.c              atproto   # AppView feed requests (getTimelin
 macos9/atproto_feed.h              atproto
 macos9/atproto_identity.c          atproto   # DID document URLs, handle resolution, the #atproto_pds endpoint and the bidirectional handle claim; no Toolbox, so it links on a host
 macos9/atproto_identity.h          atproto
+macos9/atproto_post.c              atproto   # publish: app.bsky.feed.post createRecord, reply root and quote cid read back with getPosts, the threadgate under the post's rkey, and a C89 subset of Wolfram's richtext.h facet rules (richtext is C++ and not in the Mac OS 9 transport); no Toolbox, so it links on a host
+macos9/atproto_post.h              atproto
 macos9/atproto_prefs.c             atproto   # getPreferences read into the muted-words list; no Toolbox, so it links on a host
 macos9/atproto_prefs.h             atproto
 macos9/atproto_session.c           atproto   # createSession/refreshSession parsing, JWT expiry hint, XRPC error mapping; tokens are wiped on clear

@@ -8,6 +8,10 @@ pull request.
 
 ## [Unreleased]
 
+### Added
+
+- Posting, replying and quoting now go through the Mac's own signed-in session, so they work without a paired bridge. The post is written straight to your PDS with its links, mentions and hashtags marked, a reply keeps its thread root, a quote uses the AppView's copy of the post, and a reply gate is set under the post's own record key. The bridge still posts when nobody is signed in natively. ([#198](https://github.com/ewanc26/platinum/issues/198))
+
 ### Security
 
 - Signing out of a native session now ends it on the PDS: the Mac calls `com.atproto.server.deleteSession` with the refresh token before wiping it. The local sign-out still completes if the call fails, and Preferences says the server may not have heard. ([#197](https://github.com/ewanc26/platinum/issues/197))

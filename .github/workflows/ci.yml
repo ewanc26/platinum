@@ -152,6 +152,7 @@ jobs:
             macos9/atproto_client.c \
             macos9/atproto_feed.c \
             macos9/atproto_identity.c \
+            macos9/atproto_post.c \
             macos9/atproto_prefs.c \
             macos9/atproto_session.c \
             macos9/atproto_url.c \
@@ -380,6 +381,9 @@ jobs:
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \
             -o /tmp/test_compose \
             macos9/compose_model.c macos9/bridge_client.c macos9/json_min.c \
+            macos9/atproto_post.c macos9/atproto_client.c \
+            macos9/atproto_bootstrap.c macos9/atproto_identity.c \
+            macos9/atproto_session.c macos9/atproto_url.c \
             macos9/test/wolfram_stub.c macos9/test/test_compose.c
           /tmp/test_compose
           clang "${CFLAGS[@]}" -I macos9/test -I macos9/test/sdk-stubs \

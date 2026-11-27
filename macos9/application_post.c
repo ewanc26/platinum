@@ -3,6 +3,7 @@
 #include "application_internal.h"
 
 #include "atproto_feed.h"
+#include "atproto_post.h"
 
 /*
  * Bring the compose window forward, or open it on the selected post. Returns
@@ -213,41 +214,94 @@ void platinum_application_engage(platinum_application *app, int repost)
 void platinum_application_post_status(platinum_application *app,
                                              wf_status status)
 {
+    int native;
+
     if (app != NULL && status != WF_OK)
         app->last_error = status;
     if (app == NULL || app->compose.window == NULL)
         return;
 
+    native = platinum_session_client(&app->session) != NULL;
     if (status == WF_ERR_AUTH)
         platinum_compose_set_status(&app->compose,
-                                    "Session expired. Use File > Pair Account; your draft is preserved.");
+                                    native
+                                        ? "Session expired. Sign in again; your draft is preserved."
+                                        : "Session expired. Use File > Pair Account; your draft is preserved.");
+    else if (status == WF_ERR_NOT_FOUND)
+        platinum_compose_set_status(&app->compose,
+                                    "That post is gone, so nothing was sent.");
     else if (status == WF_ERR_HTTP)
         platinum_compose_set_status(&app->compose,
-                                    "The bridge rejected the post.");
+                                    native ? "Your server rejected the post."
+                                           : "The bridge rejected the post.");
     else if (status == WF_ERR_NETWORK || status == WF_ERR_TIMEOUT)
         platinum_compose_set_status(&app->compose,
-                                    "The bridge could not be reached.");
+                                    native ? "Your server could not be reached."
+                                           : "The bridge could not be reached.");
     else
         platinum_compose_set_status(&app->compose,
                                     "The post could not be sent.");
 }
 
+/* Submit through the paired bridge: POST /v1/post. */
+static wf_status submit_bridge(platinum_application *app,
+                               platinum_bridge_client *bridge,
+                               const char *utf8_text, int *gate_failed)
+{
+    char *body;
+    wf_response response;
+    wf_status status;
+
+    body = platinum_bridge_post_body_ex(utf8_text,
+                                        app->compose.reply_uri,
+                                        app->compose.reply_cid,
+                                        app->compose.quote_uri,
+                                        app->compose.quote_cid,
+                                        app->compose.reply_gate);
+    if (body == NULL)
+        return WF_ERR_ALLOC;
+    memset(&response, 0, sizeof(response));
+    status = platinum_bridge_post(bridge, "/v1/post", body, &response);
+    free(body);
+    *gate_failed = status == WF_OK && response.body != NULL &&
+                   platinum_bridge_reply_gate_failed(response.body);
+    wf_response_free(&response);
+    return status;
+}
+
+/*
+ * Send the post. The native session goes first, the way delete, like and
+ * repost do; the bridge serves only when nobody is signed in natively. A
+ * native createRecord that fails is never sent again through the bridge: the
+ * service may already have the post, and sending it twice would publish it
+ * twice.
+ */
 void platinum_application_submit_post(platinum_application *app)
 {
     char text[PLATINUM_COMPOSE_MAX_TEXT + 1];
     char utf8_text[PLATINUM_TEXT_UTF8_CAPACITY];
-    char *body;
-    wf_response response;
     wf_status status;
+    platinum_atproto_client *client;
+    const platinum_atproto_session *session;
     platinum_bridge_client *bridge;
     int gate_failed;
 
     if (app == NULL || app->compose.window == NULL)
         return;
 
-    if (!platinum_session_is_paired(&app->session)) {
-        platinum_compose_set_status(&app->compose,
-                                    "Pair an account before posting.");
+    client = platinum_session_client(&app->session);
+    bridge = client == NULL ? platinum_session_bridge(&app->session) : NULL;
+    if (client != NULL) {
+        session = platinum_atproto_client_session(client);
+        if (session == NULL || session->did[0] == '\0') {
+            platinum_compose_set_status(&app->compose,
+                                        "Session expired. Sign in again; your draft is preserved.");
+            return;
+        }
+    } else if (bridge == NULL) {
+        platinum_compose_set_status(
+            &app->compose,
+            "Posting needs a signed-in account or a paired bridge.");
         return;
     }
 
@@ -268,40 +322,27 @@ void platinum_application_submit_post(platinum_application *app)
         return;
     }
 
-    body = platinum_bridge_post_body_ex(utf8_text,
-                                        app->compose.reply_uri,
-                                        app->compose.reply_cid,
-                                        app->compose.quote_uri,
-                                        app->compose.quote_cid,
-                                        app->compose.reply_gate);
-    if (body == NULL) {
+    platinum_compose_set_posting(&app->compose, 1);
+    platinum_application_invalidate(app);
+    gate_failed = 0;
+    if (client != NULL)
+        status = platinum_atproto_publish(
+            client, utf8_text, app->compose.reply_uri, app->compose.reply_cid,
+            app->compose.quote_uri, app->compose.quote_cid,
+            platinum_bridge_reply_gate_name(app->compose.reply_gate),
+            &gate_failed);
+    else
+        status = submit_bridge(app, bridge, utf8_text, &gate_failed);
+    platinum_compose_set_posting(&app->compose, 0);
+
+    if (status == WF_ERR_ALLOC) {
         platinum_compose_set_status(&app->compose,
                                     "Not enough memory to prepare the post.");
         return;
     }
-
-    bridge = platinum_session_bridge(&app->session);
-    if (bridge == NULL) {
-        free(body);
-        platinum_compose_set_status(
-            &app->compose,
-            platinum_screen_state_text(PLATINUM_SCREEN_NEEDS_BRIDGE));
-        return;
-    }
-
-    platinum_compose_set_posting(&app->compose, 1);
-    platinum_application_invalidate(app);
-    memset(&response, 0, sizeof(response));
-
-    status = platinum_bridge_post(bridge, "/v1/post", body, &response);
-    free(body);
-    gate_failed = status == WF_OK && response.body != NULL &&
-                  platinum_bridge_reply_gate_failed(response.body);
-    wf_response_free(&response);
-    platinum_compose_set_posting(&app->compose, 0);
-
     if (status != WF_OK) {
         platinum_application_post_status(app, status);
+        platinum_application_recover_auth(app, status);
         return;
     }
 

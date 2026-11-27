@@ -67,7 +67,7 @@ goes through the bridge.
 | `GET /v1/list` | `app.bsky.graph.getList` | `named_native.c` + `atproto_feed.c` + `people_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/post/likes` | `app.bsky.feed.getLikes` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
 | `GET /v1/post/reposts` | `app.bsky.feed.getRepostedBy` | `people_feed.c` + `atproto_feed.c` | `test_people` | native end to end (bridge fallback); 20-row pages, 40-row cap and cursor paging |
-| `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `application_post.c` + a post mapper | `test_compose` (to extend) | pending |
+| `POST /v1/post` | `com.atproto.repo.createRecord` (`app.bsky.feed.post`), threadgate record for reply gates | `atproto_post.c` + `application_post.c` | `test_compose` | native end to end (bridge fallback); text, link/mention/tag facets, the reply root and quote cid read back with `app.bsky.feed.getPosts`, and the threadgate under the post's own rkey. A failed native post is never resent through the bridge |
 | `POST /v1/post/delete` | `com.atproto.repo.deleteRecord` | `atproto_feed.c` + `application_post.c` | `test_timeline` | native end to end (bridge fallback); only a post in the signed-in repo is sent, and the same two-step confirmation remains |
 | `GET /v1/muted-words` | `app.bsky.actor.getPreferences` | `atproto_prefs.c` + `muted_words.c` (matcher) + `timeline_native.c` filter + `words_native.c` screen | `test_atproto_prefs`, `test_muted_words`, `test_timeline`, `test_people` | native end to end: the timeline filters content and tag facets (best-effort; prefs failure shows unfiltered) and the muted-words screen reads and writes through the session first (bridge fallback) |
 | `POST /v1/muted-words` | `app.bsky.actor.putPreferences` | `atproto_prefs.c` + `words_native.c` | `test_atproto_prefs`, `test_people` | native read-modify-write of `mutedWordsPref`, content-only default, exact-value removal |
@@ -107,7 +107,7 @@ today, and what a reader sees when a session is missing. `screen_state.c`
 | Thread | `thread_native.c` + `thread_feed.c` | native end to end (bridge fallback), including mute and unmute |
 | Search (accounts and posts) | `people_feed.c`, `named_native.c` + `atproto_feed.c` | native end to end (bridge fallback); account results fill People, post results fill the posts list, both with 20-row pages, 40-row cap and cursor paging |
 | Saved feeds and lists | `named_native.c` + `atproto_prefs.c` + `atproto_feed.c` | native list and contents (bridge fallback); opening a feed or a list's members reads the AppView directly |
-| Compose, reply, quote | bridge | pending |
+| Compose, reply, quote | `atproto_post.c` + `application_post.c` | native end to end (bridge fallback), including reply gates; multi-post threads are #98 |
 | Conversations | bridge | pending |
 | Connection Status | bridge | pending |
 | Muted words | `words_native.c` + `atproto_prefs.c` | native end to end (bridge fallback) |
